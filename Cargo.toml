@@ -1,0 +1,6 @@
+[package]
+name = "clarity"
+version = "0.1.0"
+authors = ["Michał Papierski <michal@papierski.net>"]
+
+[dependencies]
