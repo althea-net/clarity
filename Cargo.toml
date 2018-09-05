@@ -7,4 +7,5 @@ authors = ["Michał Papierski <michal@papierski.net>"]
 serde = "1.0"
 serde-rlp = "0.1"
 num-bigint = "0.2"
+num-traits = "0.2"
 failure = "0.1"

@@ -3,6 +3,7 @@ use serde::ser::SerializeTuple;
 use serde::Serialize;
 use serde::Serializer;
 use types::BigEndianInt;
+use utils::hex_str_to_bytes;
 
 /// Transaction as explained in the Ethereum Yellow paper section 4.2
 struct Transaction {
@@ -37,17 +38,23 @@ impl Serialize for Transaction {
 }
 
 #[test]
-fn dummy_transaction() {
-    // Just to verify iff we can construct TX with data that looks like valid data.
+fn test_vitaliks_eip_158_vitalik_12_json() {
+    // https://github.com/ethereum/tests/blob/69f55e8608126e6470c2888a5b344c93c1550f40/TransactionTests/ttEip155VitaliksEip158/Vitalik_12.json
     let _tx = Transaction {
-        nonce: 1u64.into(),
-        gas_price: 1_000_000_000u64.into(),
-        gas_limit: 123u64.into(),
-        to: "1234567890123456789012345678901234567890".parse().unwrap(),
-        value: 0u64.into(),
+        nonce: BigEndianInt::from_str_radix("0e", 16).unwrap(),
+        gas_price: BigEndianInt::from_str_radix("00", 16).unwrap(),
+        gas_limit: BigEndianInt::from_str_radix("0493e0", 16).unwrap(),
+        to: Address::new(), // "" - zeros only
+        value: "00".parse().unwrap(),
         data: Vec::new(),
-        v: 1u64.into(),
-        r: 2u64.into(),
-        s: 3u64.into(),
+        v: BigEndianInt::from_str_radix("1c", 16).unwrap(),
+        r: BigEndianInt::from_str_radix(
+            "a310f4d0b26207db76ba4e1e6e7cf1857ee3aa8559bcbc399a6b09bfea2d30b4",
+            16,
+        ).unwrap(),
+        s: BigEndianInt::from_str_radix(
+            "6dff38c645a1486651a717ddf3daccb4fd9a630871ecea0758ddfcf2774f9bc6",
+            16,
+        ).unwrap(),
     };
 }

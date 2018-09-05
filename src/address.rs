@@ -2,6 +2,8 @@ use serde::Serialize;
 use serde::Serializer;
 use std::str;
 use std::str::FromStr;
+use utils::{hex_str_to_bytes, ByteDecodeError};
+
 /// This type represents ETH address
 #[derive(PartialEq, Debug)]
 pub struct Address([u8; 20]);
@@ -15,14 +17,24 @@ impl Serialize for Address {
     }
 }
 
+impl Address {
+    pub fn new() -> Address {
+        Address([0u8; 20])
+    }
+}
+
 #[derive(Fail, Debug, PartialEq)]
 pub enum AddressError {
     #[fail(display = "Address should be exactly 40 bytes")]
     InvalidLengthError,
-    #[fail(display = "Address contains invalid characters")]
-    InvalidCharacterError,
-    #[fail(display = "Address contains invalid format")]
-    InvalidFormatError,
+    #[fail(display = "Unable to decode bytes: {}", _0)]
+    DecodeError(ByteDecodeError),
+}
+
+impl From<ByteDecodeError> for AddressError {
+    fn from(e: ByteDecodeError) -> AddressError {
+        AddressError::DecodeError(e)
+    }
 }
 
 impl FromStr for Address {
@@ -32,41 +44,33 @@ impl FromStr for Address {
         if s.len() != 40 {
             return Err(AddressError::InvalidLengthError.into());
         }
-        let mut bytes = [0u8; 20];
-        for (i, chunk) in s
-            .as_bytes()
-            .chunks(2)
-            .map(|ch| str::from_utf8(&ch).map_err(|_| AddressError::InvalidCharacterError.into()))
-            .enumerate()
-        {
-            bytes[i] = u8::from_str_radix(&chunk?, 16)
-                .map_err(|_| AddressError::InvalidFormatError.into())?;
-        }
-        Ok(Address(bytes))
+        let bytes = hex_str_to_bytes(&s)?;
+        debug_assert_eq!(bytes.len(), 20);
+        let mut res = [0x0u8; 20];
+        res.copy_from_slice(&bytes[..]);
+        Ok(Address(res))
     }
 }
 
 #[test]
+#[should_panic]
 fn decode_invalid_length() {
-    assert_eq!(
-        "123".parse::<Address>().unwrap_err(),
-        AddressError::InvalidLengthError
-    );
+    "123".parse::<Address>().unwrap();
 }
 
 #[test]
+#[should_panic]
 fn decode_invalid_character() {
-    assert_eq!(
-        "\u{012345}123456789012345678901234567890123456"
-            .parse::<Address>()
-            .unwrap_err(),
-        AddressError::InvalidCharacterError
-    );
+    "\u{012345}123456789012345678901234567890123456"
+        .parse::<Address>()
+        .unwrap();
 }
 
 #[test]
 fn decode() {
-    let address: Address = "1234567890123456789012345678901234567890".parse().unwrap();
+    let address: Address = "1234567890123456789012345678901234567890"
+        .parse::<Address>()
+        .unwrap();
 
     assert_eq!(
         address,

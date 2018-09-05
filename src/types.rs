@@ -1,8 +1,9 @@
+use failure::Error;
 use num_bigint::BigUint;
+use num_traits::Num;
 use serde::Serialize;
 use serde::Serializer;
 use std::str::FromStr;
-
 /// A wrapper for BigUint which provides serialization to BigEndian in radix 16
 pub struct BigEndianInt(BigUint);
 
@@ -13,6 +14,14 @@ impl Serialize for BigEndianInt {
         S: Serializer,
     {
         serializer.serialize_bytes(&self.0.to_radix_be(16))
+    }
+}
+
+impl BigEndianInt {
+    // TODO: Leverage Num trait once all required traits are implemented
+    pub fn from_str_radix(src: &str, radix: u32) -> Result<BigEndianInt, Error> {
+        let raw = BigUint::from_str_radix(&src, radix)?;
+        Ok(BigEndianInt(raw))
     }
 }
 
@@ -27,7 +36,7 @@ impl FromStr for BigEndianInt {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(BigEndianInt(
-            BigUint::parse_bytes(s.as_bytes(), 10).ok_or(BigEndianIntError::OverflowError.into())?,
+            BigUint::parse_bytes(s.as_bytes(), 10).ok_or(BigEndianIntError::OverflowError)?,
         ))
     }
 }
