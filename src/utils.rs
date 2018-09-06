@@ -52,3 +52,20 @@ fn bytes_raises_parse_error() {
         _ => assert!(false),
     }
 }
+
+pub fn bytes_to_hex_str(bytes: &Vec<u8>) -> String {
+    bytes
+        .iter()
+        .map(|b| format!("{:0>2x?}", b))
+        .fold(String::new(), |acc, x| acc + &x)
+}
+
+#[test]
+fn encode_bytes() {
+    assert_eq!(bytes_to_hex_str(&vec![0xf]), "0f".to_owned());
+    assert_eq!(bytes_to_hex_str(&vec![0xff]), "ff".to_owned());
+    assert_eq!(
+        bytes_to_hex_str(&vec![0xde, 0xad, 0xbe, 0xef]),
+        "deadbeef".to_owned()
+    );
+}

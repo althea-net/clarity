@@ -1,9 +1,10 @@
 use failure::Error;
 use num_bigint::BigUint;
-use num_traits::Num;
+use num_traits::{Num, Zero};
 use serde::Serialize;
 use serde::Serializer;
 use std::str::FromStr;
+
 /// A wrapper for BigUint which provides serialization to BigEndian in radix 16
 pub struct BigEndianInt(BigUint);
 
@@ -13,7 +14,12 @@ impl Serialize for BigEndianInt {
     where
         S: Serializer,
     {
-        serializer.serialize_bytes(&self.0.to_radix_be(16))
+        if self.0 == BigUint::zero() {
+            serializer.serialize_bytes(&[])
+        } else {
+            let bytes = self.0.to_bytes_be();
+            serializer.serialize_bytes(&bytes)
+        }
     }
 }
 
@@ -57,10 +63,18 @@ fn serialize() {
     assert_eq!(
         to_bytes(&value).expect("Unable to serialize BigEndianInt"),
         vec![
-            184, 64, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15,
-            15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15,
-            15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15,
-            14,
+            160, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+            255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 254,
         ]
+    );
+}
+
+#[test]
+fn serialize_zeros() {
+    use serde_rlp::ser::to_bytes;
+    let value: BigEndianInt = "0".parse().unwrap();
+    assert_eq!(
+        to_bytes(&value).expect("Unable to serialize zero"),
+        vec![128]
     );
 }
