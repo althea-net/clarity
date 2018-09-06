@@ -1,0 +1,47 @@
+language: rust
+cache: cargo
+sudo: required
+services: docker
+
+rust:
+  - stable
+  - beta
+  - nightly
+
+env:
+  global:
+    - secure: "aSAkqA9hh8v5qBnXzsQDVr1yvdlQaE7pXklQUKGqqXfN5e4ZJxhEUmL0XO8ErSgDjgC26re6fqwtQENe46GgJ7Phie7nNC4jw2OERakmg3QKh2Orf7uHxzZttTcWnT/5OMYubkgXeuzdVUmu5vlCK1i/P/ECi8HGUB/pbgrwM/eQ7b/jfnhDs1FybhgzO1Q6DyZS57Kt3ufsGb4ZCuEzHmi2qVkz0WY/83KXQdPGkY7ghN3dIdE+oyVlkkfSZNsuxEyKtGB40xAInSRRwT36L0h1IWK0WwFro3VAcu+C9K3nBHp8de4G4YiYYAwtpcIl0fu1wBvGK1DEMj5LaR2JxrevTxc/j+A8wczjbJLUR3wnF2s+2JKJl047NWy2uGnyOZP2H0CROvmFyq9pLn7KVYMxPwNOos/mEi7+jdfgyjIulVj10at0m0YP2+FMijbKApxUU+szuaBGHPx0BKzSsE5jrIP/R8XLelelSepiRowmD0u7UPAXav1bghn9iVuzTcl//Dv3B3F9Z20pX0H3ZdJo4pDQ2m3L6F9crgdI85DbPu4VpoPAidWgnFb8RHz9YYnMNdApJiO8hfS1OfG05g0UEWD+brixi3VLRbJZiMBdTSXYOMqaE1RPkTlFlemBj1IaOSxEHe4p3wPJFbG0JTykzWtFY/Sfk2atggkLQmA="
+  matrix:
+    - TARGET="x86_64-unknown-linux-gnu"
+    - TARGET="mips-unknown-linux-gnu"
+    - TARGET="mipsel-unknown-linux-gnu"
+    - TARGET="mips64-unknown-linux-gnuabi64"
+    - TARGET="mips64el-unknown-linux-gnuabi64"
+
+before_install:
+  - command -v cross 1>/dev/null || cargo install cross
+
+script:
+  - cross build --target $TARGET --verbose --all
+  - cross test --target $TARGET --verbose --all
+
+matrix:
+  allow_failures:
+  - rust: nightly
+  fast_finish: true
+  include:
+  - rust: stable
+    env:
+    before_install:
+    script:
+    - rustup component add rustfmt-preview
+    - cargo fmt --all -- --check
+
+deploy:
+  # Create new crates.io package
+  - provider: script
+    skip_cleanup: true
+    script: cargo publish --token ${CRATESIO_TOKEN}
+    on:
+      condition: $TRAVIS_RUST_VERSION = stable && $TARGET = 'x86_64-unknown-linux-gnu'
+      tags: true
