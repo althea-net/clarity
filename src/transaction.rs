@@ -3,8 +3,10 @@ use serde::ser::SerializeTuple;
 use serde::Serialize;
 use serde::Serializer;
 use serde_bytes::ByteBuf;
+use signature::Signature;
 use types::BigEndianInt;
 use utils::{bytes_to_hex_str, hex_str_to_bytes};
+
 /// Transaction as explained in the Ethereum Yellow paper section 4.2
 struct Transaction {
     nonce: BigEndianInt,
@@ -13,9 +15,7 @@ struct Transaction {
     to: Address,
     value: BigEndianInt,
     data: Vec<u8>,
-    v: BigEndianInt,
-    r: BigEndianInt,
-    s: BigEndianInt,
+    signature: Option<Signature>,
 }
 
 impl Serialize for Transaction {
@@ -23,6 +23,7 @@ impl Serialize for Transaction {
     where
         S: Serializer,
     {
+        let sig = self.signature.clone().unwrap_or(Signature::default());
         let data = (
             &self.nonce,
             &self.gas_price,
@@ -30,10 +31,9 @@ impl Serialize for Transaction {
             &self.to,
             &self.value,
             &ByteBuf::from(self.data.clone()),
-            // TODO: v, r, s indicates signed TX
-            &self.v,
-            &self.r,
-            &self.s,
+            &sig.v,
+            &sig.r,
+            &sig.s,
         );
         data.serialize(serializer)
     }
@@ -50,15 +50,17 @@ fn test_vitaliks_eip_158_vitalik_12_json() {
         to: Address::new(), // "" - zeros only
         value: BigEndianInt::from_str_radix("00", 16).unwrap(),
         data: hex_str_to_bytes("60f2ff61000080610011600039610011565b6000f3").unwrap(),
-        v: BigEndianInt::from_str_radix("1c", 16).unwrap(),
-        r: BigEndianInt::from_str_radix(
-            "a310f4d0b26207db76ba4e1e6e7cf1857ee3aa8559bcbc399a6b09bfea2d30b4",
-            16,
-        ).unwrap(),
-        s: BigEndianInt::from_str_radix(
-            "6dff38c645a1486651a717ddf3daccb4fd9a630871ecea0758ddfcf2774f9bc6",
-            16,
-        ).unwrap(),
+        signature: Some(Signature::new(
+            BigEndianInt::from_str_radix("1c", 16).unwrap(),
+            BigEndianInt::from_str_radix(
+                "a310f4d0b26207db76ba4e1e6e7cf1857ee3aa8559bcbc399a6b09bfea2d30b4",
+                16,
+            ).unwrap(),
+            BigEndianInt::from_str_radix(
+                "6dff38c645a1486651a717ddf3daccb4fd9a630871ecea0758ddfcf2774f9bc6",
+                16,
+            ).unwrap(),
+        )),
     };
     let lhs = to_bytes(&tx).unwrap();
     let lhs = bytes_to_hex_str(&lhs);
@@ -77,15 +79,17 @@ fn test_vitaliks_eip_158_vitalik_1_json() {
         to: "3535353535353535353535353535353535353535".parse().unwrap(),
         value: BigEndianInt::from_str_radix("00", 16).unwrap(),
         data: Vec::new(),
-        v: BigEndianInt::from_str_radix("25", 16).unwrap(),
-        r: BigEndianInt::from_str_radix(
-            "044852b2a670ade5407e78fb2863c51de9fcb96542a07186fe3aeda6bb8a116d",
-            16,
-        ).unwrap(),
-        s: BigEndianInt::from_str_radix(
-            "044852b2a670ade5407e78fb2863c51de9fcb96542a07186fe3aeda6bb8a116d",
-            16,
-        ).unwrap(),
+        signature: Some(Signature::new(
+            BigEndianInt::from_str_radix("25", 16).unwrap(),
+            BigEndianInt::from_str_radix(
+                "044852b2a670ade5407e78fb2863c51de9fcb96542a07186fe3aeda6bb8a116d",
+                16,
+            ).unwrap(),
+            BigEndianInt::from_str_radix(
+                "044852b2a670ade5407e78fb2863c51de9fcb96542a07186fe3aeda6bb8a116d",
+                16,
+            ).unwrap(),
+        )),
     };
     let lhs = to_bytes(&tx).unwrap();
     let lhs = bytes_to_hex_str(&lhs);
@@ -104,10 +108,7 @@ fn test_basictests_txtest_1() {
         to: "13978aee95f38490e9769c39b2773ed763d9cd5f".parse().unwrap(),
         value: "10000000000000000".parse().unwrap(),
         data: Vec::new(),
-        // TODO: Parse from RLP and compare against signed transaction
-        v: "0".parse().unwrap(),
-        r: "0".parse().unwrap(),
-        s: "0".parse().unwrap(),
+        signature: None,
     };
     let lhs = to_bytes(&tx).unwrap();
     let lhs = bytes_to_hex_str(&lhs);
@@ -128,9 +129,7 @@ fn test_basictests_txtest_2() {
         to: Address::new(),
         value: "0".parse().unwrap(),
         data: hex_str_to_bytes("6025515b525b600a37f260003556601b596020356000355760015b525b54602052f260255860005b525b54602052f2").unwrap(),
-        v: "0".parse().unwrap(),
-        r: "0".parse().unwrap(),
-        s: "0".parse().unwrap(),
+        signature: None
     };
     let lhs = to_bytes(&tx).unwrap();
     let lhs = bytes_to_hex_str(&lhs);

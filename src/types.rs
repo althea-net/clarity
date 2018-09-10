@@ -3,10 +3,31 @@ use num_bigint::BigUint;
 use num_traits::{Num, Zero};
 use serde::Serialize;
 use serde::Serializer;
+use std::fmt;
+use std::ops::Add;
 use std::str::FromStr;
 
 /// A wrapper for BigUint which provides serialization to BigEndian in radix 16
+#[derive(PartialEq, Clone)]
 pub struct BigEndianInt(BigUint);
+
+impl Zero for BigEndianInt {
+    fn zero() -> BigEndianInt {
+        BigEndianInt(BigUint::zero())
+    }
+
+    fn is_zero(&self) -> bool {
+        self.0.is_zero()
+    }
+}
+
+impl Add for BigEndianInt {
+    type Output = BigEndianInt;
+
+    fn add(self, other: BigEndianInt) -> BigEndianInt {
+        BigEndianInt(self.0 + other.0)
+    }
+}
 
 /// Implement serialization that would serialize as bytes
 impl Serialize for BigEndianInt {
@@ -53,6 +74,12 @@ impl From<u64> for BigEndianInt {
     }
 }
 
+impl fmt::Debug for BigEndianInt {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.0.to_str_radix(10))
+    }
+}
+
 #[test]
 fn serialize() {
     use serde_rlp::ser::to_bytes;
@@ -77,4 +104,24 @@ fn serialize_zeros() {
         to_bytes(&value).expect("Unable to serialize zero"),
         vec![128]
     );
+}
+
+#[test]
+fn compares() {
+    let a = BigEndianInt::from(42u64);
+    let b = BigEndianInt::from(42u64);
+    assert_eq!(a, b);
+}
+
+#[test]
+fn zero() {
+    let a = BigEndianInt::zero();
+    assert_eq!(a, "0".parse().unwrap());
+}
+
+#[test]
+fn clone() {
+    let a = BigEndianInt::zero();
+    let b = a.clone();
+    assert_eq!(a, b);
 }
