@@ -29,8 +29,8 @@ impl Default for Signature {
 
 #[test]
 fn new_signature() {
-    let sig = Signature::new(1.into(), 2.into(), 3.into());
-    assert_eq!(sig.v, 1.into());
-    assert_eq!(sig.r, 2.into());
-    assert_eq!(sig.s, 3.into());
+    let sig = Signature::new(1u32.into(), 2u32.into(), 3u32.into());
+    assert_eq!(sig.v, 1u32.into());
+    assert_eq!(sig.r, 2u32.into());
+    assert_eq!(sig.s, 3u32.into());
 }

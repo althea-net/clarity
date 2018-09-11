@@ -5,7 +5,7 @@ use std::str::FromStr;
 use utils::{hex_str_to_bytes, ByteDecodeError};
 
 /// This type represents ETH address
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct Address([u8; 20]);
 
 impl Serialize for Address {

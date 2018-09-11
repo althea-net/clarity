@@ -5,8 +5,11 @@ extern crate serde_bytes;
 extern crate serde_rlp;
 #[macro_use]
 extern crate failure;
+extern crate secp256k1;
+extern crate sha3;
 
 mod address;
+mod private_key;
 mod signature;
 mod transaction;
 mod types;

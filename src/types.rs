@@ -50,6 +50,10 @@ impl BigEndianInt {
         let raw = BigUint::from_str_radix(&src, radix)?;
         Ok(BigEndianInt(raw))
     }
+
+    pub fn from_bytes_be(bytes: &[u8]) -> BigEndianInt {
+        BigEndianInt(BigUint::from_bytes_be(bytes))
+    }
 }
 
 #[derive(Fail, Debug)]
@@ -65,6 +69,12 @@ impl FromStr for BigEndianInt {
         Ok(BigEndianInt(
             BigUint::parse_bytes(s.as_bytes(), 10).ok_or(BigEndianIntError::OverflowError)?,
         ))
+    }
+}
+
+impl From<u32> for BigEndianInt {
+    fn from(v: u32) -> Self {
+        BigEndianInt(BigUint::from(v))
     }
 }
 
