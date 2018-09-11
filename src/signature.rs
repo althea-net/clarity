@@ -1,8 +1,8 @@
+use num_traits::Zero;
 use serde::ser::SerializeTuple;
 use serde::Serialize;
 use serde::Serializer;
 use types::BigEndianInt;
-use num_traits::Zero;
 
 #[derive(Clone)]
 pub struct Signature {
@@ -19,7 +19,11 @@ impl Signature {
 
 impl Default for Signature {
     fn default() -> Signature {
-        Signature { r: BigEndianInt::zero(), v: BigEndianInt::zero(), s: BigEndianInt::zero() }
+        Signature {
+            r: BigEndianInt::zero(),
+            v: BigEndianInt::zero(),
+            s: BigEndianInt::zero(),
+        }
     }
 }
 
