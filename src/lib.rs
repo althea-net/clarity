@@ -7,8 +7,12 @@ extern crate serde_rlp;
 extern crate failure;
 extern crate secp256k1;
 extern crate sha3;
+#[macro_use]
+extern crate lazy_static;
 
 pub mod address;
+pub mod constants;
+pub mod opcodes;
 mod private_key;
 mod signature;
 pub mod transaction;

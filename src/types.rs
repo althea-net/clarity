@@ -5,10 +5,11 @@ use serde::Serialize;
 use serde::Serializer;
 use std::fmt;
 use std::ops::Add;
+use std::ops::Mul;
 use std::str::FromStr;
 
 /// A wrapper for BigUint which provides serialization to BigEndian in radix 16
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, PartialOrd, Clone)]
 pub struct BigEndianInt(BigUint);
 
 impl Zero for BigEndianInt {
@@ -26,6 +27,14 @@ impl Add for BigEndianInt {
 
     fn add(self, other: BigEndianInt) -> BigEndianInt {
         BigEndianInt(self.0 + other.0)
+    }
+}
+
+impl Mul for BigEndianInt {
+    type Output = BigEndianInt;
+
+    fn mul(self, other: BigEndianInt) -> BigEndianInt {
+        BigEndianInt(self.0 * other.0)
     }
 }
 
