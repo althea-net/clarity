@@ -7,6 +7,7 @@ use utils::{hex_str_to_bytes, ByteDecodeError};
 /// This type represents ETH address
 #[derive(PartialEq, Debug, Clone)]
 pub struct Address {
+    // TODO: address seems to be limited to 20 characters, but we keep it flexible
     data: Vec<u8>,
 }
 
@@ -19,9 +20,7 @@ impl Serialize for Address {
             // If the address is empty we can serialize it as empty value
             serializer.serialize_bytes(&[])
         } else {
-            // Here we serialize all bytes because the address has to be zero padded if
-            // its not empty
-            // let index = self.0.iter().position(|&b| b > 0).unwrap_or(0);
+            // Here we serialize all bytes
             serializer.serialize_bytes(&self.data)
         }
     }
@@ -68,23 +67,13 @@ impl FromStr for Address {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let s = if s.starts_with("0x") { &s[2..] } else { &s };
-
+        // Simple sanitizer
         if s.len() > 40 || s.len() % 2 != 0 {
             return Err(AddressError::InvalidLengthError.into());
         }
-        // left pad
-        let data = hex_str_to_bytes(&s)?;
-
-        let data = if data.len() < 20 {
-            let mut padded = vec![0; 20 - data.len()];
-            padded.extend(data);
-            debug_assert_eq!(padded.len(), 20);
-            padded
-        } else {
-            data
-        };
-
-        Ok(Address { data })
+        Ok(Address {
+            data: hex_str_to_bytes(&s)?,
+        })
     }
 }
 
@@ -141,7 +130,7 @@ fn address_less_than_20_filler() {
     let address: Address = "0b9331677e6ebf".parse().unwrap();
     assert_eq!(
         to_bytes(&address).unwrap(),
-        [148, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x0b, 0x93, 0x31, 0x67, 0x7e, 0x6e, 0xbf]
+        [128 + 7, 0x0b, 0x93, 0x31, 0x67, 0x7e, 0x6e, 0xbf]
     );
 }
 
