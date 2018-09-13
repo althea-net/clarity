@@ -18,7 +18,7 @@ impl Signature {
     }
 
     pub fn is_valid(&self) -> bool {
-        if self.s < *SECPK1N {
+        if self.s >= *SECPK1N {
             return false;
         }
 
@@ -29,7 +29,6 @@ impl Signature {
         {
             return false;
         }
-        // raise InvalidTransaction("Invalid signature values!")
 
         true
     }
