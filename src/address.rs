@@ -30,6 +30,12 @@ impl Address {
     }
 }
 
+impl Default for Address {
+    fn default() -> Address {
+        Address([0u8; 20])
+    }
+}
+
 impl From<[u8; 20]> for Address {
     fn from(val: [u8; 20]) -> Address {
         Address(val)

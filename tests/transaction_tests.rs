@@ -1,10 +1,12 @@
 extern crate clarity;
+extern crate num_traits;
 extern crate rustc_test as test;
 extern crate serde_json;
 #[macro_use]
 extern crate serde_derive;
 use clarity::utils::hex_str_to_bytes;
-use clarity::{BigEndianInt, Signature, Transaction};
+use clarity::{Address, BigEndianInt, Signature, Transaction};
+use num_traits::Zero;
 use serde_json::{Error, Value};
 use std::collections::HashMap;
 use std::env;
@@ -145,17 +147,14 @@ fn make_test(path: PathBuf) -> Option<TestDescAndFn> {
             // We skipped all fillers without transaction data
             let raw_params = filler.transaction.as_ref().unwrap();
             let tx = Transaction {
-                nonce: raw_params.nonce.parse().expect("Unable to parse nonce"),
-                gas_price: raw_params
-                    .gas_price
-                    .parse()
-                    .expect("Unable to parse gas_price"),
+                nonce: raw_params.nonce.parse().unwrap_or(BigEndianInt::zero()),
+                gas_price: raw_params.gas_price.parse().unwrap_or(BigEndianInt::zero()),
                 gas_limit: raw_params
                     .gas_limit
                     .parse()
                     .expect("Unable to parse gas_limit"),
-                to: raw_params.to.parse().expect("Unable to parse to"),
-                value: raw_params.value.parse().expect("Unable to parse value"),
+                to: raw_params.to.parse().unwrap_or(Address::default()),
+                value: raw_params.value.parse().unwrap_or(BigEndianInt::zero()),
                 data: hex_str_to_bytes(&raw_params.data).expect("Unable to parse data"),
                 signature: Some(Signature::new(
                     raw_params.v.parse().expect("Unable to parse v"),
