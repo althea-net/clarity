@@ -13,14 +13,14 @@ use utils::{bytes_to_hex_str, hex_str_to_bytes};
 
 /// Transaction as explained in the Ethereum Yellow paper section 4.2
 #[derive(Clone)]
-struct Transaction {
-    nonce: BigEndianInt,
-    gas_price: BigEndianInt,
-    gas_limit: BigEndianInt,
-    to: Address,
-    value: BigEndianInt,
-    data: Vec<u8>,
-    signature: Option<Signature>,
+pub struct Transaction {
+    pub nonce: BigEndianInt,
+    pub gas_price: BigEndianInt,
+    pub gas_limit: BigEndianInt,
+    pub to: Address,
+    pub value: BigEndianInt,
+    pub data: Vec<u8>,
+    pub signature: Option<Signature>,
 }
 
 impl Serialize for Transaction {

@@ -58,17 +58,23 @@ impl BigEndianInt {
 
 #[derive(Fail, Debug)]
 pub enum BigEndianIntError {
-    #[fail(display = "Overflow occurred while parsing number")]
-    OverflowError,
+    #[fail(display = "Invalid radix 16 value")]
+    InvalidHexValue,
+    #[fail(display = "Invalid radix 10 value")]
+    InvalidDecValue,
 }
 
 impl FromStr for BigEndianInt {
     type Err = BigEndianIntError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(BigEndianInt(
-            BigUint::parse_bytes(s.as_bytes(), 10).ok_or(BigEndianIntError::OverflowError)?,
-        ))
+        let value = if s.starts_with("0x") {
+            // Parse as hexadecimal big endian value
+            BigUint::parse_bytes(&s.as_bytes()[2..], 16).ok_or(BigEndianIntError::InvalidHexValue)?
+        } else {
+            BigUint::parse_bytes(s.as_bytes(), 10).ok_or(BigEndianIntError::InvalidDecValue)?
+        };
+        Ok(BigEndianInt(value))
     }
 }
 
