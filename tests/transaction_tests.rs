@@ -2,9 +2,10 @@ extern crate clarity;
 extern crate num_traits;
 extern crate rustc_test as test;
 extern crate serde_json;
+extern crate serde_rlp;
 #[macro_use]
 extern crate serde_derive;
-use clarity::utils::hex_str_to_bytes;
+use clarity::utils::{hex_str_to_bytes, bytes_to_hex_str};
 use clarity::{Address, BigEndianInt, Signature, Transaction};
 use num_traits::Zero;
 use serde_json::{Error, Value};
@@ -15,6 +16,7 @@ use std::io;
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
 use test::{DynTestFn, DynTestName, TestDesc, TestDescAndFn};
+use serde_rlp::ser::to_bytes;
 
 fn visit_dirs(dir: &Path, cb: &mut FnMut(&DirEntry)) -> io::Result<()> {
     if dir.is_dir() {
@@ -131,6 +133,8 @@ fn make_test(path: PathBuf) -> Option<TestDescAndFn> {
     assert_eq!(filler.len(), 1);
     let (_name, filler) = filler.into_iter().nth(0).unwrap();
 
+
+    // As mentioned above skip invalid transactions
     if filler.transaction.is_none() {
         return None;
     }
@@ -162,6 +166,11 @@ fn make_test(path: PathBuf) -> Option<TestDescAndFn> {
                     raw_params.s.parse().expect("Unable to parse s"),
                 )),
             };
+
+            let our_rlp = to_bytes(&tx).unwrap();
+
+            assert!(fixtures.rlp.starts_with("0x"));
+            assert_eq!(bytes_to_hex_str(&our_rlp), &fixtures.rlp[2..]);
         })),
     })
 }
