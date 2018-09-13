@@ -1,4 +1,9 @@
 use address::Address;
+use constants::SECPK1N;
+use constants::TT256;
+use opcodes::GTXCOST;
+use opcodes::GTXDATANONZERO;
+use opcodes::GTXDATAZERO;
 use private_key::PrivateKey;
 use secp256k1::{Message, Secp256k1, SecretKey};
 use serde::ser::SerializeTuple;
@@ -12,7 +17,7 @@ use types::BigEndianInt;
 use utils::{bytes_to_hex_str, hex_str_to_bytes};
 
 /// Transaction as explained in the Ethereum Yellow paper section 4.2
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Transaction {
     pub nonce: BigEndianInt,
     pub gas_price: BigEndianInt,
@@ -47,6 +52,30 @@ impl Serialize for Transaction {
 }
 
 impl Transaction {
+    pub fn is_valid(&self) -> bool {
+        if self.gas_price >= *TT256
+            || self.gas_limit >= *TT256
+            || self.value >= *TT256
+            || self.nonce >= *TT256
+        {
+            // Way too high values
+            return false;
+        }
+
+        if self.gas_limit < self.intrinsic_gas_used() {
+            return false;
+        }
+        true
+    }
+
+    pub fn intrinsic_gas_used(&self) -> BigEndianInt {
+        let num_zero_bytes = self.data.iter().filter(|&&b| b == 0u8).count();
+        let num_non_zero_bytes = self.data.len() - num_zero_bytes;
+        BigEndianInt::from(GTXCOST)
+            + BigEndianInt::from(GTXDATAZERO) * BigEndianInt::from(num_zero_bytes as u32)
+            + BigEndianInt::from(GTXDATANONZERO) * BigEndianInt::from(num_non_zero_bytes as u32)
+    }
+
     /// Creates a raw data without signature params
     fn to_unsigned_tx_params(&self) -> Vec<u8> {
         assert!(self.signature.is_none());

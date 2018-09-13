@@ -5,10 +5,11 @@ extern crate serde_json;
 extern crate serde_rlp;
 #[macro_use]
 extern crate serde_derive;
-use clarity::utils::{hex_str_to_bytes, bytes_to_hex_str};
+use clarity::utils::{bytes_to_hex_str, hex_str_to_bytes};
 use clarity::{Address, BigEndianInt, Signature, Transaction};
 use num_traits::Zero;
 use serde_json::{Error, Value};
+use serde_rlp::ser::to_bytes;
 use std::collections::HashMap;
 use std::env;
 use std::fs::{self, DirEntry, File};
@@ -16,7 +17,6 @@ use std::io;
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
 use test::{DynTestFn, DynTestName, TestDesc, TestDescAndFn};
-use serde_rlp::ser::to_bytes;
 
 fn visit_dirs(dir: &Path, cb: &mut FnMut(&DirEntry)) -> io::Result<()> {
     if dir.is_dir() {
@@ -133,7 +133,6 @@ fn make_test(path: PathBuf) -> Option<TestDescAndFn> {
     assert_eq!(filler.len(), 1);
     let (_name, filler) = filler.into_iter().nth(0).unwrap();
 
-
     // As mentioned above skip invalid transactions
     if filler.transaction.is_none() {
         return None;
@@ -170,7 +169,31 @@ fn make_test(path: PathBuf) -> Option<TestDescAndFn> {
             let our_rlp = to_bytes(&tx).unwrap();
 
             assert!(fixtures.rlp.starts_with("0x"));
-            assert_eq!(bytes_to_hex_str(&our_rlp), &fixtures.rlp[2..]);
+            match filler.expect {
+                Some(ref expect) if expect.get(0).as_ref().unwrap().result == "invalid" => {
+                    // assert_ne!(bytes_to_hex_str(&our_rlp), &fixtures.rlp[2..], "{:?} != {:?} (filler {:?})", &tx, &raw_params, &filler);
+                    assert!(!tx.is_valid(), "{:?} {:?} {:?}", tx, raw_params, filler);
+                    assert!(
+                        !tx.signature.as_ref().unwrap().is_valid(),
+                        "{:?} {:?} {:?}",
+                        tx.signature.as_ref().unwrap(),
+                        raw_params,
+                        filler
+                    );
+                }
+                Some(ref expect) if expect.get(0).as_ref().unwrap().result == "valid" => {
+                    assert_eq!(
+                        bytes_to_hex_str(&our_rlp),
+                        &fixtures.rlp[2..],
+                        "{:?} != {:?} (filler {:?})",
+                        &tx,
+                        &raw_params,
+                        &filler
+                    );
+                }
+                Some(_) => {}
+                None => {}
+            }
         })),
     })
 }
