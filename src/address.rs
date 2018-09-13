@@ -3,7 +3,6 @@ use serde::Serializer;
 use std::str;
 use std::str::FromStr;
 use utils::{hex_str_to_bytes, ByteDecodeError};
-
 /// This type represents ETH address
 #[derive(PartialEq, Debug, Clone)]
 pub struct Address {
@@ -54,6 +53,10 @@ pub enum AddressError {
     InvalidLengthError,
     #[fail(display = "Unable to decode bytes: {}", _0)]
     DecodeError(ByteDecodeError),
+    #[fail(display = "Checksum error")]
+    ChecksumError,
+    #[fail(display = "Invalid checksum")]
+    InvalidChecksum,
 }
 
 impl From<ByteDecodeError> for AddressError {
@@ -66,14 +69,17 @@ impl FromStr for Address {
     type Err = AddressError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let s = if s.starts_with("0x") { &s[2..] } else { &s };
-        // Simple sanitizer
-        if s.len() > 40 || s.len() % 2 != 0 {
-            return Err(AddressError::InvalidLengthError.into());
+        if s.len() == 0 {
+            return Ok(Address::default());
         }
-        Ok(Address {
-            data: hex_str_to_bytes(&s)?,
-        })
+        let s = if s.starts_with("0x") { &s[2..] } else { &s };
+        if s.len() == 40 || s.len() == 48 {
+            Ok(Address {
+                data: hex_str_to_bytes(&s)?,
+            })
+        } else {
+            Err(AddressError::InvalidLengthError)
+        }
     }
 }
 
@@ -124,14 +130,10 @@ fn serialize_padded_address() {
 }
 
 #[test]
+#[should_panic]
 fn address_less_than_20_filler() {
     // Data found in AddressLessThan20Filler.json
-    use serde_rlp::ser::to_bytes;
     let address: Address = "0b9331677e6ebf".parse().unwrap();
-    assert_eq!(
-        to_bytes(&address).unwrap(),
-        [128 + 7, 0x0b, 0x93, 0x31, 0x67, 0x7e, 0x6e, 0xbf]
-    );
 }
 
 #[test]
