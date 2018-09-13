@@ -12,6 +12,7 @@ pub enum ByteDecodeError {
 /// A function that takes a hexadecimal representation of bytes
 /// back into a stream of bytes.
 pub fn hex_str_to_bytes(s: &str) -> Result<Vec<u8>, ByteDecodeError> {
+    let s = if s.starts_with("0x") { &s[2..] } else { s };
     s.as_bytes()
         .chunks(2)
         .map(|ch| {
@@ -50,6 +51,19 @@ fn bytes_raises_parse_error() {
         ByteDecodeError::ParseError(_) => assert!(true),
         _ => assert!(false),
     }
+}
+
+#[test]
+fn parse_prefixed_empty() {
+    assert_eq!(hex_str_to_bytes(&"0x".to_owned()).unwrap(), vec![]);
+}
+
+#[test]
+fn parse_prefixed_non_empty() {
+    assert_eq!(
+        hex_str_to_bytes(&"0xdeadbeef".to_owned()).unwrap(),
+        vec![0xde, 0xad, 0xbe, 0xef]
+    );
 }
 
 pub fn bytes_to_hex_str(bytes: &Vec<u8>) -> String {

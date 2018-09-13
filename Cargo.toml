@@ -2,6 +2,7 @@
 name = "clarity"
 version = "0.1.0"
 authors = ["Michał Papierski <michal@papierski.net>"]
+autotests = false
 
 [dependencies]
 serde = "1.0"
@@ -12,3 +13,13 @@ failure = "0.1"
 serde_bytes = "0.10"
 sha3 = "0.7"
 secp256k1 = "0.11"
+
+[[test]]
+name = "transaction_tests"
+harness = false
+
+[dev-dependencies]
+rustc-test = "0.3.0"
+serde_json = "1.0"
+serde_derive = "1.0"
+failure = "0.1"

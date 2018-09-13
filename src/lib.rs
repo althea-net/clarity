@@ -11,6 +11,10 @@ extern crate sha3;
 mod address;
 mod private_key;
 mod signature;
-mod transaction;
-mod types;
-mod utils;
+pub mod transaction;
+pub mod types;
+pub mod utils;
+
+pub use signature::Signature;
+pub use transaction::Transaction;
+pub use types::BigEndianInt;
