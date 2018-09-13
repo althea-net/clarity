@@ -46,6 +46,22 @@ fn default_gas_limit() -> String {
 }
 
 #[derive(Deserialize, Debug)]
+struct TestFillerTransaction {
+    data: String,
+    #[serde(rename = "gasLimit", default = "default_gas_limit")]
+    gas_limit: String,
+    #[serde(rename = "gasPrice")]
+    gas_price: String,
+    nonce: String,
+    to: String,
+    #[serde(default = "String::new")]
+    value: String,
+    v: String,
+    r: String,
+    s: String,
+}
+
+#[derive(Deserialize, Debug)]
 struct TestFiller {
     // I.e. [{"network": ["ALL"], "result": "invalid"}]
     expect: Option<Vec<TestFillerExpect>>,
@@ -55,7 +71,7 @@ struct TestFiller {
     // without any dynamic fields, but just to be sure, we can
     // verify that this map has exactly 9 elements (or all expected
     // elements exists).
-    transaction: Option<HashMap<String, String>>,
+    transaction: Option<TestFillerTransaction>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -150,20 +166,19 @@ fn make_test(path: PathBuf) -> Option<TestDescAndFn> {
             // We skipped all fillers without transaction data
             let raw_params = filler.transaction.as_ref().unwrap();
             let tx = Transaction {
-                nonce: raw_params["nonce"].parse().unwrap_or(BigEndianInt::zero()),
-                gas_price: raw_params["gasPrice"]
-                    .parse()
-                    .unwrap_or(BigEndianInt::zero()),
-                gas_limit: raw_params["gasLimit"]
+                nonce: raw_params.nonce.parse().unwrap_or(BigEndianInt::zero()),
+                gas_price: raw_params.gas_price.parse().unwrap_or(BigEndianInt::zero()),
+                gas_limit: raw_params
+                    .gas_limit
                     .parse()
                     .expect("Unable to parse gas_limit"),
-                to: raw_params["to"].parse().unwrap_or(Address::default()),
-                value: raw_params["value"].parse().unwrap_or(BigEndianInt::zero()),
-                data: hex_str_to_bytes(&raw_params["data"]).expect("Unable to parse data"),
+                to: raw_params.to.parse().unwrap_or(Address::default()),
+                value: raw_params.value.parse().unwrap_or(BigEndianInt::zero()),
+                data: hex_str_to_bytes(&raw_params.data).expect("Unable to parse data"),
                 signature: Some(Signature::new(
-                    raw_params["v"].parse().expect("Unable to parse v"),
-                    raw_params["r"].parse().expect("Unable to parse r"),
-                    raw_params["s"].parse().expect("Unable to parse s"),
+                    raw_params.v.parse().expect("Unable to parse v"),
+                    raw_params.r.parse().expect("Unable to parse r"),
+                    raw_params.s.parse().expect("Unable to parse s"),
                 )),
             };
 
