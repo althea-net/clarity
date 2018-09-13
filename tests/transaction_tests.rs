@@ -191,8 +191,8 @@ fn make_test(path: PathBuf) -> Option<TestDescAndFn> {
                         &filler
                     );
                 }
-                Some(_) => {}
-                None => {}
+                Some(_) => panic!("Invalid filler data {:?}!", filler),
+                None => unreachable!("This shouldn't happen"),
             }
         })),
     })
