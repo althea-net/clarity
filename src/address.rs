@@ -13,13 +13,13 @@ impl Serialize for Address {
     where
         S: Serializer,
     {
-        // Truncate zeros from the beggining. Treat all zeros
-        // as an empty byte array.
-        match self.0.iter().position(|&b| b > 0) {
-            // Serialize starting from the non-null byte
-            Some(pos) => serializer.serialize_bytes(&self.0[pos..]),
-            // Can't find any byte greater than 0 -> trim to null
-            None => serializer.serialize_bytes(&[]),
+        if *self == Address::default() {
+            // If the address is empty we can serialize it as empty value
+            serializer.serialize_bytes(&[])
+        } else {
+            // Here we serialize all bytes because the address has to be zero padded if
+            // its not empty
+            serializer.serialize_bytes(&self.0)
         }
     }
 }
@@ -105,4 +105,14 @@ fn serialize_null_address() {
     use serde_rlp::ser::to_bytes;
     let address = Address::new();
     assert_eq!(to_bytes(&address).unwrap(), [128]);
+}
+
+#[test]
+fn serialize_padded_address() {
+    use serde_rlp::ser::to_bytes;
+    let address: Address = "00000000000000000000000000000000000000c0".parse().unwrap();
+    assert_eq!(
+        to_bytes(&address).unwrap(),
+        [148, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xc0]
+    );
 }
