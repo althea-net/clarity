@@ -172,7 +172,7 @@ fn make_test(path: PathBuf) -> Option<TestDescAndFn> {
                     .gas_limit
                     .parse()
                     .expect("Unable to parse gas_limit"),
-                to: raw_params.to.parse().unwrap_or(Address::default()),
+                to: raw_params.to.parse().expect("Unable to parse address"),
                 value: raw_params.value.parse().unwrap_or(BigEndianInt::zero()),
                 data: hex_str_to_bytes(&raw_params.data).expect("Unable to parse data"),
                 signature: Some(Signature::new(
