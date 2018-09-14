@@ -184,6 +184,20 @@ fn make_test(path: PathBuf) -> Option<TestDescAndFn> {
             // A valid decoded transaction has exactly 9 elements.
             assert_eq!(data.len(), 9);
 
+            let decoded_tx = Transaction {
+                nonce: (&*data[0]).into(),
+                gas_price: (&*data[1]).into(),
+                gas_limit: (&*data[2]).into(),
+                to: (&*data[3]).into(),
+                value: (&*data[4]).into(),
+                data: (&*data[5]).into(),
+                signature: Some(Signature::new(
+                    (&*data[6]).into(),
+                    (&*data[7]).into(),
+                    (&*data[8]).into(),
+                )),
+            };
+
             // We skipped all fillers without transaction data
             let raw_params = filler.transaction.as_ref().unwrap();
             let tx = Transaction {
@@ -202,6 +216,8 @@ fn make_test(path: PathBuf) -> Option<TestDescAndFn> {
                     raw_params.s.parse().expect("Unable to parse s"),
                 )),
             };
+
+            assert_eq!(decoded_tx, tx);
 
             let our_rlp = to_bytes(&tx).unwrap();
 

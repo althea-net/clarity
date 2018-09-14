@@ -27,9 +27,7 @@ impl Serialize for Address {
 
 impl Address {
     pub fn new() -> Address {
-        Address {
-            data: vec![0u8; 20],
-        }
+        Address { data: Vec::new() }
     }
 
     pub fn as_bytes(&self) -> &[u8] {
@@ -39,9 +37,7 @@ impl Address {
 
 impl Default for Address {
     fn default() -> Address {
-        Address {
-            data: vec![0u8; 20],
-        }
+        Address { data: Vec::new() }
     }
 }
 

@@ -161,6 +161,12 @@ impl From<u64> for BigEndianInt {
     }
 }
 
+impl<'a> From<&'a [u8]> for BigEndianInt {
+    fn from(v: &'a [u8]) -> Self {
+        BigEndianInt(BigUint::from_bytes_be(v))
+    }
+}
+
 impl fmt::Debug for BigEndianInt {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.0.to_str_radix(10))
