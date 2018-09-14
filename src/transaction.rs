@@ -32,7 +32,7 @@ pub enum TransactionError {
 }
 
 /// Transaction as explained in the Ethereum Yellow paper section 4.2
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Transaction {
     pub nonce: BigEndianInt,
     pub gas_price: BigEndianInt,
