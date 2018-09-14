@@ -1,11 +1,13 @@
 use failure::Error;
 use num_bigint::BigUint;
-use num_traits::{Num, Zero};
+use num_traits::{Num, ToPrimitive, Zero};
 use serde::Serialize;
 use serde::Serializer;
 use std::fmt;
 use std::ops::Add;
+use std::ops::Div;
 use std::ops::Mul;
+use std::ops::Sub;
 use std::str::FromStr;
 
 /// A wrapper for BigUint which provides serialization to BigEndian in radix 16
@@ -30,11 +32,27 @@ impl Add for BigEndianInt {
     }
 }
 
+impl Sub for BigEndianInt {
+    type Output = BigEndianInt;
+
+    fn sub(self, other: BigEndianInt) -> BigEndianInt {
+        BigEndianInt(self.0 - other.0)
+    }
+}
+
 impl Mul for BigEndianInt {
     type Output = BigEndianInt;
 
     fn mul(self, other: BigEndianInt) -> BigEndianInt {
         BigEndianInt(self.0 * other.0)
+    }
+}
+
+impl Div for BigEndianInt {
+    type Output = BigEndianInt;
+
+    fn div(self, other: BigEndianInt) -> BigEndianInt {
+        BigEndianInt(self.0 / other.0)
     }
 }
 
@@ -47,9 +65,49 @@ impl Serialize for BigEndianInt {
         if self.0 == BigUint::zero() {
             serializer.serialize_bytes(&[])
         } else {
-            let bytes = self.0.to_bytes_be();
+            let bytes = self.to_bytes_be();
             serializer.serialize_bytes(&bytes)
         }
+    }
+}
+
+impl ToPrimitive for BigEndianInt {
+    fn to_i64(&self) -> Option<i64> {
+        self.0.to_i64()
+    }
+    fn to_u64(&self) -> Option<u64> {
+        self.0.to_u64()
+    }
+
+    fn to_isize(&self) -> Option<isize> {
+        self.0.to_isize()
+    }
+    fn to_i8(&self) -> Option<i8> {
+        self.0.to_i8()
+    }
+    fn to_i16(&self) -> Option<i16> {
+        self.0.to_i16()
+    }
+    fn to_i32(&self) -> Option<i32> {
+        self.0.to_i32()
+    }
+    fn to_usize(&self) -> Option<usize> {
+        self.0.to_usize()
+    }
+    fn to_u8(&self) -> Option<u8> {
+        self.0.to_u8()
+    }
+    fn to_u16(&self) -> Option<u16> {
+        self.0.to_u16()
+    }
+    fn to_u32(&self) -> Option<u32> {
+        self.0.to_u32()
+    }
+    fn to_f32(&self) -> Option<f32> {
+        self.0.to_f32()
+    }
+    fn to_f64(&self) -> Option<f64> {
+        self.0.to_f64()
     }
 }
 
@@ -62,6 +120,9 @@ impl BigEndianInt {
 
     pub fn from_bytes_be(bytes: &[u8]) -> BigEndianInt {
         BigEndianInt(BigUint::from_bytes_be(bytes))
+    }
+    pub fn to_bytes_be(&self) -> Vec<u8> {
+        self.0.to_bytes_be()
     }
 }
 

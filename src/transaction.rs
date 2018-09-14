@@ -1,11 +1,14 @@
 use address::Address;
 use constants::SECPK1N;
 use constants::TT256;
+use failure::Error;
+use num_traits::ToPrimitive;
+use num_traits::Zero;
 use opcodes::GTXCOST;
 use opcodes::GTXDATANONZERO;
 use opcodes::GTXDATAZERO;
 use private_key::PrivateKey;
-use secp256k1::{Message, Secp256k1, SecretKey};
+use secp256k1::{Message, RecoverableSignature, RecoveryId, Secp256k1, SecretKey};
 use serde::ser::SerializeTuple;
 use serde::Serialize;
 use serde::Serializer;
@@ -14,7 +17,19 @@ use serde_rlp::ser::to_bytes;
 use sha3::{Digest, Keccak256};
 use signature::Signature;
 use types::BigEndianInt;
-use utils::{bytes_to_hex_str, hex_str_to_bytes};
+use utils::{bytes_to_hex_str, hex_str_to_bytes, zpad};
+
+#[derive(Fail, Debug)]
+pub enum TransactionError {
+    #[fail(display = "Invalid network id")]
+    InvalidNetworkId,
+    #[fail(display = "Invalid V value")]
+    InvalidV,
+    #[fail(display = "Invalid signature values")]
+    InvalidSignatureValues,
+    #[fail(display = "Zero priv key cannot sign")]
+    ZeroPrivKey,
+}
 
 /// Transaction as explained in the Ethereum Yellow paper section 4.2
 #[derive(Clone, Debug)]
@@ -78,7 +93,6 @@ impl Transaction {
 
     /// Creates a raw data without signature params
     fn to_unsigned_tx_params(&self) -> Vec<u8> {
-        assert!(self.signature.is_none());
         // TODO: Could be refactored in a better way somehow
         let data = (
             &self.nonce,
@@ -87,6 +101,22 @@ impl Transaction {
             &self.to,
             &self.value,
             &ByteBuf::from(self.data.clone()),
+        );
+        to_bytes(&data).unwrap()
+    }
+    fn to_unsigned_tx_params_for_network(&self, network_id: BigEndianInt) -> Vec<u8> {
+        // assert!(self.signature.is_none());
+        // TODO: Could be refactored in a better way somehow
+        let data = (
+            &self.nonce,
+            &self.gas_price,
+            &self.gas_limit,
+            &self.to,
+            &self.value,
+            &ByteBuf::from(self.data.clone()),
+            &network_id,
+            &ByteBuf::new(),
+            &ByteBuf::new(),
         );
         to_bytes(&data).unwrap()
     }
@@ -129,6 +159,76 @@ impl Transaction {
         tx.signature = Some(Signature::new(v, r, s));
         tx
     }
+
+    pub fn sender(&self) -> Result<Address, Error> {
+        if self.signature.is_none() {
+            return Ok(Address::from([0xffu8; 20]));
+        }
+        let sig = self.signature.as_ref().unwrap();
+        if sig.r == BigEndianInt::zero() && sig.s == BigEndianInt::zero() {
+            return Ok(Address::from([0xffu8; 20]));
+        } else {
+            let (vee, sighash) = if sig.v == 27u32.into() || sig.v == 28u32.into() {
+                let vee = sig.v.clone();
+                let sighash = Keccak256::digest(&self.to_unsigned_tx_params());
+                (vee, sighash)
+            } else if sig.v >= 37u32.into() {
+                let network_id = sig.network_id().ok_or(TransactionError::InvalidNetworkId)?;
+                let vee = sig.v.clone() - network_id.clone() * 2u32.into() - 8u32.into();
+                assert!(vee == 27u32.into() || vee == 28u32.into());
+
+                let rlp_data = self.to_unsigned_tx_params_for_network(network_id.clone());
+                let sighash = Keccak256::digest(&rlp_data);
+                (vee, sighash)
+            } else {
+                return Err(TransactionError::InvalidV.into());
+            };
+
+            if sig.r >= *SECPK1N
+                || sig.s >= *SECPK1N
+                || sig.r == BigEndianInt::zero()
+                || sig.s == BigEndianInt::zero()
+            {
+                return Err(TransactionError::InvalidSignatureValues.into());
+            }
+
+            // prepare secp256k1 context
+            let secp256k1 = Secp256k1::new();
+
+            // Prepare compact signature that consists of (r, s) padded to 32 bytes to make 64 bytes data
+            let r = zpad(&sig.r.to_bytes_be(), 32);
+            debug_assert_eq!(r.len(), 32);
+            let s = zpad(&sig.s.to_bytes_be(), 32);
+            debug_assert_eq!(s.len(), 32);
+
+            // Join together rs into a compact signature
+            let mut compact_bytes: Vec<u8> = Vec::new();
+            compact_bytes.extend(r);
+            compact_bytes.extend(s);
+            debug_assert_eq!(compact_bytes.len(), 64);
+
+            // Create recovery ID which is "v" minus 27. Without this it wouldn't be possible to extract recoverable signature.
+            let v = RecoveryId::from_i32(vee.to_i32().expect("Unable to convert vee to i32") - 27)?;
+            // Get recoverable signature given rs, and v.
+            let compact = RecoverableSignature::from_compact(&secp256k1, &compact_bytes, v)?;
+            // A message to recover which is a hash of the transaction
+            let msg = Message::from_slice(&sighash)?;
+            let pkey = secp256k1.recover(&msg, &compact)?;
+            // Serialize the recovered public key in uncompressed format
+            let pkey = pkey.serialize_uncompressed();
+            assert_eq!(pkey.len(), 65);
+            if pkey[1..].to_vec() == [0x00u8; 64].to_vec() {
+                return Err(TransactionError::ZeroPrivKey.into());
+            }
+            // Finally an address is last 20 bytes of a hash of the public key.
+            let sender = Keccak256::digest(&pkey[1..]);
+            debug_assert_eq!(sender.len(), 32);
+            return Ok(Address::from(&sender[12..]));
+        }
+    }
+    fn hash(&self) -> Vec<u8> {
+        Keccak256::digest(&to_bytes(&self).unwrap()).to_vec()
+    }
 }
 
 #[test]
@@ -158,6 +258,11 @@ fn test_vitaliks_eip_158_vitalik_12_json() {
     let lhs = bytes_to_hex_str(&lhs);
     let rhs = "f8610e80830493e080809560f2ff61000080610011600039610011565b6000f31ca0a310f4d0b26207db76ba4e1e6e7cf1857ee3aa8559bcbc399a6b09bfea2d30b4a06dff38c645a1486651a717ddf3daccb4fd9a630871ecea0758ddfcf2774f9bc6".to_owned();
     assert_eq!(lhs, rhs);
+
+    assert_eq!(
+        bytes_to_hex_str(&tx.sender().unwrap().as_bytes()),
+        "874b54a8bd152966d63f706bae1ffeb0411921e5"
+    );
 }
 
 #[test]
