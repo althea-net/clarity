@@ -1,6 +1,7 @@
 extern crate clarity;
 extern crate num_traits;
 extern crate rustc_test as test;
+extern crate serde_bytes;
 extern crate serde_json;
 extern crate serde_rlp;
 #[macro_use]
@@ -8,7 +9,9 @@ extern crate serde_derive;
 use clarity::utils::{bytes_to_hex_str, hex_str_to_bytes};
 use clarity::{Address, BigEndianInt, Signature, Transaction};
 use num_traits::Zero;
+use serde_bytes::Bytes;
 use serde_json::{Error, Value};
+use serde_rlp::de::from_bytes;
 use serde_rlp::ser::to_bytes;
 use std::collections::HashMap;
 use std::env;
@@ -153,19 +156,34 @@ fn make_test(path: PathBuf) -> Option<TestDescAndFn> {
         None => {
             // No "expect" key means no "transaction" key
             assert!(filler.transaction.is_none());
-            // Those tests are ignored anyway
-            ShouldPanic::YesWithMessage("This test is ignored")
+            // If we know there is no transaction, so we panic when we're unable to decode RLP data.
+            ShouldPanic::Yes
         }
     };
-
-    // As mentioned above skip invalid transactions for now
-    desc.ignore = filler.transaction.is_none();
 
     Some(TestDescAndFn {
         desc: desc,
         testfn: DynTestFn(Box::new(move || {
-            // TODO: The full test should go both ways i.e. construct TX based on filler values and compare with RLP, and another test should verify decoded RLP
-            // and compare it.
+            let raw_rlp_bytes = hex_str_to_bytes(&fixtures.rlp)
+                .unwrap_or_else(|e| panic!("Unable to decode {}: {}", fixtures.rlp, e));
+            // Try to decode the bytes into a Vec of Bytes which will enforce structure of a n-element vector with bytearrays.
+            let data: Vec<Bytes> = match from_bytes(&raw_rlp_bytes) {
+                Ok(data) => {
+                    if filler.transaction.is_none() {
+                        assert_eq!(filler.expect.len(), 0);
+                        panic!("Decoding of this RLP data should fail");
+                    }
+
+                    data
+                }
+                Err(e) => {
+                    panic!("Decoding failed correctly with {:?}", e);
+                    return;
+                }
+            };
+            // A valid decoded transaction has exactly 9 elements.
+            assert_eq!(data.len(), 9);
+
             // We skipped all fillers without transaction data
             let raw_params = filler.transaction.as_ref().unwrap();
             let tx = Transaction {
