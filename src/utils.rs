@@ -66,7 +66,7 @@ fn parse_prefixed_non_empty() {
     );
 }
 
-pub fn bytes_to_hex_str(bytes: &Vec<u8>) -> String {
+pub fn bytes_to_hex_str(bytes: &[u8]) -> String {
     bytes
         .iter()
         .map(|b| format!("{:0>2x?}", b))
@@ -81,4 +81,29 @@ fn encode_bytes() {
         bytes_to_hex_str(&vec![0xde, 0xad, 0xbe, 0xef]),
         "deadbeef".to_owned()
     );
+}
+
+/// Pad bytes with zeros at the beggining.
+pub fn zpad(bytes: &[u8], len: usize) -> Vec<u8> {
+    if bytes.len() >= len {
+        return bytes.to_vec();
+    }
+    let mut pad = vec![0u8; len - bytes.len()];
+    pad.extend(bytes);
+    pad
+}
+
+#[test]
+fn verify_zpad() {
+    assert_eq!(zpad(&[1, 2, 3, 4], 8), [0, 0, 0, 0, 1, 2, 3, 4]);
+}
+
+#[test]
+fn verify_zpad_exact() {
+    assert_eq!(zpad(&[1, 2, 3, 4], 4), [1, 2, 3, 4]);
+}
+
+#[test]
+fn verify_zpad_less_than_size() {
+    assert_eq!(zpad(&[1, 2, 3, 4], 2), [1, 2, 3, 4]);
 }

@@ -39,6 +39,8 @@ struct TestFillerExpect {
     network: Vec<String>,
     /// I.e. "invalid"
     result: String,
+    /// I.e. 40 bytes characters
+    sender: Option<String>,
 }
 
 fn default_gas_limit() -> String {
@@ -64,7 +66,8 @@ struct TestFillerTransaction {
 #[derive(Deserialize, Debug)]
 struct TestFiller {
     // I.e. [{"network": ["ALL"], "result": "invalid"}]
-    expect: Option<Vec<TestFillerExpect>>,
+    #[serde(default = "Vec::new")]
+    expect: Vec<TestFillerExpect>,
     // This is kind of unnatural in our environment, but there is at least
     // one test case where they have more transaction params than expected.
     // It doesn't really matter in our case because we operate on structs,
@@ -141,11 +144,11 @@ fn make_test(path: PathBuf) -> Option<TestDescAndFn> {
 
     let mut desc = TestDesc::new(DynTestName(path.to_string_lossy().to_string()));
 
-    desc.should_panic = match filler.expect {
+    desc.should_panic = match filler.expect.get(0) {
         // Our tests should fail with a panic
-        Some(ref expect) if expect.get(0).as_ref().unwrap().result == "invalid" => ShouldPanic::Yes,
+        Some(ref expect) if expect.result == "invalid" => ShouldPanic::Yes,
         // All assertions shall pass
-        Some(ref expect) if expect.get(0).as_ref().unwrap().result == "valid" => ShouldPanic::No,
+        Some(ref expect) if expect.result == "valid" => ShouldPanic::No,
         Some(_) => panic!("Invalid filler data {:?}", filler),
         None => {
             // No "expect" key means no "transaction" key
@@ -202,6 +205,37 @@ fn make_test(path: PathBuf) -> Option<TestDescAndFn> {
                 &raw_params,
                 &filler
             );
+
+            match filler.expect.get(0) {
+                Some(ref expect) if !expect.sender.is_none() => {
+                    assert_eq!(
+                        &bytes_to_hex_str(&tx.sender().unwrap().as_bytes()),
+                        expect.sender.as_ref().unwrap()
+                    );
+                }
+                _ => (),
+            }
+
+            // match filler.expect {
+            //     // Our tests should fail with a panic
+            //     Some(ref expect) => {
+            //         let expect = expect.get(0).as_ref().unwrap();
+            //         if !expect.sender.is_none() {
+            //         }
+            //     },
+            //     //     assert_ne!(
+            //     //         &bytes_to_hex_str(&tx.sender().as_bytes()),
+            //     //         expect.get(0).as_ref().unwrap().sender.as_ref().unwrap()
+            //     //     );
+            //     // },
+            //     // Some(ref expect) if expect.get(0).as_ref().unwrap().result == "valid" => {
+            //     //     assert_ne!(
+            //     //         &bytes_to_hex_str(&tx.sender().as_bytes()),
+            //     //         expect.get(0).as_ref().unwrap().sender.as_ref().unwrap()
+            //     //     );
+            //     // }
+            //     _ => (),
+            // }
         })),
     })
 }

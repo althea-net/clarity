@@ -31,6 +31,10 @@ impl Address {
             data: vec![0u8; 20],
         }
     }
+
+    pub fn as_bytes(&self) -> &[u8] {
+        &self.data
+    }
 }
 
 impl Default for Address {
@@ -43,6 +47,12 @@ impl Default for Address {
 
 impl From<[u8; 20]> for Address {
     fn from(val: [u8; 20]) -> Address {
+        Address { data: val.to_vec() }
+    }
+}
+
+impl<'a> From<&'a [u8]> for Address {
+    fn from(val: &'a [u8]) -> Address {
         Address { data: val.to_vec() }
     }
 }
