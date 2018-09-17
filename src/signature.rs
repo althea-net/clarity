@@ -1,11 +1,11 @@
 use constants::SECPK1N;
+use error::ClarityError;
+use failure::Error;
 use num_traits::Zero;
 use serde::ser::SerializeTuple;
 use serde::Serialize;
 use serde::Serializer;
 use types::BigEndianInt;
-use error::ClarityError;
-use failure::Error;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Signature {
@@ -47,14 +47,14 @@ impl Signature {
 
     pub fn check_low_s_metropolis(&self) -> Result<(), Error> {
         if self.s > (SECPK1N.clone() / 2u32.into()) {
-            return Err(ClarityError::InvalidS.into())
+            return Err(ClarityError::InvalidS.into());
         }
         Ok(())
     }
 
     pub fn check_low_s_homestead(&self) -> Result<(), Error> {
         if self.s > (SECPK1N.clone() / 2u32.into()) || self.s == BigEndianInt::zero() {
-            return Err(ClarityError::InvalidS.into())
+            return Err(ClarityError::InvalidS.into());
         }
         Ok(())
     }
