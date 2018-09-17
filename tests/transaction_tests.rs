@@ -279,6 +279,9 @@ fn tests() -> Vec<TestDescAndFn> {
 
     let mut testdir = get_fixtures_path();
     testdir.push("TransactionTests");
+    if !testdir.is_dir() {
+        panic!("Directory does not exists. Did you remember to execute \"git submodule update --init\"?");
+    }
     visit_dirs(&testdir, &mut |entry| match make_test(entry.path()) {
         Some(test) => res.push(test),
         None => (),
