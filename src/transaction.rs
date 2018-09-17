@@ -1,7 +1,6 @@
 use address::Address;
 use constants::SECPK1N;
 use constants::TT256;
-use failure::Error;
 use num_traits::ToPrimitive;
 use num_traits::Zero;
 use opcodes::GTXCOST;
@@ -18,18 +17,8 @@ use sha3::{Digest, Keccak256};
 use signature::Signature;
 use types::BigEndianInt;
 use utils::{bytes_to_hex_str, hex_str_to_bytes, zpad};
-
-#[derive(Fail, Debug)]
-pub enum TransactionError {
-    #[fail(display = "Invalid network id")]
-    InvalidNetworkId,
-    #[fail(display = "Invalid V value")]
-    InvalidV,
-    #[fail(display = "Invalid signature values")]
-    InvalidSignatureValues,
-    #[fail(display = "Zero priv key cannot sign")]
-    ZeroPrivKey,
-}
+use failure::Error;
+use error::ClarityError;
 
 /// Transaction as explained in the Ethereum Yellow paper section 4.2
 #[derive(Clone, Debug, PartialEq)]
@@ -74,10 +63,6 @@ impl Transaction {
             || self.nonce >= *TT256
         {
             // Way too high values
-            return false;
-        }
-
-        if self.gas_limit < self.intrinsic_gas_used() {
             return false;
         }
         true
@@ -173,7 +158,7 @@ impl Transaction {
                 let sighash = Keccak256::digest(&self.to_unsigned_tx_params());
                 (vee, sighash)
             } else if sig.v >= 37u32.into() {
-                let network_id = sig.network_id().ok_or(TransactionError::InvalidNetworkId)?;
+                let network_id = sig.network_id().ok_or(ClarityError::InvalidNetworkId)?;
                 let vee = sig.v.clone() - network_id.clone() * 2u32.into() - 8u32.into();
                 assert!(vee == 27u32.into() || vee == 28u32.into());
 
@@ -181,7 +166,7 @@ impl Transaction {
                 let sighash = Keccak256::digest(&rlp_data);
                 (vee, sighash)
             } else {
-                return Err(TransactionError::InvalidV.into());
+                return Err(ClarityError::InvalidV.into());
             };
 
             if sig.r >= *SECPK1N
@@ -189,7 +174,7 @@ impl Transaction {
                 || sig.r == BigEndianInt::zero()
                 || sig.s == BigEndianInt::zero()
             {
-                return Err(TransactionError::InvalidSignatureValues.into());
+                return Err(ClarityError::InvalidSignatureValues.into());
             }
 
             // prepare secp256k1 context
@@ -218,7 +203,7 @@ impl Transaction {
             let pkey = pkey.serialize_uncompressed();
             assert_eq!(pkey.len(), 65);
             if pkey[1..].to_vec() == [0x00u8; 64].to_vec() {
-                return Err(TransactionError::ZeroPrivKey.into());
+                return Err(ClarityError::ZeroPrivKey.into());
             }
             // Finally an address is last 20 bytes of a hash of the public key.
             let sender = Keccak256::digest(&pkey[1..]);
