@@ -18,8 +18,10 @@ mod signature;
 pub mod transaction;
 pub mod types;
 pub mod utils;
+pub mod error;
 
 pub use address::Address;
 pub use signature::Signature;
 pub use transaction::Transaction;
 pub use types::BigEndianInt;
+pub use error::ClarityError;

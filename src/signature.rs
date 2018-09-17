@@ -4,6 +4,8 @@ use serde::ser::SerializeTuple;
 use serde::Serialize;
 use serde::Serializer;
 use types::BigEndianInt;
+use error::ClarityError;
+use failure::Error;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Signature {
@@ -41,6 +43,20 @@ impl Signature {
         } else {
             Some(((self.v.clone() - 1u32.into()) / 2u32.into()) - 17u32.into())
         }
+    }
+
+    pub fn check_low_s_metropolis(&self) -> Result<(), Error> {
+        if self.s > (SECPK1N.clone() / 2u32.into()) {
+            return Err(ClarityError::InvalidS.into())
+        }
+        Ok(())
+    }
+
+    pub fn check_low_s_homestead(&self) -> Result<(), Error> {
+        if self.s > (SECPK1N.clone() / 2u32.into()) || self.s == BigEndianInt::zero() {
+            return Err(ClarityError::InvalidS.into())
+        }
+        Ok(())
     }
 }
 
