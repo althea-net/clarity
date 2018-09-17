@@ -20,8 +20,7 @@ pub fn hex_str_to_bytes(s: &str) -> Result<Vec<u8>, ByteDecodeError> {
                 .and_then(|res| {
                     u8::from_str_radix(&res, 16).map_err(|e| ByteDecodeError::ParseError(e))
                 })
-        })
-        .collect()
+        }).collect()
 }
 
 #[test]
