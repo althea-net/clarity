@@ -12,16 +12,16 @@ extern crate lazy_static;
 
 pub mod address;
 pub mod constants;
+pub mod error;
 pub mod opcodes;
 mod private_key;
 mod signature;
 pub mod transaction;
 pub mod types;
 pub mod utils;
-pub mod error;
 
 pub use address::Address;
+pub use error::ClarityError;
 pub use signature::Signature;
 pub use transaction::Transaction;
 pub use types::BigEndianInt;
-pub use error::ClarityError;

@@ -1,6 +1,8 @@
 use address::Address;
 use constants::SECPK1N;
 use constants::TT256;
+use error::ClarityError;
+use failure::Error;
 use num_traits::ToPrimitive;
 use num_traits::Zero;
 use opcodes::GTXCOST;
@@ -17,8 +19,6 @@ use sha3::{Digest, Keccak256};
 use signature::Signature;
 use types::BigEndianInt;
 use utils::{bytes_to_hex_str, hex_str_to_bytes, zpad};
-use failure::Error;
-use error::ClarityError;
 
 /// Transaction as explained in the Ethereum Yellow paper section 4.2
 #[derive(Clone, Debug, PartialEq)]
@@ -65,6 +65,11 @@ impl Transaction {
             // Way too high values
             return false;
         }
+
+        if self.gas_limit < self.intrinsic_gas_used() {
+            return false;
+        }
+
         true
     }
 

@@ -14,10 +14,12 @@ use serde_json::{Error, Value};
 use serde_rlp::de::from_bytes;
 use serde_rlp::ser::to_bytes;
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::env;
 use std::fs::{self, DirEntry, File};
 use std::io;
 use std::io::BufReader;
+use std::iter::FromIterator;
 use std::path::{Path, PathBuf};
 use test::{DynTestFn, DynTestName, ShouldPanic, TestDesc, TestDescAndFn};
 
@@ -39,7 +41,7 @@ fn visit_dirs(dir: &Path, cb: &mut FnMut(&DirEntry)) -> io::Result<()> {
 #[derive(Deserialize, Debug, Clone)]
 struct TestFillerExpect {
     /// I.e. ["ALL"]
-    network: Vec<String>,
+    network: HashSet<String>,
     /// I.e. "invalid"
     result: String,
     /// I.e. 40 bytes characters
@@ -180,8 +182,9 @@ fn test_fn(fixtures: &TestFixture, filler: &TestFiller, expect: Option<&TestFill
         )),
     };
 
-    // We skipped all fillers without transaction data
+    // We skipped all fillers without transaction data, so now this unwrap is safe.
     let raw_params = filler.transaction.as_ref().unwrap();
+    // Create a tx based on filler params
     let tx = Transaction {
         nonce: raw_params.nonce.parse().unwrap_or(BigEndianInt::zero()),
         gas_price: raw_params.gas_price.parse().unwrap_or(BigEndianInt::zero()),
@@ -199,10 +202,14 @@ fn test_fn(fixtures: &TestFixture, filler: &TestFiller, expect: Option<&TestFill
         )),
     };
 
+    // Compare decoded transaction based on RLP and a transaction based on TX.
+    // No need to go through validation for `decoded_tx` since we can rely on the equality here,
+    // and assume if tx is valid, then decoded_tx is valid as well.
     assert_eq!(decoded_tx, tx);
 
+    // Encoding of our transaction
     let our_rlp = to_bytes(&tx).unwrap();
-
+    // All rlp's Fixtures
     assert!(fixtures.rlp.starts_with("0x"));
 
     assert!(tx.is_valid(), "{:?} {:?} {:?}", tx, raw_params, filler);
@@ -213,6 +220,7 @@ fn test_fn(fixtures: &TestFixture, filler: &TestFiller, expect: Option<&TestFill
         raw_params,
         filler
     );
+    // Comparing our encoding with the "ground truth" in the fixture
     assert_eq!(
         bytes_to_hex_str(&our_rlp),
         &fixtures.rlp[2..],
@@ -222,37 +230,38 @@ fn test_fn(fixtures: &TestFixture, filler: &TestFiller, expect: Option<&TestFill
         &filler
     );
 
+    // We have verified that case already so unwrapping an expect data is safe.
     let expect = expect.expect("Expect should be available at this point");
-
-    assert!(tx.gas_limit >= tx.intrinsic_gas_used());
 
     // TODO: Change v to u64 so it would validate overflow when decoding/creating (v <= 2**64-1 so it can't overflow)
     assert!(tx.signature.as_ref().unwrap().v <= "18446744073709551615".parse().unwrap());
 
-    if expect.network.contains(&"Homestead".to_owned())
-        || expect.network.contains(&"EIP150".to_owned())
+    // Since Homestead we have to verify if 0<s<secpk1n/2
+    if HashSet::from_iter(
+        vec!["Homestead", "EIP150"]
+            .into_iter()
+            .map(String::from)
+            .collect::<Vec<String>>(),
+    ).is_subset(&expect.network)
     {
         let res = tx.signature.as_ref().unwrap().check_low_s_homestead();
         if expect.result == "invalid" {
             res.unwrap_err();
-        }
-        else if expect.result == "valid" {
+        } else if expect.result == "valid" {
             res.unwrap();
-        }
-        else {
+        } else {
             unreachable!("This case is validated before");
         }
     }
 
+    // Since Constantinople verify if 0<s<secpk1n/2 and s != 0
     if expect.network.contains(&"Constantinople".to_owned()) {
         let res = tx.signature.as_ref().unwrap().check_low_s_metropolis();
         if expect.result == "invalid" {
             res.unwrap_err();
-        }
-        else if expect.result == "valid" {
+        } else if expect.result == "valid" {
             res.unwrap();
-        }
-        else {
+        } else {
             unreachable!("This case is validated before");
         }
     }
@@ -265,6 +274,23 @@ fn test_fn(fixtures: &TestFixture, filler: &TestFiller, expect: Option<&TestFill
             &bytes_to_hex_str(&sender.as_bytes()),
             expect.sender.as_ref().unwrap()
         );
+    }
+
+    // Verify network id
+    let network_id = tx.signature.as_ref().unwrap().network_id();
+
+    if HashSet::from_iter(
+        vec!["Byzantium", "Constantinople", "EIP158"]
+            .into_iter()
+            .map(String::from)
+            .collect::<Vec<String>>(),
+    ).is_subset(&expect.network)
+    {
+        // Since Spurious Dragon
+        assert!(network_id.is_some() || network_id.unwrap() == 1u32.into());
+    } else {
+        // Before Spurious Dragon
+        assert!(network_id.is_none());
     }
 }
 
@@ -290,7 +316,10 @@ fn make_test(path: PathBuf) -> Option<Vec<TestDescAndFn>> {
     if filler.expect.len() == 0 {
         let mut desc = TestDesc::new(DynTestName(format!(
             "{}",
-            path.strip_prefix(get_fixtures_path()).unwrap().to_string_lossy().to_string()
+            path.strip_prefix(get_fixtures_path())
+                .unwrap()
+                .to_string_lossy()
+                .to_string()
         )));
         assert!(filler.transaction.is_none());
         desc.should_panic = ShouldPanic::Yes;
@@ -308,12 +337,21 @@ fn make_test(path: PathBuf) -> Option<Vec<TestDescAndFn>> {
     // This stores all tests per all networks
     let mut tests = Vec::new();
 
-    for expect in filler.expect.iter() {
-        let networks = expect.network.join(",");
+    for expect in &filler.expect {
+        // let networks = vec!["a", "b"].fjoin(",");
+        let networks = expect
+            .network
+            .iter()
+            .map(|s| &s[..])
+            .collect::<Vec<&str>>()
+            .join(",");
         // for network in expect.network.iter() {
         let mut desc = TestDesc::new(DynTestName(format!(
             "{}@{}@{}",
-            path.strip_prefix(get_fixtures_path()).unwrap().to_string_lossy().to_string(),
+            path.strip_prefix(get_fixtures_path())
+                .unwrap()
+                .to_string_lossy()
+                .to_string(),
             networks,
             expect.result
         )));
