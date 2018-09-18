@@ -1,4 +1,8 @@
+use address::Address;
+use error::ClarityError;
 use failure::Error;
+use secp256k1::{PublicKey, Secp256k1, SecretKey};
+use sha3::{Digest, Keccak256};
 use std::str::FromStr;
 use utils::{hex_str_to_bytes, ByteDecodeError};
 
@@ -26,8 +30,32 @@ impl FromStr for PrivateKey {
 }
 
 impl PrivateKey {
+    pub fn new() -> PrivateKey {
+        PrivateKey([0u8; 32])
+    }
     pub fn to_bytes(&self) -> [u8; 32] {
         self.0
+    }
+
+    /// Given a private key it generates a valid public key.
+    ///
+    /// This is well explained in the EthereumYellow Paper Appendix F.
+    fn to_public_key(&self) -> Result<Address, Error> {
+        let secp256k1 = Secp256k1::new();
+        let sk = SecretKey::from_slice(&secp256k1, &self.0)?;
+        let pkey = PublicKey::from_secret_key(&secp256k1, &sk);
+        // TODO: This part is duplicated with sender code.
+
+        // Serialize the recovered public key in uncompressed format
+        let pkey = pkey.serialize_uncompressed();
+        assert_eq!(pkey.len(), 65);
+        if pkey[1..].to_vec() == [0x00u8; 64].to_vec() {
+            return Err(ClarityError::ZeroPrivKey.into());
+        }
+        // Finally an address is last 20 bytes of a hash of the public key.
+        let sender = Keccak256::digest(&pkey[1..]);
+        debug_assert_eq!(sender.len(), 32);
+        Ok(Address::from(&sender[12..]))
     }
 }
 
@@ -47,6 +75,7 @@ fn invalid_data() {
 
 #[test]
 fn parse_address_1() {
+    use utils::bytes_to_hex_str;
     // https://github.com/ethereum/tests/blob/b44cea1cccf1e4b63a05d1ca9f70f2063f28da6d/BasicTests/txtest.json
     let key: PrivateKey = "c85ef7d79691fe79573b1a7064c19c1a9819ebdbd1faaab1a8ec92344438aaf4"
         .parse()
@@ -59,10 +88,17 @@ fn parse_address_1() {
             0x44, 0x38, 0xaa, 0xf4
         ]
     );
+
+    // geth account import <(echo c85ef7d79691fe79573b1a7064c19c1a9819ebdbd1faaab1a8ec92344438aaf4)
+    assert_eq!(
+        bytes_to_hex_str(&key.to_public_key().unwrap().as_bytes()),
+        "cd2a3d9f938e13cd947ec05abc7fe734df8dd826"
+    );
 }
 
 #[test]
 fn parse_address_2() {
+    use utils::bytes_to_hex_str;
     // https://github.com/ethereum/tests/blob/b44cea1cccf1e4b63a05d1ca9f70f2063f28da6d/BasicTests/txtest.json
     let key: PrivateKey = "c87f65ff3f271bf5dc8643484f66b200109caffe4bf98c4cb393dc35740b28c0"
         .parse()
@@ -75,4 +111,18 @@ fn parse_address_2() {
             0x74, 0x0b, 0x28, 0xc0
         ]
     );
+
+    // geth account import <(echo c87f65ff3f271bf5dc8643484f66b200109caffe4bf98c4cb393dc35740b28c0)
+    assert_eq!(
+        bytes_to_hex_str(&key.to_public_key().unwrap().as_bytes()),
+        "13978aee95f38490e9769c39b2773ed763d9cd5f"
+    );
+}
+
+#[test]
+#[should_panic]
+fn zero_address() {
+    // A key full of zeros is an invalid private key.
+    let key = PrivateKey::new();
+    key.to_public_key().unwrap();
 }
