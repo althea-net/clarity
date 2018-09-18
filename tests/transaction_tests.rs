@@ -364,7 +364,7 @@ fn make_test(path: PathBuf) -> Option<Vec<TestDescAndFn>> {
             panic!("Unknown expect result {}", &expect.result);
         };
 
-        // TODO: I couldn't figure better way to do it
+        // TODO: I couldn't figure a better way to pass those values to the closure without cloning.
         let a = fixtures.clone();
         let b = filler.clone();
         let c = expect.clone();
