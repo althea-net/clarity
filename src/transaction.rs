@@ -116,7 +116,7 @@ impl Transaction {
         let rlpdata = match network_id {
             Some(network_id) => {
                 assert!(1 <= network_id && network_id < 9223372036854775790u64); // 1 <= id < 2**63 - 18
-                unimplemented!("Network IDs not implemented yet");
+                self.to_unsigned_tx_params_for_network(network_id.into())
             }
             None => self.to_unsigned_tx_params(),
         };
