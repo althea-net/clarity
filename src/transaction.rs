@@ -111,7 +111,7 @@ impl Transaction {
         to_bytes(&data).unwrap()
     }
     /// Creates a Transaction with new
-    fn sign(&self, key: &PrivateKey, network_id: Option<u64>) -> Transaction {
+    pub fn sign(&self, key: &PrivateKey, network_id: Option<u64>) -> Transaction {
         // This is a special matcher to prepare raw RLP data with correct network_id.
         let rlpdata = match network_id {
             Some(network_id) => {
@@ -141,7 +141,11 @@ impl Transaction {
         let recovery_id = recovery_id.to_i32();
         assert!(recovery_id >= 0);
         let recovery_id = recovery_id as u32;
-        let v: BigEndianInt = (recovery_id + 27).into();
+        let mut v: BigEndianInt = (recovery_id + 27).into();
+        if network_id.is_some() {
+            // Account v for the network_id value
+            v += (8u64 + network_id.unwrap() * 2u64).into();
+        }
         let r = BigEndianInt::from_bytes_be(&compact[0..32]);
         let s = BigEndianInt::from_bytes_be(&compact[32..64]);
         // This will swap the signature of a transaction, and returns a new signed TX.

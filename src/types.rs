@@ -4,10 +4,10 @@ use num_traits::{Num, ToPrimitive, Zero};
 use serde::Serialize;
 use serde::Serializer;
 use std::fmt;
-use std::ops::Add;
 use std::ops::Div;
 use std::ops::Mul;
 use std::ops::Sub;
+use std::ops::{Add, AddAssign};
 use std::str::FromStr;
 
 /// A wrapper for BigUint which provides serialization to BigEndian in radix 16
@@ -29,6 +29,12 @@ impl Add for BigEndianInt {
 
     fn add(self, other: BigEndianInt) -> BigEndianInt {
         BigEndianInt(self.0 + other.0)
+    }
+}
+
+impl AddAssign for BigEndianInt {
+    fn add_assign(&mut self, other: BigEndianInt) {
+        self.0 += other.0;
     }
 }
 
