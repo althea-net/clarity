@@ -2,6 +2,7 @@ use serde::Serialize;
 use serde::Serializer;
 use std::str;
 use std::str::FromStr;
+use utils::bytes_to_hex_str;
 use utils::{hex_str_to_bytes, ByteDecodeError};
 /// This type represents ETH address
 #[derive(PartialEq, Debug, Clone)]
@@ -86,6 +87,12 @@ impl FromStr for Address {
         } else {
             Err(AddressError::InvalidLengthError)
         }
+    }
+}
+
+impl ToString for Address {
+    fn to_string(&self) -> String {
+        bytes_to_hex_str(&self.data)
     }
 }
 
