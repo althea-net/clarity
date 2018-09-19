@@ -12,6 +12,7 @@ pub enum PrivateKeyError {
     InvalidLengthError,
 }
 
+#[derive(Debug, PartialEq)]
 pub struct PrivateKey([u8; 32]);
 
 impl FromStr for PrivateKey {
@@ -29,10 +30,26 @@ impl FromStr for PrivateKey {
     }
 }
 
+impl From<[u8; 32]> for PrivateKey {
+    fn from(val: [u8; 32]) -> PrivateKey {
+        PrivateKey(val)
+    }
+}
+
 impl PrivateKey {
     pub fn new() -> PrivateKey {
         PrivateKey([0u8; 32])
     }
+
+    pub fn from_slice(slice: &[u8]) -> Result<PrivateKey, Error> {
+        if slice.len() != 32 {
+            return Err(ClarityError::InvalidPrivKey.into());
+        }
+        let mut res = [0u8; 32];
+        res.copy_from_slice(slice);
+        Ok(PrivateKey(res))
+    }
+
     pub fn to_bytes(&self) -> [u8; 32] {
         self.0
     }
@@ -40,7 +57,7 @@ impl PrivateKey {
     /// Given a private key it generates a valid public key.
     ///
     /// This is well explained in the EthereumYellow Paper Appendix F.
-    fn to_public_key(&self) -> Result<Address, Error> {
+    pub fn to_public_key(&self) -> Result<Address, Error> {
         let secp256k1 = Secp256k1::new();
         let sk = SecretKey::from_slice(&secp256k1, &self.0)?;
         let pkey = PublicKey::from_secret_key(&secp256k1, &sk);

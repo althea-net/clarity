@@ -230,8 +230,12 @@ impl Transaction {
     }
     /// Creates a hash of a transaction given all TX attributes
     /// including signature (VRS) whether it is present, or not.
-    fn hash(&self) -> Vec<u8> {
+    pub fn hash(&self) -> Vec<u8> {
         Keccak256::digest(&to_bytes(&self).unwrap()).to_vec()
+    }
+    /// Creates a byte representation of this transaction
+    pub fn to_bytes(&self) -> Result<Vec<u8>, Error> {
+        Ok(to_bytes(&self)?)
     }
 }
 

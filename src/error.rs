@@ -12,4 +12,6 @@ pub enum ClarityError {
     InvalidSignatureValues,
     #[fail(display = "Zero priv key cannot sign")]
     ZeroPrivKey,
+    #[fail(display = "Invalid private key")]
+    InvalidPrivKey,
 }
