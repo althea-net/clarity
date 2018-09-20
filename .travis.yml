@@ -22,6 +22,9 @@ env:
 before_install:
   - command -v cross 1>/dev/null || cargo install cross
 
+before_script:
+  - docker run -d -p 8545:8545 trufflesuite/ganache-cli:latest -a 10 -i 42 -e 1000 --debug
+
 script:
   - cross build --target $TARGET --verbose --all
   - cross test --target $TARGET --verbose --all

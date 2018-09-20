@@ -5,8 +5,7 @@ use secp256k1::{Message, PublicKey, Secp256k1, SecretKey};
 use sha3::{Digest, Keccak256};
 use signature::Signature;
 use std::str::FromStr;
-use utils::{hex_str_to_bytes, ByteDecodeError};
-// use secp256k1::{, RecoverableSignature, RecoveryId, Secp256k1, SecretKey};
+use utils::{bytes_to_hex_str, hex_str_to_bytes, ByteDecodeError};
 use types::BigEndianInt;
 
 #[derive(Fail, Debug, PartialEq)]
@@ -109,6 +108,12 @@ impl PrivateKey {
     pub fn sign_msg(&self, data: &[u8]) -> Signature {
         let digest = Keccak256::digest(data);
         self.sign_hash(&digest)
+    }
+}
+
+impl ToString for PrivateKey {
+    fn to_string(&self) -> String {
+        format!("0x{}", bytes_to_hex_str(&self.to_bytes()))
     }
 }
 
