@@ -22,9 +22,6 @@ env:
 before_install:
   - command -v cross 1>/dev/null || cargo install cross
 
-before_script:
-  - docker run -d -p 8545:8545 trufflesuite/ganache-cli:latest -a 10 -i 42 -e 1000 --debug
-
 script:
   - cross build --target $TARGET --verbose --all
   - cross test --target $TARGET --verbose --all
@@ -34,12 +31,20 @@ matrix:
     - rust: nightly
   fast_finish: true
   include:
-    - rust: stable
-      ? env
-      ? before_install
-      script:
-        - rustup component add rustfmt-preview
-        - cargo fmt --all -- --check
+  - rust: stable
+    ? env
+    ? before_install
+    script:
+      - rustup component add rustfmt-preview
+      - cargo fmt --all -- --check
+  - rust: stable
+    env:
+    before_install:
+    before_script:
+    - docker run -d -p 8545:8545 trufflesuite/ganache-cli:latest -a 10 -i 42 -e 1000 --debug
+    script:
+    # Runs expensive testnet tests
+    - cargo test --verbose -- --ignored testnet
 
 deploy:
   # Create new crates.io package

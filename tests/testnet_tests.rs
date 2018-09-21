@@ -1,21 +1,15 @@
 extern crate clarity;
 extern crate rand;
-extern crate rustc_test as test;
 extern crate web3;
 use clarity::utils::bytes_to_hex_str;
 use clarity::{PrivateKey, Transaction};
 use rand::{OsRng, Rng};
 use std::env;
-use std::fs::File;
-use std::io::Read;
-use std::path::Path;
 use std::{thread, time};
-use test::{DynTestFn, DynTestName, ShouldPanic, TestDesc, TestDescAndFn};
 use web3::api::Web3;
 use web3::futures::Future;
 use web3::helpers::{self, CallFuture};
 use web3::types::{Address, Bytes, TransactionRequest, U256};
-use web3::Transport;
 
 /// Creates a random key by reading random data from the available OS facility
 fn make_random_key() -> PrivateKey {
@@ -26,6 +20,39 @@ fn make_random_key() -> PrivateKey {
     let res = PrivateKey::from(data);
     debug_assert_ne!(res, PrivateKey::new());
     res
+}
+
+/// This function verifies if a web3 transport can be safely created.
+fn make_web3() -> Option<(
+    web3::transports::EventLoopHandle,
+    Web3<web3::transports::Http>,
+)> {
+    let address = env::var("GANACHE_HOST").unwrap_or("http://localhost:8545".to_owned());
+    eprintln!("Trying to create a Web3 connection to {:?}", address);
+    for counter in 0..30 {
+        match web3::transports::Http::new(&address) {
+            Ok((evloop, transport)) => {
+                let web3 = Web3::new(transport);
+                match web3.eth().accounts().wait() {
+                    Ok(accounts) => {
+                        println!("Got accounts {:?}", accounts);
+                        return Some((evloop, web3));
+                    }
+                    Err(e) => {
+                        eprintln!("Unable to retrieve accounts ({}): {}", counter, e);
+                        thread::sleep(time::Duration::from_millis(500));
+                        continue;
+                    }
+                }
+            }
+            Err(e) => {
+                eprintln!("Unable to create transport ({}): {}", counter, e);
+                thread::sleep(time::Duration::from_millis(500));
+                continue;
+            }
+        }
+    }
+    None
 }
 
 /// Test that makes bunch of transactions between Alice and Bob
@@ -54,9 +81,11 @@ fn make_random_key() -> PrivateKey {
 ///
 /// Additionally Ganache by default makes 10 accounts with 100 ETH each, so
 /// this test could be probably run few times on a single instance.
-fn alice_to_bob() {
-    let (_eloop, transport) = web3::transports::Http::new("http://localhost:8545").unwrap();
-    let web3 = Web3::new(transport);
+#[test]
+#[ignore]
+fn testnet_alice_and_bob() {
+    let (_evloop, web3) =
+        make_web3().expect("Unable to create a valid transport for Web3 protocol");
 
     let alice_priv_key = make_random_key();
     println!("Alice private key: 0x{}", alice_priv_key.to_string());
@@ -65,7 +94,11 @@ fn alice_to_bob() {
 
     println!("Bob private key: 0x{}", bob_priv_key.to_string());
 
-    let accounts = web3.eth().accounts().wait().unwrap();
+    let accounts = web3
+        .eth()
+        .accounts()
+        .wait()
+        .expect("Unable to retrieve accounts");
 
     let one_eth: U256 = "de0b6b3a7640000".parse().unwrap();
 
@@ -143,52 +176,4 @@ fn alice_to_bob() {
         .unwrap();
     println!("Bob balance {:?}", res);
     assert_eq!(res, one_eth * 5u64);
-}
-
-/// This function verifies if a web3 transport can be safely created.
-fn can_make_web3() -> bool {
-    for counter in 0..30 {
-        match web3::transports::Http::new("http://localhost:8545") {
-            Ok((_evloop, transport)) => {
-                let web3 = Web3::new(transport);
-                match web3.eth().accounts().wait() {
-                    Ok(accounts) => return true,
-                    Err(e) => {
-                        println!("Unable to retrieve accounts ({}): {}", counter, e);
-                        thread::sleep(time::Duration::from_secs(1));
-                        continue;
-                    }
-                }
-
-                return true;
-            }
-            Err(e) => {
-                println!("Unable to create transport ({}): {}", counter, e);
-                thread::sleep(time::Duration::from_secs(1));
-                continue;
-            }
-        }
-    }
-    false
-}
-
-fn tests() -> Vec<TestDescAndFn> {
-    let mut desc = TestDesc::new(DynTestName("AliceAndBob".to_string()));
-
-    // This is very important bit: If a transport can't be constructed in ~30s then this test will be marked as ignored.
-    desc.ignore = !can_make_web3();
-
-    let mut test = TestDescAndFn {
-        desc: desc,
-        testfn: DynTestFn(Box::new(move || {
-            alice_to_bob();
-        })),
-    };
-
-    vec![test]
-}
-
-fn main() {
-    let args: Vec<_> = env::args().collect();
-    test::test_main(&args, tests());
 }
