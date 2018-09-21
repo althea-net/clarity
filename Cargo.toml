@@ -3,6 +3,16 @@ name = "clarity"
 version = "0.1.0"
 authors = ["Michał Papierski <michal@papierski.net>"]
 autotests = false
+include = [
+    "**/*.rs",
+    "Cargo.toml"
+]
+description = "Lightweight Ethereum client"
+repository = "https://github.com/althea-mesh/clarity"
+license-file = "LICENSE"
+
+[badges]
+travis-ci = { repository = "althea-mesh/clarity", branch = "master" }
 
 [dependencies]
 serde = "1.0"
