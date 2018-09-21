@@ -2,7 +2,7 @@
 name = "clarity"
 version = "0.1.2"
 authors = ["Michał Papierski <michal@papierski.net>"]
-autotests = false
+autotests = true
 include = [
     "**/*.rs",
     "Cargo.toml"
@@ -28,10 +28,6 @@ serde_derive = "1.0"
 
 [[test]]
 name = "transaction_tests"
-harness = false
-
-[[test]]
-name = "testnet_tests"
 harness = false
 
 [dev-dependencies]
