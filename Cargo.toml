@@ -24,6 +24,7 @@ serde_bytes = "0.10"
 sha3 = "0.7"
 secp256k1 = "0.11"
 lazy_static = "1.1"
+serde_json = "1.0"
 
 [[test]]
 name = "transaction_tests"

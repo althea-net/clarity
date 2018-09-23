@@ -9,7 +9,9 @@ extern crate secp256k1;
 extern crate sha3;
 #[macro_use]
 extern crate lazy_static;
+extern crate serde_json;
 
+pub mod abi;
 pub mod address;
 pub mod constants;
 pub mod error;
