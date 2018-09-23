@@ -55,7 +55,10 @@ fn bytes_raises_parse_error() {
 
 #[test]
 fn parse_prefixed_empty() {
-    assert_eq!(hex_str_to_bytes(&"0x".to_owned()).unwrap(), vec![]);
+    assert_eq!(
+        hex_str_to_bytes(&"0x".to_owned()).unwrap(),
+        Vec::<u8>::new()
+    );
 }
 
 #[test]
