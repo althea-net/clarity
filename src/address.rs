@@ -5,7 +5,7 @@ use std::str::FromStr;
 use utils::bytes_to_hex_str;
 use utils::{hex_str_to_bytes, ByteDecodeError};
 /// This type represents ETH address
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Debug, Clone, Eq, Hash)]
 pub struct Address {
     // TODO: address seems to be limited to 20 characters, but we keep it flexible
     data: Vec<u8>,
@@ -160,4 +160,19 @@ fn handle_prefixed() {
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x0b, 0x93, 0x31, 0x67, 0x7e, 0x6e, 0xbf
         ])
     );
+}
+
+#[test]
+fn hashed() {
+    // One of the use cases for Address could be a key in a HashMap to store some
+    // additional values per address.
+    use std::collections::HashMap;
+    let a = Address::from_str("0x000000000000000000000000000b9331677e6ebf").unwrap();
+    let b = Address::from_str("0x00000000000000000000000000000000deadbeef").unwrap();
+    let mut map = HashMap::new();
+    map.insert(a.clone(), "Foo");
+    map.insert(b.clone(), "Bar");
+
+    assert_eq!(map.get(&a).unwrap(), &"Foo");
+    assert_eq!(map.get(&b).unwrap(), &"Bar");
 }
