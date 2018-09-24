@@ -351,6 +351,7 @@ fn decode_contract() {
                     indexed: false,
                 }
             ],
+            outputs: Some(vec![]),
             state_mutability: Some(StateMutability::Nonpayable),
         }
     );
@@ -377,6 +378,7 @@ fn decode_contract() {
                     indexed: false
                 }
             ],
+            outputs: None,
             state_mutability: None
         }
     );
@@ -390,7 +392,83 @@ fn decode_contract() {
             payable: false,
             constant: false,
             inputs: vec![],
+            outputs: None,
             state_mutability: Some(StateMutability::Nonpayable),
         }
     );
+}
+
+#[test]
+fn find_function() {
+    use abi::input::Input;
+    use abi::item::Item;
+    use abi::operation::Operation;
+    use abi::output::Output;
+    use abi::state_mutability::StateMutability;
+
+    let contract = Contract {
+        items: vec![Item {
+            constant: true,
+            inputs: vec![Input {
+                name: "".to_owned(),
+                type_: "bytes32".to_owned(),
+                components: vec![],
+                indexed: false,
+            }],
+            name: Some("channels".to_owned()),
+            outputs: Some(vec![
+                Output {
+                    name: "A".to_owned(),
+                    type_: "address".to_owned(),
+                },
+                Output {
+                    name: "B".to_owned(),
+                    type_: "address".to_owned(),
+                },
+                Output {
+                    name: "C".to_owned(),
+                    type_: "address".to_owned(),
+                },
+                Output {
+                    name: "D".to_owned(),
+                    type_: "uint256".to_owned(),
+                },
+                Output {
+                    name: "E".to_owned(),
+                    type_: "uint256".to_owned(),
+                },
+                Output {
+                    name: "F".to_owned(),
+                    type_: "uint8".to_owned(),
+                },
+                Output {
+                    name: "G".to_owned(),
+                    type_: "uint256".to_owned(),
+                },
+                Output {
+                    name: "H".to_owned(),
+                    type_: "uint256".to_owned(),
+                },
+                Output {
+                    name: "I".to_owned(),
+                    type_: "uint256".to_owned(),
+                },
+                Output {
+                    name: "J".to_owned(),
+                    type_: "uint256".to_owned(),
+                },
+                Output {
+                    name: "K".to_owned(),
+                    type_: "uint256".to_owned(),
+                },
+                Output {
+                    name: "L".to_owned(),
+                    type_: "address".to_owned(),
+                },
+            ]),
+            payable: false,
+            state_mutability: Some(StateMutability::View),
+            operation: Operation::Function,
+        }],
+    };
 }

@@ -1,5 +1,6 @@
 use abi::input::Input;
 use abi::operation::Operation;
+use abi::output::Output;
 use abi::state_mutability::StateMutability;
 
 /// The JSON format for a contract’s interface is given by an array of
@@ -17,4 +18,5 @@ pub struct Item {
     #[serde(default)]
     pub constant: bool,
     pub inputs: Vec<Input>,
+    pub outputs: Option<Vec<Output>>,
 }
