@@ -10,6 +10,8 @@ extern crate sha3;
 #[macro_use]
 extern crate lazy_static;
 extern crate serde_json;
+#[macro_use]
+extern crate serde_derive;
 
 pub mod abi;
 pub mod address;
