@@ -49,6 +49,17 @@ impl<'de> Visitor<'de> for OperationVisitor {
     }
 }
 
+impl Default for Operation {
+    fn default() -> Operation {
+        Operation::Function
+    }
+}
+
+#[test]
+fn default_op() {
+    assert_eq!(Operation::default(), Operation::Function);
+}
+
 #[test]
 fn deserialize_function() {
     let data = r#""function""#;

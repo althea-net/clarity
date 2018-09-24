@@ -113,25 +113,45 @@ fn decode_contract() {
 		"payable": false,
 		"stateMutability": "pure",
 		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"name": "",
+				"type": "bytes3[2]"
+			}
+		],
+		"name": "bar_defaults",
+		"outputs": [],
+		"stateMutability": "pure"
 	}
 ]"#.to_owned();
 
     let contract =
         Contract::load(BufReader::new(abi_def.as_bytes())).expect("Unable to load contract");
-    assert_eq!(contract.items.len(), 3);
-    assert_eq!(contract.items.get(0).as_ref().unwrap().name, "sam");
-    assert_eq!(
-        contract.items.get(0).as_ref().unwrap().operation,
-        Operation::Function
-    );
-    assert_eq!(contract.items.get(1).as_ref().unwrap().name, "baz");
-    assert_eq!(
-        contract.items.get(1).as_ref().unwrap().operation,
-        Operation::Function
-    );
-    assert_eq!(contract.items.get(2).as_ref().unwrap().name, "bar");
-    assert_eq!(
-        contract.items.get(2).as_ref().unwrap().operation,
-        Operation::Function
-    );
+
+    assert_eq!(contract.items.len(), 4);
+    let sam = contract.items.get(0).unwrap();
+    assert_eq!(sam.name, "sam");
+    assert_eq!(sam.operation, Operation::Function);
+    assert_eq!(sam.payable, false);
+    assert_eq!(sam.constant, true);
+
+    let baz = contract.items.get(1).unwrap();
+    assert_eq!(baz.name, "baz");
+    assert_eq!(baz.operation, Operation::Function);
+    assert_eq!(baz.payable, false);
+    assert_eq!(baz.constant, true);
+
+    let bar = contract.items.get(2).unwrap();
+    assert_eq!(bar.name, "bar");
+    assert_eq!(bar.operation, Operation::Function);
+    assert_eq!(bar.payable, false);
+    assert_eq!(bar.constant, true);
+
+    let bar_defaults = contract.items.get(3).unwrap();
+    assert_eq!(bar_defaults.name, "bar_defaults");
+    assert_eq!(bar_defaults.operation, Operation::Function);
+    assert_eq!(bar_defaults.payable, false);
+    assert_eq!(bar_defaults.constant, false);
 }
