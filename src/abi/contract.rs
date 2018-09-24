@@ -1,4 +1,6 @@
+use abi::function::Function;
 use abi::item::Item;
+use abi::operation::Operation;
 use failure::Error;
 use serde::de::Deserialize;
 use serde::de::Deserializer;
@@ -15,6 +17,18 @@ pub struct Contract {
 impl Contract {
     fn load<T: io::Read>(reader: T) -> Result<Self, Error> {
         serde_json::from_reader(reader).map_err(From::from)
+    }
+
+    /// Returns a Function builder that references original description of the function.
+    ///
+    /// There is *some* validation involved, but the caller should ensure that the contract
+    /// ABI is a valid.
+    pub fn function(&self, name: &str) -> Option<Function> {
+        self.items
+            .iter()
+            .filter(|ref item| item.operation == Operation::Function)
+            .find(|ref item| item.name.as_ref().unwrap() == name)
+            .map(Function::new)
     }
 }
 
@@ -471,4 +485,8 @@ fn find_function() {
             operation: Operation::Function,
         }],
     };
+
+    assert!(contract.function("im not a function").is_none());
+
+    let _fn = contract.function("channels").unwrap();
 }
