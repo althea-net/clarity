@@ -53,6 +53,7 @@ impl<'a> Visitor<'a> for ContractVisitor {
 fn decode_contract() {
     use abi::input::Input;
     use abi::operation::Operation;
+    use abi::state_mutability::StateMutability;
     use std::io::BufReader;
     let abi_def = r#"[
   {
@@ -176,51 +177,71 @@ fn decode_contract() {
         "type": "uint256"
       }
     ],
-    "outputs": []
+    "outputs": [],
+	"stateMutability": "nonpayable"
   },
-  {
-    "type": "event",
-    "inputs": [
-      {
-        "name": "a",
-        "type": "uint256",
-        "indexed": true
-      },
-      {
-        "name": "b",
-        "type": "bytes32",
-        "indexed": false
-      }
-    ],
-    "name": "Event"
-  },
-  {
-    "type": "event",
-    "inputs": [
-      {
-        "name": "a",
-        "type": "uint256",
-        "indexed": true
-      },
-      {
-        "name": "b",
-        "type": "bytes32",
-        "indexed": false
-      }
-    ],
-    "name": "Event2"
-  },
-  {
-    "type": "function",
-    "inputs": [
-      {
-        "name": "a",
-        "type": "uint256"
-      }
-    ],
-    "name": "foo",
-    "outputs": []
-  },
+  
+
+	{
+		"constant": false,
+		"inputs": [
+			{
+				"name": "a",
+				"type": "uint256"
+			}
+		],
+		"name": "foo",
+		"outputs": [],
+		"payable": false,
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"payable": false,
+		"stateMutability": "nonpayable",
+		"type": "constructor"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"name": "a",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"name": "b",
+				"type": "bytes32"
+			}
+		],
+		"name": "Event",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"name": "a",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"name": "b",
+				"type": "bytes32"
+			}
+		],
+		"name": "Event2",
+		"type": "event"
+	},
+
+
+
+
+
+  
   {
     "inputs": [],
     "payable": false,
@@ -232,7 +253,7 @@ fn decode_contract() {
     let contract =
         Contract::load(BufReader::new(abi_def.as_bytes())).expect("Unable to load contract");
 
-    assert_eq!(contract.items.len(), 9);
+    assert_eq!(contract.items.len(), 10);
     let sam = contract.items.get(0).unwrap();
     assert_eq!(sam.name.as_ref().unwrap(), "sam");
     assert_eq!(sam.operation, Operation::Function);
@@ -329,11 +350,12 @@ fn decode_contract() {
                     components: vec![],
                     indexed: false,
                 }
-            ]
+            ],
+            state_mutability: Some(StateMutability::Nonpayable),
         }
     );
 
-    let event = contract.items.get(5).unwrap();
+    let event = contract.items.get(7).unwrap();
     assert_eq!(
         *event,
         Item {
@@ -354,11 +376,12 @@ fn decode_contract() {
                     components: vec![],
                     indexed: false
                 }
-            ]
+            ],
+            state_mutability: None
         }
     );
 
-    let ctor = contract.items.get(8).unwrap();
+    let ctor = contract.items.get(9).unwrap();
     assert_eq!(
         *ctor,
         Item {
@@ -366,7 +389,8 @@ fn decode_contract() {
             name: None,
             payable: false,
             constant: false,
-            inputs: vec![]
+            inputs: vec![],
+            state_mutability: Some(StateMutability::Nonpayable),
         }
     );
 }
