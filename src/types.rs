@@ -11,7 +11,7 @@ use std::ops::{Add, AddAssign};
 use std::str::FromStr;
 
 /// A wrapper for BigUint which provides serialization to BigEndian in radix 16
-#[derive(PartialEq, PartialOrd, Clone)]
+#[derive(PartialEq, Eq, PartialOrd, Clone)]
 pub struct BigEndianInt(BigUint);
 
 impl Zero for BigEndianInt {
