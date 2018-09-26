@@ -5,7 +5,7 @@ use std::str::FromStr;
 use utils::bytes_to_hex_str;
 use utils::{hex_str_to_bytes, ByteDecodeError};
 /// This type represents ETH address
-#[derive(PartialEq, Debug, Clone, Eq, Hash)]
+#[derive(PartialEq, Debug, Clone, Eq, PartialOrd, Hash)]
 pub struct Address {
     // TODO: address seems to be limited to 20 characters, but we keep it flexible
     data: Vec<u8>,
@@ -175,4 +175,18 @@ fn hashed() {
 
     assert_eq!(map.get(&a).unwrap(), &"Foo");
     assert_eq!(map.get(&b).unwrap(), &"Bar");
+}
+
+#[test]
+fn ordered() {
+    let a = Address::from_str("0x000000000000000000000000000000000000000a").unwrap();
+    let b = Address::from_str("0x000000000000000000000000000000000000000b").unwrap();
+    let c = Address::from_str("0x000000000000000000000000000000000000000c").unwrap();
+    assert!(c > b);
+    assert!(b > a);
+    assert!(b < c);
+    assert!(a < c);
+    assert_ne!(a, b);
+    assert_ne!(b, c);
+    assert_ne!(a, c);
 }
