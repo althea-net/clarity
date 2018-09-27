@@ -12,7 +12,7 @@ pub enum PrivateKeyError {
     InvalidLengthError,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub struct PrivateKey([u8; 32]);
 
 impl FromStr for PrivateKey {
