@@ -155,6 +155,18 @@ impl FromStr for BigEndianInt {
     }
 }
 
+impl From<u8> for BigEndianInt {
+    fn from(v: u8) -> Self {
+        BigEndianInt(BigUint::from(v))
+    }
+}
+
+impl From<u16> for BigEndianInt {
+    fn from(v: u16) -> Self {
+        BigEndianInt(BigUint::from(v))
+    }
+}
+
 impl From<u32> for BigEndianInt {
     fn from(v: u32) -> Self {
         BigEndianInt(BigUint::from(v))
@@ -202,6 +214,14 @@ fn serialize() {
             255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 254,
         ]
     );
+}
+
+#[test]
+fn from_unsigned() {
+    let _a = BigEndianInt::from(1u8);
+    let _b = BigEndianInt::from(2u16);
+    let _c = BigEndianInt::from(3u32);
+    let _d = BigEndianInt::from(4u64);
 }
 
 #[test]
