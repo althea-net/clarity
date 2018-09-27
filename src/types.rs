@@ -173,6 +173,15 @@ impl<'a> From<&'a [u8]> for BigEndianInt {
     }
 }
 
+impl Into<[u8; 32]> for BigEndianInt {
+    fn into(self) -> [u8; 32] {
+        let bytes = self.0.to_bytes_be();
+        let mut res = [0u8; 32];
+        res[32 - bytes.len()..].copy_from_slice(&bytes);
+        res
+    }
+}
+
 impl fmt::Debug for BigEndianInt {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.0.to_str_radix(10))
@@ -223,4 +232,16 @@ fn clone() {
     let a = BigEndianInt::zero();
     let b = a.clone();
     assert_eq!(a, b);
+}
+
+#[test]
+fn into_array_of_32_bytes() {
+    let bytes: [u8; 32] = BigEndianInt::from(1024u64).into();
+    assert_eq!(
+        bytes,
+        [
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 4, 0
+        ]
+    );
 }
