@@ -5,7 +5,7 @@ use std::str::FromStr;
 use utils::bytes_to_hex_str;
 use utils::{hex_str_to_bytes, ByteDecodeError};
 /// This type represents ETH address
-#[derive(PartialEq, Debug, Clone, Eq, PartialOrd, Hash)]
+#[derive(PartialEq, Debug, Clone, Eq, PartialOrd, Hash, Deserialize)]
 pub struct Address {
     // TODO: address seems to be limited to 20 characters, but we keep it flexible
     data: Vec<u8>,

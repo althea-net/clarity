@@ -7,7 +7,7 @@ use serde::Serialize;
 use serde::Serializer;
 use types::BigEndianInt;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Signature {
     pub v: BigEndianInt,
     pub r: BigEndianInt,
