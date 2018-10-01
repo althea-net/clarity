@@ -200,6 +200,12 @@ impl Into<BigUint> for BigEndianInt {
     }
 }
 
+impl From<BigUint> for BigEndianInt {
+    fn from(v: BigUint) -> BigEndianInt {
+        BigEndianInt(v)
+    }
+}
+
 impl fmt::Debug for BigEndianInt {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.0.to_str_radix(10))
@@ -278,4 +284,12 @@ fn extract() {
     let one = BigEndianInt::from(1u8);
     let big_uint: BigUint = one.into();
     assert_eq!(big_uint, BigUint::one());
+}
+
+#[test]
+fn construct() {
+    use num_traits::One;
+    let one = BigUint::one();
+    let big_uint: BigEndianInt = one.into();
+    assert_eq!(big_uint, 1u32.into());
 }
