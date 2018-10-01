@@ -194,6 +194,12 @@ impl Into<[u8; 32]> for BigEndianInt {
     }
 }
 
+impl Into<BigUint> for BigEndianInt {
+    fn into(self) -> BigUint {
+        self.0
+    }
+}
+
 impl fmt::Debug for BigEndianInt {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.0.to_str_radix(10))
@@ -264,4 +270,12 @@ fn into_array_of_32_bytes() {
             0, 4, 0
         ]
     );
+}
+
+#[test]
+fn extract() {
+    use num_traits::One;
+    let one = BigEndianInt::from(1u8);
+    let big_uint: BigUint = one.into();
+    assert_eq!(big_uint, BigUint::one());
 }
