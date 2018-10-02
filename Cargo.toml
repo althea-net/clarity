@@ -25,6 +25,7 @@ sha3 = "0.7"
 secp256k1 = "0.11"
 lazy_static = "1.1"
 serde_derive = "1.0"
+byteorder = "1.2"
 
 [[test]]
 name = "transaction_tests"
