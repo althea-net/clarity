@@ -21,19 +21,14 @@ use sha3::{Digest, Keccak256};
 #[derive(Debug)]
 pub enum Token {
     /// Unsigned type with value already encoded.
-    Uint {
-        size: usize,
-        value: BigUint,
-    },
+    Uint(BigUint),
     Address(Address),
     Bool(bool),
     /// Represents a string
     String(String),
     /// Fixed size array of bytes
-    Bytes {
-        size: usize,
-        value: Vec<u8>,
-    },
+    Bytes(Vec<u8>),
+    /// Dynamic array
     Dynamic(Vec<Token>),
 }
 
@@ -66,8 +61,8 @@ impl SerializedToken {
 impl Token {
     pub fn serialize(&self) -> SerializedToken {
         match *self {
-            Token::Uint { size, ref value } => {
-                assert!(size % 8 == 0);
+            Token::Uint(ref value) => {
+                assert!(value.bits() <= 256);
                 let bytes = value.to_bytes_be();
                 let mut res: [u8; 32] = Default::default();
                 res[32 - bytes.len()..].copy_from_slice(&bytes);
@@ -79,6 +74,12 @@ impl Token {
                 SerializedToken::Static(res)
             }
             Token::Dynamic(ref tokens) => {
+                // This one supports only 1 dimension, and in theory
+                // adding support for multiple dimmension mixed with static
+                // or dynamic bounds (i.e. string[10][9]) could be trivial
+                // and we could call serialize recursively, and return multiple
+                // SerializedTokens. For our needs it implements just simple case
+                // with one dimension max.
                 let mut wtr = vec![];
                 let prefix: Token = (tokens.len() as u64).into();
                 wtr.extend(prefix.serialize().as_static_ref().unwrap());
@@ -104,13 +105,16 @@ impl Token {
                 wtr.extend(vec![0x00u8; pad_right - s.len()]);
                 SerializedToken::Dynamic(wtr)
             }
-            Token::Bytes { size, ref value } => {
-                assert!(size <= 32);
+            Token::Bytes(ref value) => {
+                // This value is padded at the end. It is limited to 32 bytes.
+                assert!(value.len() <= 32);
                 let mut wtr: [u8; 32] = Default::default();
-                wtr[0..size].copy_from_slice(&value[..]);
+                wtr[0..value.len()].copy_from_slice(&value[..]);
                 SerializedToken::Static(wtr)
             }
             Token::Address(ref address) => {
+                // Address is the same as above, but for extra syntax sugar
+                // we treat it as separate case.
                 let mut wtr: [u8; 32] = Default::default();
                 let bytes = address.as_bytes();
                 wtr[32 - bytes.len()..].copy_from_slice(&bytes);
@@ -122,48 +126,33 @@ impl Token {
 
 impl From<u8> for Token {
     fn from(v: u8) -> Token {
-        Token::Uint {
-            size: 8,
-            value: BigUint::from(v),
-        }
+        Token::Uint(BigUint::from(v))
     }
 }
 
 impl From<u16> for Token {
     fn from(v: u16) -> Token {
-        Token::Uint {
-            size: 16,
-            value: BigUint::from(v),
-        }
+        Token::Uint(BigUint::from(v))
     }
 }
 
 impl From<u32> for Token {
     fn from(v: u32) -> Token {
-        Token::Uint {
-            size: 32,
-            value: BigUint::from(v),
-        }
+        Token::Uint(BigUint::from(v))
     }
 }
 
 impl From<u64> for Token {
     fn from(v: u64) -> Token {
-        Token::Uint {
-            size: 64,
-            value: BigUint::from(v),
-        }
+        Token::Uint(BigUint::from(v))
     }
 }
 
 impl From<BigUint> for Token {
     fn from(v: BigUint) -> Token {
-        // BigUint are assumed to have 256 bits
+        // BigUint are assumed to have maximum of 256 bits
         assert!(v.bits() <= 256);
-        Token::Uint {
-            size: 256,
-            value: v,
-        }
+        Token::Uint(v)
     }
 }
 
@@ -341,10 +330,7 @@ fn encode_f() {
     let result = encode_tokens(&[
         0x123u32.into(),
         vec![0x456u32, 0x789u32].into(),
-        Token::Bytes {
-            size: 10,
-            value: "1234567890".as_bytes().to_vec(),
-        },
+        Token::Bytes("1234567890".as_bytes().to_vec()),
         "Hello, world!".into(),
     ]);
     assert!(result.len() % 8 == 0);
