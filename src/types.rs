@@ -11,7 +11,7 @@ use std::ops::{Add, AddAssign};
 use std::str::FromStr;
 
 /// A wrapper for BigUint which provides serialization to BigEndian in radix 16
-#[derive(PartialEq, PartialOrd, Clone)]
+#[derive(PartialEq, Eq, PartialOrd, Clone, Deserialize, Hash)]
 pub struct BigEndianInt(BigUint);
 
 impl Zero for BigEndianInt {
@@ -155,6 +155,18 @@ impl FromStr for BigEndianInt {
     }
 }
 
+impl From<u8> for BigEndianInt {
+    fn from(v: u8) -> Self {
+        BigEndianInt(BigUint::from(v))
+    }
+}
+
+impl From<u16> for BigEndianInt {
+    fn from(v: u16) -> Self {
+        BigEndianInt(BigUint::from(v))
+    }
+}
+
 impl From<u32> for BigEndianInt {
     fn from(v: u32) -> Self {
         BigEndianInt(BigUint::from(v))
@@ -170,6 +182,27 @@ impl From<u64> for BigEndianInt {
 impl<'a> From<&'a [u8]> for BigEndianInt {
     fn from(v: &'a [u8]) -> Self {
         BigEndianInt(BigUint::from_bytes_be(v))
+    }
+}
+
+impl Into<[u8; 32]> for BigEndianInt {
+    fn into(self) -> [u8; 32] {
+        let bytes = self.0.to_bytes_be();
+        let mut res = [0u8; 32];
+        res[32 - bytes.len()..].copy_from_slice(&bytes);
+        res
+    }
+}
+
+impl Into<BigUint> for BigEndianInt {
+    fn into(self) -> BigUint {
+        self.0
+    }
+}
+
+impl From<BigUint> for BigEndianInt {
+    fn from(v: BigUint) -> BigEndianInt {
+        BigEndianInt(v)
     }
 }
 
@@ -193,6 +226,14 @@ fn serialize() {
             255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 254,
         ]
     );
+}
+
+#[test]
+fn from_unsigned() {
+    let _a = BigEndianInt::from(1u8);
+    let _b = BigEndianInt::from(2u16);
+    let _c = BigEndianInt::from(3u32);
+    let _d = BigEndianInt::from(4u64);
 }
 
 #[test]
@@ -223,4 +264,32 @@ fn clone() {
     let a = BigEndianInt::zero();
     let b = a.clone();
     assert_eq!(a, b);
+}
+
+#[test]
+fn into_array_of_32_bytes() {
+    let bytes: [u8; 32] = BigEndianInt::from(1024u64).into();
+    assert_eq!(
+        bytes,
+        [
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 4, 0
+        ]
+    );
+}
+
+#[test]
+fn extract() {
+    use num_traits::One;
+    let one = BigEndianInt::from(1u8);
+    let big_uint: BigUint = one.into();
+    assert_eq!(big_uint, BigUint::one());
+}
+
+#[test]
+fn construct() {
+    use num_traits::One;
+    let one = BigUint::one();
+    let big_uint: BigEndianInt = one.into();
+    assert_eq!(big_uint, 1u32.into());
 }
