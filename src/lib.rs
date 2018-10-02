@@ -11,7 +11,6 @@ extern crate sha3;
 extern crate lazy_static;
 #[macro_use]
 extern crate serde_derive;
-extern crate byteorder;
 
 pub mod abi;
 pub mod address;

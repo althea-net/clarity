@@ -1,5 +1,5 @@
 use address::Address;
-use byteorder::{BigEndian, WriteBytesExt};
+
 /// A module to simplify ABI encoding
 ///
 /// For simplicity, it is based on tokens. You have to specify a list of
