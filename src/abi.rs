@@ -192,7 +192,7 @@ impl<'a> From<&'a str> for Token {
 }
 
 /// Given a signature it derives a Method ID
-fn derive_method_id(signature: &str) -> [u8; 4] {
+pub fn derive_method_id(signature: &str) -> [u8; 4] {
     let digest = Keccak256::digest(signature.as_bytes());
     debug_assert!(digest.len() >= 4);
     let mut result: [u8; 4] = Default::default();
