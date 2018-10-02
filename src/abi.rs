@@ -47,14 +47,7 @@ pub enum SerializedToken {
 }
 
 impl Token {
-    fn fixed_bytes(size: usize, value: Vec<u8>) -> Token {
-        Token::Bytes {
-            size: size,
-            value: value,
-        }
-    }
-
-    fn serialize(&self) -> SerializedToken {
+    pub fn serialize(&self) -> SerializedToken {
         match *self {
             Token::Uint { size, ref value } => {
                 assert!(size % 8 == 0);
@@ -237,7 +230,7 @@ fn derive_f() {
 /// This version is greatly simplified and doesn't support nested arrays etc.
 ///
 /// Use with caution!
-fn encode_tokens(tokens: &[Token]) -> Vec<u8> {
+pub fn encode_tokens(tokens: &[Token]) -> Vec<u8> {
     // This is the result data buffer
     let mut res = Vec::new();
 
@@ -398,4 +391,12 @@ fn encode_dynamic_only() {
             "6261720000000000000000000000000000000000000000000000000000000000".to_owned(),
         ]
     );
+}
+
+/// A helper function that encodes both signature and a list of tokens.
+pub fn encode_call(sig: &str, tokens: &[Token]) -> Vec<u8> {
+    let mut wtr = vec![];
+    wtr.extend(&derive_method_id(sig));
+    wtr.extend(encode_tokens(tokens));
+    wtr
 }
