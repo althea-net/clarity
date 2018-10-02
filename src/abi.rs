@@ -104,6 +104,12 @@ impl Token {
                 wtr[0..size].copy_from_slice(&value[..]);
                 SerializedToken::Static(wtr)
             }
+            Token::Address(ref address) => {
+                let mut wtr: [u8; 32] = Default::default();
+                let bytes = address.as_bytes();
+                wtr[32 - bytes.len()..].copy_from_slice(&bytes);
+                SerializedToken::Static(wtr)
+            }
             ref t => unimplemented!("I dont know yet {:?}", t),
         }
     }
@@ -165,6 +171,12 @@ impl From<bool> for Token {
 impl From<Vec<u32>> for Token {
     fn from(v: Vec<u32>) -> Token {
         Token::Dynamic(v.into_iter().map(|v| v.into()).collect())
+    }
+}
+
+impl From<Address> for Token {
+    fn from(v: Address) -> Token {
+        Token::Address(v)
     }
 }
 
@@ -336,7 +348,6 @@ fn encode_f() {
             .chunks(32)
             .map(|c| bytes_to_hex_str(&c))
             .collect::<Vec<String>>(),
-        // bytes_to_hex_str(&result),
         vec![
             "0000000000000000000000000000000000000000000000000000000000000123".to_owned(),
             "0000000000000000000000000000000000000000000000000000000000000080".to_owned(),
@@ -348,5 +359,22 @@ fn encode_f() {
             "000000000000000000000000000000000000000000000000000000000000000d".to_owned(),
             "48656c6c6f2c20776f726c642100000000000000000000000000000000000000".to_owned(),
         ]
+    );
+}
+
+#[test]
+fn encode_address() {
+    use utils::bytes_to_hex_str;
+    let result = encode_tokens(&["0x00000000000000000000000000000000deadbeef"
+        .parse::<Address>()
+        .expect("Unable to parse address")
+        .into()]);
+    assert!(result.len() % 8 == 0);
+    assert_eq!(
+        result[..]
+            .chunks(32)
+            .map(|c| bytes_to_hex_str(&c))
+            .collect::<Vec<String>>(),
+        vec!["00000000000000000000000000000000000000000000000000000000deadbeef".to_owned(),]
     );
 }
