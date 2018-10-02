@@ -18,6 +18,7 @@ use sha3::{Digest, Keccak256};
 /// A token represents a value of parameter of the contract call.
 ///
 /// For numbers it uses `num_bigint` crate directly.
+#[derive(Debug)]
 pub enum Token {
     /// Unsigned type with value already encoded.
     Uint {
@@ -28,13 +29,12 @@ pub enum Token {
     Bool(bool),
     /// Represents a string
     String(String),
-    /// Dynamic array of bytes
-    DynamicBytes(Vec<u8>),
     /// Fixed size array of bytes
     Bytes {
         size: usize,
         value: Vec<u8>,
     },
+    Dynamic(Vec<Token>),
 }
 
 /// Representation of a serialized token.
@@ -43,7 +43,7 @@ pub enum SerializedToken {
     Static([u8; 32]),
     /// This data should be saved up in a buffer, and an offset should be
     /// appended to the output stream.
-    Dynamic([u8; 32]),
+    Dynamic(Vec<u8>),
 }
 
 impl Token {
@@ -68,7 +68,43 @@ impl Token {
                 res[31] = value as u8;
                 SerializedToken::Static(res)
             }
-            _ => unimplemented!("I dont know yet"),
+            Token::Dynamic(ref tokens) => {
+                let mut wtr = vec![];
+                let prefix: Token = (tokens.len() as u64).into();
+                match prefix.serialize() {
+                    SerializedToken::Static(data) => wtr.extend(&data),
+                    _ => panic!("This token is expected to be of static size"),
+                };
+                for token in tokens.iter() {
+                    match token.serialize() {
+                        SerializedToken::Static(data) => wtr.extend(&data),
+                        _ => unimplemented!("Nested dynamic tokens are not supported"),
+                    }
+                }
+                SerializedToken::Dynamic(wtr)
+            }
+            Token::String(ref s) => {
+                let mut wtr = vec![];
+                // Encode prefix
+                let prefix: Token = (s.len() as u64).into();
+                match prefix.serialize() {
+                    SerializedToken::Static(data) => wtr.extend(&data),
+                    _ => panic!("This token is expected to be of static size"),
+                };
+                // Pad on the right
+                wtr.extend(s.as_bytes());
+
+                let pad_right = (((s.len() - 1) / 32) + 1) * 32;
+                wtr.extend(vec![0x00u8; pad_right - s.len()]);
+                SerializedToken::Dynamic(wtr)
+            }
+            Token::Bytes { size, ref value } => {
+                assert!(size <= 32);
+                let mut wtr: [u8; 32] = Default::default();
+                wtr[0..size].copy_from_slice(&value[..]);
+                SerializedToken::Static(wtr)
+            }
+            ref t => unimplemented!("I dont know yet {:?}", t),
         }
     }
 }
@@ -126,9 +162,15 @@ impl From<bool> for Token {
     }
 }
 
-impl From<Vec<u8>> for Token {
-    fn from(v: Vec<u8>) -> Token {
-        Token::DynamicBytes(v)
+impl From<Vec<u32>> for Token {
+    fn from(v: Vec<u32>) -> Token {
+        Token::Dynamic(v.into_iter().map(|v| v.into()).collect())
+    }
+}
+
+impl<'a> From<&'a str> for Token {
+    fn from(v: &'a str) -> Token {
+        Token::String(v.into())
     }
 }
 
@@ -184,12 +226,44 @@ fn derive_f() {
 ///
 /// Use with caution!
 fn encode_tokens(tokens: &[Token]) -> Vec<u8> {
+    // This is the result data buffer
     let mut res = Vec::new();
+
+    // A cache of dynamic data buffers that are stored here.
+    let mut dynamic_data: Vec<Vec<u8>> = Vec::new();
+
     for ref token in tokens.iter() {
         match token.serialize() {
             SerializedToken::Static(data) => res.extend(&data),
-            SerializedToken::Dynamic(data) => unimplemented!("Dynamic unsupported yet"),
+            SerializedToken::Dynamic(data) => {
+                // This is the offset for dynamic data that is calculated
+                // based on the lengtho f all dynamic data buffers stored,
+                // and added to the "base" offset which is all tokens length.
+                // The base offset is assumed to be 32 * len(tokens) which is true
+                // since dynamic data is actually an static variable of size of
+                // 32 bytes.
+                let dynamic_offset = dynamic_data
+                    .iter()
+                    .map(|data| data.len() as u64)
+                    .fold(tokens.len() as u64 * 32, |r, v| r + v);
+
+                // Store next dynamic buffer *after* dynamic offset is calculated.
+                dynamic_data.push(data);
+                // Convert into token for easy serialization
+                let offset: Token = dynamic_offset.into();
+                // Write the offset of the dynamic data as a value of static size.
+                match offset.serialize() {
+                    SerializedToken::Static(bytes) => res.extend(&bytes),
+                    _ => panic!("Offset token is expected to be static"),
+                }
+            }
         }
+    }
+    // Concat all the dynamic data buffers at the end of the process
+    // All the offsets are calculated while iterating and properly stored
+    // in a single pass.
+    for ref data in dynamic_data.iter() {
+        res.extend(&data[..]);
     }
     res
 }
@@ -204,5 +278,75 @@ fn encode_simple() {
             "0000000000000000000000000000000000000000000000000000000000000045",
             "0000000000000000000000000000000000000000000000000000000000000001"
         )
+    );
+}
+
+#[test]
+fn encode_sam() {
+    use utils::bytes_to_hex_str;
+    let result = encode_tokens(&["dave".into(), true.into(), vec![1u32, 2u32, 3u32].into()]);
+    assert!(result.len() % 8 == 0);
+    assert_eq!(
+        bytes_to_hex_str(&result),
+        concat![
+            // the location of the data part of the first parameter
+            // (dynamic type), measured in bytes from the start of the
+            // arguments block. In this case, 0x60.
+            "0000000000000000000000000000000000000000000000000000000000000060",
+            // the second parameter: boolean true.
+            "0000000000000000000000000000000000000000000000000000000000000001",
+            // the location of the data part of the third parameter
+            // (dynamic type), measured in bytes. In this case, 0xa0.
+            "00000000000000000000000000000000000000000000000000000000000000a0",
+            // the data part of the first argument, it starts with the length
+            // of the byte array in elements, in this case, 4.
+            "0000000000000000000000000000000000000000000000000000000000000004",
+            // the contents of the first argument: the UTF-8 (equal to ASCII
+            // in this case) encoding of "dave", padded on the right to 32
+            // bytes.
+            "6461766500000000000000000000000000000000000000000000000000000000",
+            // the data part of the third argument, it starts with the length
+            // of the array in elements, in this case, 3.
+            "0000000000000000000000000000000000000000000000000000000000000003",
+            // the first entry of the third parameter.
+            "0000000000000000000000000000000000000000000000000000000000000001",
+            // the second entry of the third parameter.
+            "0000000000000000000000000000000000000000000000000000000000000002",
+            // the third entry of the third parameter.
+            "0000000000000000000000000000000000000000000000000000000000000003",
+        ]
+    );
+}
+
+#[test]
+fn encode_f() {
+    use utils::bytes_to_hex_str;
+    let result = encode_tokens(&[
+        0x123u32.into(),
+        vec![0x456u32, 0x789u32].into(),
+        Token::Bytes {
+            size: 10,
+            value: "1234567890".as_bytes().to_vec(),
+        },
+        "Hello, world!".into(),
+    ]);
+    assert!(result.len() % 8 == 0);
+    assert_eq!(
+        result[..]
+            .chunks(32)
+            .map(|c| bytes_to_hex_str(&c))
+            .collect::<Vec<String>>(),
+        // bytes_to_hex_str(&result),
+        vec![
+            "0000000000000000000000000000000000000000000000000000000000000123".to_owned(),
+            "0000000000000000000000000000000000000000000000000000000000000080".to_owned(),
+            "3132333435363738393000000000000000000000000000000000000000000000".to_owned(),
+            "00000000000000000000000000000000000000000000000000000000000000e0".to_owned(),
+            "0000000000000000000000000000000000000000000000000000000000000002".to_owned(),
+            "0000000000000000000000000000000000000000000000000000000000000456".to_owned(),
+            "0000000000000000000000000000000000000000000000000000000000000789".to_owned(),
+            "000000000000000000000000000000000000000000000000000000000000000d".to_owned(),
+            "48656c6c6f2c20776f726c642100000000000000000000000000000000000000".to_owned(),
+        ]
     );
 }
