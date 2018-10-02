@@ -46,6 +46,23 @@ pub enum SerializedToken {
     Dynamic(Vec<u8>),
 }
 
+impl SerializedToken {
+    /// Gets a reference to value held by Static
+    fn as_static_ref(&self) -> Option<&[u8; 32]> {
+        match *self {
+            SerializedToken::Static(ref data) => Some(&data),
+            _ => None,
+        }
+    }
+    /// Gets a reference to value held by Dynamic
+    fn as_dynamic_ref(&self) -> Option<&Vec<u8>> {
+        match *self {
+            SerializedToken::Dynamic(ref data) => Some(&data),
+            _ => None,
+        }
+    }
+}
+
 impl Token {
     pub fn serialize(&self) -> SerializedToken {
         match *self {
@@ -64,15 +81,14 @@ impl Token {
             Token::Dynamic(ref tokens) => {
                 let mut wtr = vec![];
                 let prefix: Token = (tokens.len() as u64).into();
-                match prefix.serialize() {
-                    SerializedToken::Static(data) => wtr.extend(&data),
-                    _ => panic!("This token is expected to be of static size"),
-                };
+                wtr.extend(prefix.serialize().as_static_ref().unwrap());
                 for token in tokens.iter() {
-                    match token.serialize() {
-                        SerializedToken::Static(data) => wtr.extend(&data),
-                        _ => unimplemented!("Nested dynamic tokens are not supported"),
-                    }
+                    wtr.extend(
+                        token
+                            .serialize()
+                            .as_static_ref()
+                            .expect("Only nested tokens of static size are supported"),
+                    );
                 }
                 SerializedToken::Dynamic(wtr)
             }
@@ -80,10 +96,7 @@ impl Token {
                 let mut wtr = vec![];
                 // Encode prefix
                 let prefix: Token = (s.len() as u64).into();
-                match prefix.serialize() {
-                    SerializedToken::Static(data) => wtr.extend(&data),
-                    _ => panic!("This token is expected to be of static size"),
-                };
+                wtr.extend(prefix.serialize().as_static_ref().unwrap());
                 // Pad on the right
                 wtr.extend(s.as_bytes());
 
@@ -103,7 +116,6 @@ impl Token {
                 wtr[32 - bytes.len()..].copy_from_slice(&bytes);
                 SerializedToken::Static(wtr)
             }
-            ref t => unimplemented!("I dont know yet {:?}", t),
         }
     }
 }
