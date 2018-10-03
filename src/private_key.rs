@@ -1,10 +1,13 @@
 use address::Address;
 use error::ClarityError;
 use failure::Error;
-use secp256k1::{PublicKey, Secp256k1, SecretKey};
+use secp256k1::{Message, PublicKey, Secp256k1, SecretKey};
 use sha3::{Digest, Keccak256};
+use signature::Signature;
 use std::str::FromStr;
 use utils::{hex_str_to_bytes, ByteDecodeError};
+// use secp256k1::{, RecoverableSignature, RecoveryId, Secp256k1, SecretKey};
+use types::BigEndianInt;
 
 #[derive(Fail, Debug, PartialEq)]
 pub enum PrivateKeyError {
@@ -74,6 +77,34 @@ impl PrivateKey {
         debug_assert_eq!(sender.len(), 32);
         Ok(Address::from(&sender[12..]))
     }
+
+    /// Signs any message that is represented by a data buffer
+    pub fn sign_hash(&self, data: &[u8]) -> Signature {
+        debug_assert_eq!(data.len(), 32);
+        // Sign RLP encoded data
+        let full = Secp256k1::new(); // TODO: in original libsecp256k1 source code there is a suggestion that the context should be kept for the duration of the program.
+                                     // TODO: secp256k1 types could be hidden somehow
+        let msg = Message::from_slice(&data).unwrap();
+        let sk = SecretKey::from_slice(&full, &self.to_bytes()).unwrap();
+        // Sign the raw hash of RLP encoded transaction data with a private key.
+        let sig = full.sign_recoverable(&msg, &sk);
+        // Serialize the signature into the "compact" form which means
+        // it will be exactly 64 bytes, and the "excess" information of
+        // recovery id will be given to us.
+        let (recovery_id, compact) = sig.serialize_compact(&full);
+        debug_assert_eq!(compact.len(), 64);
+        // I assume recovery ID is always greater than 0 to simplify
+        // the conversion from i32 to BigEndianInt. On a side note,
+        // I believe "v" could be an u64 value (TODO).
+        let recovery_id = recovery_id.to_i32();
+        assert!(recovery_id >= 0);
+        let recovery_id = recovery_id as u32;
+        let v: BigEndianInt = (recovery_id + 27).into();
+        let r = BigEndianInt::from_bytes_be(&compact[0..32]);
+        let s = BigEndianInt::from_bytes_be(&compact[32..64]);
+        // This will swap the signature of a transaction, and returns a new signed TX.
+        Signature::new(v, r, s)
+    }
 }
 
 #[test]
@@ -142,4 +173,39 @@ fn zero_address() {
     // A key full of zeros is an invalid private key.
     let key = PrivateKey::new();
     key.to_public_key().unwrap();
+}
+
+#[test]
+fn sign_message() {
+    use utils::bytes_to_hex_str;
+    // https://github.com/ethereum/tests/blob/b44cea1cccf1e4b63a05d1ca9f70f2063f28da6d/BasicTests/txtest.json
+    let key: PrivateKey = "c87f65ff3f271bf5dc8643484f66b200109caffe4bf98c4cb393dc35740b28c0"
+        .parse()
+        .unwrap();
+    assert_eq!(
+        key.to_bytes(),
+        [
+            0xc8, 0x7f, 0x65, 0xff, 0x3f, 0x27, 0x1b, 0xf5, 0xdc, 0x86, 0x43, 0x48, 0x4f, 0x66,
+            0xb2, 0x00, 0x10, 0x9c, 0xaf, 0xfe, 0x4b, 0xf9, 0x8c, 0x4c, 0xb3, 0x93, 0xdc, 0x35,
+            0x74, 0x0b, 0x28, 0xc0
+        ]
+    );
+
+    let hash = Keccak256::digest(&"Hello, world!".as_bytes());
+
+    // geth account import <(echo c87f65ff3f271bf5dc8643484f66b200109caffe4bf98c4cb393dc35740b28c0)
+    let sig = key.sign_hash(&hash);
+    assert_eq!(sig.v, 27u32.into());
+    assert_eq!(
+        sig.r,
+        "60846573560682549108588594828362990367411621835316234394067988873897934296519"
+            .parse()
+            .unwrap()
+    );
+    assert_eq!(
+        sig.s,
+        "38796436849307511461301231459196686786518980571289303247679628937607287361713"
+            .parse()
+            .unwrap()
+    );
 }

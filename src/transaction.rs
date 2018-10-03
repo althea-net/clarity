@@ -122,35 +122,13 @@ impl Transaction {
         };
         // Prepare a raw hash of RLP encoded TX params
         let rawhash = Keccak256::digest(&rlpdata);
-        debug_assert_eq!(rawhash.len(), 32);
-        // Sign RLP encoded data
-        let full = Secp256k1::new(); // TODO: in original libsecp256k1 source code there is a suggestion that the context should be kept for the duration of the program.
-                                     // TODO: secp256k1 types could be hidden somehow
-        let msg = Message::from_slice(&rawhash).unwrap();
-        let sk = SecretKey::from_slice(&full, &key.to_bytes()).unwrap();
-        // Sign the raw hash of RLP encoded transaction data with a private key.
-        let sig = full.sign_recoverable(&msg, &sk);
-        // Serialize the signature into the "compact" form which means
-        // it will be exactly 64 bytes, and the "excess" information of
-        // recovery id will be given to us.
-        let (recovery_id, compact) = sig.serialize_compact(&full);
-        debug_assert_eq!(compact.len(), 64);
-        // I assume recovery ID is always greater than 0 to simplify
-        // the conversion from i32 to BigEndianInt. On a side note,
-        // I believe "v" could be an u64 value (TODO).
-        let recovery_id = recovery_id.to_i32();
-        assert!(recovery_id >= 0);
-        let recovery_id = recovery_id as u32;
-        let mut v: BigEndianInt = (recovery_id + 27).into();
+        let mut sig = key.sign_hash(&rawhash);
         if network_id.is_some() {
             // Account v for the network_id value
-            v += (8u64 + network_id.unwrap() * 2u64).into();
+            sig.v += (8u64 + network_id.unwrap() * 2u64).into();
         }
-        let r = BigEndianInt::from_bytes_be(&compact[0..32]);
-        let s = BigEndianInt::from_bytes_be(&compact[32..64]);
-        // This will swap the signature of a transaction, and returns a new signed TX.
         let mut tx = self.clone();
-        tx.signature = Some(Signature::new(v, r, s));
+        tx.signature = Some(sig);
         tx
     }
 
