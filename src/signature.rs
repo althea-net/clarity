@@ -6,6 +6,7 @@ use serde::ser::SerializeTuple;
 use serde::Serialize;
 use serde::Serializer;
 use types::BigEndianInt;
+use utils::bytes_to_hex_str;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Signature {
@@ -70,10 +71,64 @@ impl Default for Signature {
     }
 }
 
+impl ToString for Signature {
+    // Constructs a string from a given signature
+    // The resulting string's length is 130
+    // first 32 bytes is "r" value
+    // second 32 bytes i s "s" value
+    // last byte is "v"
+    fn to_string(&self) -> String {
+        let r: [u8; 32] = self.r.clone().into();
+        let s: [u8; 32] = self.s.clone().into();
+        let mut wtr = vec![];
+        wtr.extend(&r);
+        wtr.extend(&s);
+
+        let v = self.v.to_bytes_be();
+        println!("vlen {}", v.len());
+        wtr.extend(&v[v.len() - 1..]);
+
+        let mut result = "0x".to_owned();
+        result += &bytes_to_hex_str(&wtr);
+        result
+        // format!("0x{:64x}{:64x}{:02x}", self.r, self.s, self.v)
+    }
+}
+
 #[test]
 fn new_signature() {
     let sig = Signature::new(1u32.into(), 2u32.into(), 3u32.into());
     assert_eq!(sig.v, 1u32.into());
     assert_eq!(sig.r, 2u32.into());
     assert_eq!(sig.s, 3u32.into());
+}
+
+#[test]
+fn to_string() {
+    let sig = Signature::new(1u32.into(), 2u32.into(), 3u32.into());
+    // assert_eq!(sig.to_string().len(), 132);
+    assert_eq!(
+        sig.to_string(),
+        concat!(
+            "0x",
+            "0000000000000000000000000000000000000000000000000000000000000002",
+            "0000000000000000000000000000000000000000000000000000000000000003",
+            "01"
+        )
+    );
+}
+
+#[test]
+fn to_string_with_zero_v() {
+    let sig = Signature::new(0u32.into(), 2u32.into(), 3u32.into());
+    // assert_eq!(sig.to_string().len(), 132);
+    assert_eq!(
+        sig.to_string(),
+        concat!(
+            "0x",
+            "0000000000000000000000000000000000000000000000000000000000000002",
+            "0000000000000000000000000000000000000000000000000000000000000003",
+            "00"
+        )
+    );
 }
