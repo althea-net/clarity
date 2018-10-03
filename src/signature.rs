@@ -85,13 +85,11 @@ impl ToString for Signature {
         wtr.extend(&s);
 
         let v = self.v.to_bytes_be();
-        println!("vlen {}", v.len());
         wtr.extend(&v[v.len() - 1..]);
 
         let mut result = "0x".to_owned();
         result += &bytes_to_hex_str(&wtr);
         result
-        // format!("0x{:64x}{:64x}{:02x}", self.r, self.s, self.v)
     }
 }
 
