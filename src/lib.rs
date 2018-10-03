@@ -12,6 +12,7 @@ extern crate lazy_static;
 #[macro_use]
 extern crate serde_derive;
 
+pub mod abi;
 pub mod address;
 pub mod constants;
 pub mod error;
