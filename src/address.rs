@@ -1,5 +1,7 @@
 use serde::Serialize;
 use serde::Serializer;
+use std::fmt;
+use std::fmt::Write;
 use std::str;
 use std::str::FromStr;
 use utils::bytes_to_hex_str;
@@ -51,6 +53,44 @@ impl From<[u8; 20]> for Address {
 impl<'a> From<&'a [u8]> for Address {
     fn from(val: &'a [u8]) -> Address {
         Address { data: val.to_vec() }
+    }
+}
+
+impl fmt::LowerHex for Address {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        if f.alternate() {
+            let res = write!(f, "0x");
+            if res.is_err() {
+                return res;
+            }
+        }
+
+        for hex_char in self.data.iter() {
+            let res = write!(f, "{:x}", hex_char);
+            if res.is_err() {
+                return res;
+            }
+        }
+        return Ok(());
+    }
+}
+
+impl fmt::UpperHex for Address {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        if f.alternate() {
+            let res = write!(f, "0x");
+            if res.is_err() {
+                return res;
+            }
+        }
+
+        for hex_char in self.data.iter() {
+            let res = write!(f, "{:X}", hex_char);
+            if res.is_err() {
+                return res;
+            }
+        }
+        return Ok(());
     }
 }
 
@@ -189,4 +229,24 @@ fn ordered() {
     assert_ne!(a, b);
     assert_ne!(b, c);
     assert_ne!(a, c);
+}
+
+#[test]
+fn to_hex() {
+    let address: Address = "1234567890123456789ABCDEF678901234567890"
+        .parse::<Address>()
+        .unwrap();
+
+    assert_eq!(
+        format!("{:x}", address),
+        "1234567890123456789abcdef678901234567890",
+    );
+    assert_eq!(
+        format!("{:#x}", address),
+        "0x1234567890123456789abcdef678901234567890",
+    );
+    assert_eq!(
+        format!("{:#X}", address),
+        "0x1234567890123456789ABCDEF678901234567890",
+    );
 }
