@@ -1,7 +1,6 @@
 use serde::Serialize;
 use serde::Serializer;
 use std::fmt;
-use std::fmt::Write;
 use std::str;
 use std::str::FromStr;
 use utils::bytes_to_hex_str;
@@ -186,7 +185,7 @@ fn serialize_padded_address() {
 #[should_panic]
 fn address_less_than_20_filler() {
     // Data found in AddressLessThan20Filler.json
-    let address: Address = "0b9331677e6ebf".parse().unwrap();
+    let _address: Address = "0b9331677e6ebf".parse().unwrap();
 }
 
 #[test]

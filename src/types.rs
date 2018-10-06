@@ -146,8 +146,7 @@ impl FromStr for BigEndianInt {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let value = if s.starts_with("0x") {
             // Parse as hexadecimal big endian value
-            BigUint::parse_bytes(&s.as_bytes()[2..], 16)
-                .ok_or(BigEndianIntError::InvalidHexValue)?
+            BigUint::parse_bytes(&s.as_bytes()[2..], 16).ok_or(BigEndianIntError::InvalidHexValue)?
         } else {
             BigUint::parse_bytes(s.as_bytes(), 10).ok_or(BigEndianIntError::InvalidDecValue)?
         };

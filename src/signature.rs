@@ -2,9 +2,6 @@ use constants::SECPK1N;
 use error::ClarityError;
 use failure::Error;
 use num_traits::Zero;
-use serde::ser::SerializeTuple;
-use serde::Serialize;
-use serde::Serializer;
 use types::BigEndianInt;
 use utils::bytes_to_hex_str;
 

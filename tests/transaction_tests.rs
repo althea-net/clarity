@@ -7,10 +7,10 @@ extern crate serde_rlp;
 #[macro_use]
 extern crate serde_derive;
 use clarity::utils::{bytes_to_hex_str, hex_str_to_bytes};
-use clarity::{Address, BigEndianInt, Signature, Transaction};
+use clarity::{BigEndianInt, Signature, Transaction};
 use num_traits::Zero;
 use serde_bytes::Bytes;
-use serde_json::{Error, Value};
+use serde_json::Value;
 use serde_rlp::de::from_bytes;
 use serde_rlp::ser::to_bytes;
 use std::collections::HashMap;
@@ -162,7 +162,6 @@ fn test_fn(fixtures: &TestFixture, filler: &TestFiller, expect: Option<&TestFill
         }
         Err(e) => {
             panic!("Decoding failed correctly with {:?}", e);
-            return;
         }
     };
     // A valid decoded transaction has exactly 9 elements.

@@ -12,7 +12,7 @@ use address::Address;
 /// like a bunch of helpers that would help to successfuly encode a contract
 /// call.
 ///
-use num_bigint::{BigInt, BigUint};
+use num_bigint::BigUint;
 use sha3::{Digest, Keccak256};
 use types::BigEndianInt;
 
@@ -51,7 +51,7 @@ impl SerializedToken {
         }
     }
     /// Gets a reference to value held by Dynamic
-    fn as_dynamic_ref(&self) -> Option<&Vec<u8>> {
+    fn _as_dynamic_ref(&self) -> Option<&Vec<u8>> {
         match *self {
             SerializedToken::Dynamic(ref data) => Some(&data),
             _ => None,
@@ -394,7 +394,7 @@ fn encode_address() {
             .chunks(32)
             .map(|c| bytes_to_hex_str(&c))
             .collect::<Vec<String>>(),
-        vec!["00000000000000000000000000000000000000000000000000000000deadbeef".to_owned(),]
+        vec!["00000000000000000000000000000000000000000000000000000000deadbeef".to_owned()]
     );
 }
 

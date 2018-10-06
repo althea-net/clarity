@@ -6,7 +6,7 @@ use sha3::{Digest, Keccak256};
 use signature::Signature;
 use std::str::FromStr;
 use types::BigEndianInt;
-use utils::{bytes_to_hex_str, hex_str_to_bytes, ByteDecodeError};
+use utils::{bytes_to_hex_str, hex_str_to_bytes};
 
 #[derive(Fail, Debug, PartialEq)]
 pub enum PrivateKeyError {
@@ -187,7 +187,6 @@ fn zero_address() {
 
 #[test]
 fn sign_message() {
-    use utils::bytes_to_hex_str;
     // https://github.com/ethereum/tests/blob/b44cea1cccf1e4b63a05d1ca9f70f2063f28da6d/BasicTests/txtest.json
     let key: PrivateKey = "c87f65ff3f271bf5dc8643484f66b200109caffe4bf98c4cb393dc35740b28c0"
         .parse()

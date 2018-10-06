@@ -1,5 +1,3 @@
-use failure::Error;
-
 #[derive(Fail, Debug)]
 pub enum ClarityError {
     #[fail(display = "Invalid network id")]
