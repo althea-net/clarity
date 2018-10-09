@@ -212,6 +212,24 @@ impl fmt::Debug for BigEndianInt {
     }
 }
 
+impl fmt::LowerHex for BigEndianInt {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "0x")?;
+        }
+        write!(f, "{}", self.0.to_str_radix(16))
+    }
+}
+
+impl fmt::UpperHex for BigEndianInt {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "0x")?;
+        }
+        write!(f, "{}", self.0.to_str_radix(16).to_uppercase())
+    }
+}
+
 #[test]
 fn serialize() {
     use serde_rlp::ser::to_bytes;
@@ -292,4 +310,13 @@ fn construct() {
     let one = BigUint::one();
     let big_uint: BigEndianInt = one.into();
     assert_eq!(big_uint, 1u32.into());
+}
+
+#[test]
+fn to_hex() {
+    let val = BigEndianInt::from(42u32);
+    assert_eq!(format!("{:x}", val), "2a");
+    assert_eq!(format!("{:X}", val), "2A");
+    assert_eq!(format!("{:#x}", val), "0x2a");
+    assert_eq!(format!("{:#X}", val), "0x2A");
 }
