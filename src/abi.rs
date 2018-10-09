@@ -180,13 +180,34 @@ impl<'a> From<&'a str> for Token {
     }
 }
 
+/// Raw derive for a Keccak256 digest from a string
+///
+/// This function should be used when trying to filter out interesting
+/// events from a contract. This is different than contract function
+/// calls because it uses whole 32 bytes of the hash digest.
+pub fn derive_signature(data: &str) -> [u8; 32] {
+    let digest = Keccak256::digest(data.as_bytes());
+    let mut result: [u8; 32] = Default::default();
+    result.copy_from_slice(&digest);
+    result
+}
+
 /// Given a signature it derives a Method ID
 pub fn derive_method_id(signature: &str) -> [u8; 4] {
-    let digest = Keccak256::digest(signature.as_bytes());
-    debug_assert!(digest.len() >= 4);
+    let digest = derive_signature(signature);
     let mut result: [u8; 4] = Default::default();
     result.copy_from_slice(&digest[0..4]);
     result
+}
+
+#[test]
+fn derive_event_signature() {
+    use utils::bytes_to_hex_str;
+    let derived = derive_signature("HelloWorld(string)");
+    assert_eq!(
+        bytes_to_hex_str(&derived),
+        "86066750c0fd4457fd16f79750914fbd72db952f2ff0a7b5c6a2a531bc15ce2c"
+    );
 }
 
 #[test]
