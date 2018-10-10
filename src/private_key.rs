@@ -77,7 +77,6 @@ impl PrivateKey {
         debug_assert_eq!(sender.len(), 32);
         Ok(Address::from(&sender[12..]))
     }
-
     /// Signs any message that is represented by a data buffer
     pub fn sign_hash(&self, data: &[u8]) -> Signature {
         debug_assert_eq!(data.len(), 32);
@@ -104,6 +103,12 @@ impl PrivateKey {
         let s = BigEndianInt::from_bytes_be(&compact[32..64]);
         // This will swap the signature of a transaction, and returns a new signed TX.
         Signature::new(v, r, s)
+    }
+    /// Signs a message. This makes a hash of data, and then
+    /// makes prepares a signature of it.
+    pub fn sign_msg(&self, data: &[u8]) -> Signature {
+        let digest = Keccak256::digest(data);
+        self.sign_hash(&digest)
     }
 }
 
@@ -208,4 +213,7 @@ fn sign_message() {
             .parse()
             .unwrap()
     );
+
+    let sig_2 = key.sign_msg(&"Hello, world!".as_bytes());
+    assert_eq!(sig, sig_2);
 }
