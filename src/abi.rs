@@ -14,6 +14,7 @@ use address::Address;
 ///
 use num_bigint::{BigInt, BigUint};
 use sha3::{Digest, Keccak256};
+use types::BigEndianInt;
 
 /// A token represents a value of parameter of the contract call.
 ///
@@ -177,6 +178,12 @@ impl From<Address> for Token {
 impl<'a> From<&'a str> for Token {
     fn from(v: &'a str) -> Token {
         Token::String(v.into())
+    }
+}
+
+impl From<BigEndianInt> for Token {
+    fn from(v: BigEndianInt) -> Token {
+        Token::Uint(v.into())
     }
 }
 
