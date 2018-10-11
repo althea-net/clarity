@@ -5,8 +5,8 @@ use secp256k1::{Message, PublicKey, Secp256k1, SecretKey};
 use sha3::{Digest, Keccak256};
 use signature::Signature;
 use std::str::FromStr;
-use utils::{bytes_to_hex_str, hex_str_to_bytes, ByteDecodeError};
 use types::BigEndianInt;
+use utils::{bytes_to_hex_str, hex_str_to_bytes, ByteDecodeError};
 
 #[derive(Fail, Debug, PartialEq)]
 pub enum PrivateKeyError {
