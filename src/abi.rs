@@ -12,7 +12,7 @@ use address::Address;
 /// like a bunch of helpers that would help to successfuly encode a contract
 /// call.
 ///
-use num_bigint::{BigInt, BigUint};
+use num256::Uint256;
 use sha3::{Digest, Keccak256};
 use types::BigEndianInt;
 
@@ -22,7 +22,7 @@ use types::BigEndianInt;
 #[derive(Debug)]
 pub enum Token {
     /// Unsigned type with value already encoded.
-    Uint(BigUint),
+    Uint(Uint256),
     Address(Address),
     Bool(bool),
     /// Represents a string
@@ -127,33 +127,25 @@ impl Token {
 
 impl From<u8> for Token {
     fn from(v: u8) -> Token {
-        Token::Uint(BigUint::from(v))
+        Token::Uint(Uint256::from(v))
     }
 }
 
 impl From<u16> for Token {
     fn from(v: u16) -> Token {
-        Token::Uint(BigUint::from(v))
+        Token::Uint(Uint256::from(v))
     }
 }
 
 impl From<u32> for Token {
     fn from(v: u32) -> Token {
-        Token::Uint(BigUint::from(v))
+        Token::Uint(Uint256::from(v))
     }
 }
 
 impl From<u64> for Token {
     fn from(v: u64) -> Token {
-        Token::Uint(BigUint::from(v))
-    }
-}
-
-impl From<BigUint> for Token {
-    fn from(v: BigUint) -> Token {
-        // BigUint are assumed to have maximum of 256 bits
-        assert!(v.bits() <= 256);
-        Token::Uint(v)
+        Token::Uint(Uint256::from(v))
     }
 }
 
@@ -181,8 +173,8 @@ impl<'a> From<&'a str> for Token {
     }
 }
 
-impl From<BigEndianInt> for Token {
-    fn from(v: BigEndianInt) -> Token {
+impl From<Uint256> for Token {
+    fn from(v: Uint256) -> Token {
         Token::Uint(v.into())
     }
 }

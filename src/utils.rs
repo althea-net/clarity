@@ -1,3 +1,5 @@
+use num256::Uint256;
+use serde::ser::Serializer;
 use std::num::ParseIntError;
 use std::str;
 
@@ -109,4 +111,16 @@ fn verify_zpad_exact() {
 #[test]
 fn verify_zpad_less_than_size() {
     assert_eq!(zpad(&[1, 2, 3, 4], 2), [1, 2, 3, 4]);
+}
+
+pub fn big_endian_int_serialize<S>(x: &Uint256, s: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    if x == &0u32.into() {
+        s.serialize_bytes(&[])
+    } else {
+        let bytes = x.to_bytes_be();
+        s.serialize_bytes(&bytes)
+    }
 }

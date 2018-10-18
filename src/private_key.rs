@@ -1,11 +1,11 @@
 use address::Address;
 use error::ClarityError;
 use failure::Error;
+use num256::Uint256;
 use secp256k1::{Message, PublicKey, Secp256k1, SecretKey};
 use sha3::{Digest, Keccak256};
 use signature::Signature;
 use std::str::FromStr;
-use types::BigEndianInt;
 use utils::{bytes_to_hex_str, hex_str_to_bytes, ByteDecodeError};
 
 #[derive(Fail, Debug, PartialEq)]
@@ -92,14 +92,14 @@ impl PrivateKey {
         let (recovery_id, compact) = sig.serialize_compact(&full);
         debug_assert_eq!(compact.len(), 64);
         // I assume recovery ID is always greater than 0 to simplify
-        // the conversion from i32 to BigEndianInt. On a side note,
+        // the conversion from i32 to Uint256. On a side note,
         // I believe "v" could be an u64 value (TODO).
         let recovery_id = recovery_id.to_i32();
         assert!(recovery_id >= 0);
         let recovery_id = recovery_id as u32;
-        let v: BigEndianInt = (recovery_id + 27).into();
-        let r = BigEndianInt::from_bytes_be(&compact[0..32]);
-        let s = BigEndianInt::from_bytes_be(&compact[32..64]);
+        let v: Uint256 = (recovery_id + 27).into();
+        let r = Uint256::from_bytes_be(&compact[0..32]);
+        let s = Uint256::from_bytes_be(&compact[32..64]);
         // This will swap the signature of a transaction, and returns a new signed TX.
         Signature::new(v, r, s)
     }

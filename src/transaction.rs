@@ -3,6 +3,7 @@ use constants::SECPK1N;
 use constants::TT256;
 use error::ClarityError;
 use failure::Error;
+use num256::Uint256;
 use num_traits::ToPrimitive;
 use num_traits::Zero;
 use opcodes::GTXCOST;
@@ -23,11 +24,11 @@ use utils::{bytes_to_hex_str, hex_str_to_bytes, zpad};
 /// Transaction as explained in the Ethereum Yellow paper section 4.2
 #[derive(Clone, Debug, PartialEq)]
 pub struct Transaction {
-    pub nonce: BigEndianInt,
-    pub gas_price: BigEndianInt,
-    pub gas_limit: BigEndianInt,
+    pub nonce: Uint256,
+    pub gas_price: Uint256,
+    pub gas_limit: Uint256,
     pub to: Address,
-    pub value: BigEndianInt,
+    pub value: Uint256,
     pub data: Vec<u8>,
     pub signature: Option<Signature>,
 }
@@ -41,15 +42,15 @@ impl Serialize for Transaction {
         // the data assuming the "vrs" params are set to 0.
         let sig = self.signature.clone().unwrap_or(Signature::default());
         let data = (
-            &self.nonce,
-            &self.gas_price,
-            &self.gas_limit,
+            &BigEndianInt(self.nonce.clone()),
+            &BigEndianInt(self.gas_price.clone()),
+            &BigEndianInt(self.gas_limit.clone()),
             &self.to,
-            &self.value,
+            &BigEndianInt(self.value.clone()),
             &ByteBuf::from(self.data.clone()),
-            &sig.v,
-            &sig.r,
-            &sig.s,
+            &BigEndianInt(sig.v.clone()),
+            &BigEndianInt(sig.r.clone()),
+            &BigEndianInt(sig.s.clone()),
         );
         data.serialize(serializer)
     }
@@ -73,38 +74,38 @@ impl Transaction {
         true
     }
 
-    pub fn intrinsic_gas_used(&self) -> BigEndianInt {
+    pub fn intrinsic_gas_used(&self) -> Uint256 {
         let num_zero_bytes = self.data.iter().filter(|&&b| b == 0u8).count();
         let num_non_zero_bytes = self.data.len() - num_zero_bytes;
-        BigEndianInt::from(GTXCOST)
-            + BigEndianInt::from(GTXDATAZERO) * BigEndianInt::from(num_zero_bytes as u32)
-            + BigEndianInt::from(GTXDATANONZERO) * BigEndianInt::from(num_non_zero_bytes as u32)
+        Uint256::from(GTXCOST)
+            + Uint256::from(GTXDATAZERO) * Uint256::from(num_zero_bytes as u32)
+            + Uint256::from(GTXDATANONZERO) * Uint256::from(num_non_zero_bytes as u32)
     }
 
     /// Creates a raw data without signature params
     fn to_unsigned_tx_params(&self) -> Vec<u8> {
         // TODO: Could be refactored in a better way somehow
         let data = (
-            &self.nonce,
-            &self.gas_price,
-            &self.gas_limit,
+            &BigEndianInt(self.nonce.clone()),
+            &BigEndianInt(self.gas_price.clone()),
+            &BigEndianInt(self.gas_limit.clone()),
             &self.to,
-            &self.value,
+            &BigEndianInt(self.value.clone()),
             &ByteBuf::from(self.data.clone()),
         );
         to_bytes(&data).unwrap()
     }
-    fn to_unsigned_tx_params_for_network(&self, network_id: BigEndianInt) -> Vec<u8> {
+    fn to_unsigned_tx_params_for_network(&self, network_id: Uint256) -> Vec<u8> {
         // assert!(self.signature.is_none());
         // TODO: Could be refactored in a better way somehow
         let data = (
-            &self.nonce,
-            &self.gas_price,
-            &self.gas_limit,
+            &BigEndianInt(self.nonce.clone()),
+            &BigEndianInt(self.gas_price.clone()),
+            &BigEndianInt(self.gas_limit.clone()),
             &self.to,
-            &self.value,
+            &BigEndianInt(self.value.clone()),
             &ByteBuf::from(self.data.clone()),
-            &network_id,
+            &BigEndianInt(network_id.clone()),
             &ByteBuf::new(),
             &ByteBuf::new(),
         );
@@ -125,7 +126,7 @@ impl Transaction {
         let mut sig = key.sign_hash(&rawhash);
         if network_id.is_some() {
             // Account v for the network_id value
-            sig.v += (8u64 + network_id.unwrap() * 2u64).into();
+            sig.v += 8u64 + network_id.unwrap() * 2u64;
         }
         let mut tx = self.clone();
         tx.signature = Some(sig);
@@ -139,7 +140,7 @@ impl Transaction {
         }
         let sig = self.signature.as_ref().unwrap();
         // Zero RS also mean the resulting address is "null"
-        if sig.r == BigEndianInt::zero() && sig.s == BigEndianInt::zero() {
+        if sig.r == Uint256::zero() && sig.s == Uint256::zero() {
             return Ok(Address::from([0xffu8; 20]));
         } else {
             let (vee, sighash) = if sig.v == 27u32.into() || sig.v == 28u32.into() {
@@ -150,7 +151,7 @@ impl Transaction {
             } else if sig.v >= 37u32.into() {
                 let network_id = sig.network_id().ok_or(ClarityError::InvalidNetworkId)?;
                 // Otherwise we have to extract "v"...
-                let vee = sig.v.clone() - network_id.clone() * 2u32.into() - 8u32.into();
+                let vee = sig.v.clone() - network_id.clone() * 2u32 - 8u32;
                 // ... so after all v will still match 27<=v<=28
                 assert!(vee == 27u32.into() || vee == 28u32.into());
                 // In this case hash of the transaction is usual RLP paremeters but "VRS" params
@@ -166,8 +167,8 @@ impl Transaction {
             // Validate signates
             if sig.r >= *SECPK1N
                 || sig.s >= *SECPK1N
-                || sig.r == BigEndianInt::zero()
-                || sig.s == BigEndianInt::zero()
+                || sig.r == Uint256::zero()
+                || sig.s == Uint256::zero()
             {
                 return Err(ClarityError::InvalidSignatureValues.into());
             }
@@ -222,19 +223,19 @@ fn test_vitaliks_eip_158_vitalik_12_json() {
     use serde_rlp::ser::to_bytes;
     // https://github.com/ethereum/tests/blob/69f55e8608126e6470c2888a5b344c93c1550f40/TransactionTests/ttEip155VitaliksEip158/Vitalik_12.json
     let tx = Transaction {
-        nonce: BigEndianInt::from_str_radix("0e", 16).unwrap(),
-        gas_price: BigEndianInt::from_str_radix("00", 16).unwrap(),
-        gas_limit: BigEndianInt::from_str_radix("0493e0", 16).unwrap(),
+        nonce: Uint256::from_str_radix("0e", 16).unwrap(),
+        gas_price: Uint256::from_str_radix("00", 16).unwrap(),
+        gas_limit: Uint256::from_str_radix("0493e0", 16).unwrap(),
         to: Address::new(), // "" - zeros only
-        value: BigEndianInt::from_str_radix("00", 16).unwrap(),
+        value: Uint256::from_str_radix("00", 16).unwrap(),
         data: hex_str_to_bytes("60f2ff61000080610011600039610011565b6000f3").unwrap(),
         signature: Some(Signature::new(
-            BigEndianInt::from_str_radix("1c", 16).unwrap(),
-            BigEndianInt::from_str_radix(
+            Uint256::from_str_radix("1c", 16).unwrap(),
+            Uint256::from_str_radix(
                 "a310f4d0b26207db76ba4e1e6e7cf1857ee3aa8559bcbc399a6b09bfea2d30b4",
                 16,
             ).unwrap(),
-            BigEndianInt::from_str_radix(
+            Uint256::from_str_radix(
                 "6dff38c645a1486651a717ddf3daccb4fd9a630871ecea0758ddfcf2774f9bc6",
                 16,
             ).unwrap(),
@@ -256,19 +257,19 @@ fn test_vitaliks_eip_158_vitalik_1_json() {
     use serde_rlp::ser::to_bytes;
     // https://github.com/ethereum/tests/blob/69f55e8608126e6470c2888a5b344c93c1550f40/TransactionTests/ttEip155VitaliksEip158/Vitalik_12.json
     let tx = Transaction {
-        nonce: BigEndianInt::from_str_radix("00", 16).unwrap(),
-        gas_price: BigEndianInt::from_str_radix("04a817c800", 16).unwrap(),
-        gas_limit: BigEndianInt::from_str_radix("5208", 16).unwrap(),
+        nonce: Uint256::from_str_radix("00", 16).unwrap(),
+        gas_price: Uint256::from_str_radix("04a817c800", 16).unwrap(),
+        gas_limit: Uint256::from_str_radix("5208", 16).unwrap(),
         to: "3535353535353535353535353535353535353535".parse().unwrap(),
-        value: BigEndianInt::from_str_radix("00", 16).unwrap(),
+        value: Uint256::from_str_radix("00", 16).unwrap(),
         data: Vec::new(),
         signature: Some(Signature::new(
-            BigEndianInt::from_str_radix("25", 16).unwrap(),
-            BigEndianInt::from_str_radix(
+            Uint256::from_str_radix("25", 16).unwrap(),
+            Uint256::from_str_radix(
                 "044852b2a670ade5407e78fb2863c51de9fcb96542a07186fe3aeda6bb8a116d",
                 16,
             ).unwrap(),
-            BigEndianInt::from_str_radix(
+            Uint256::from_str_radix(
                 "044852b2a670ade5407e78fb2863c51de9fcb96542a07186fe3aeda6bb8a116d",
                 16,
             ).unwrap(),
@@ -285,7 +286,7 @@ fn test_basictests_txtest_1() {
     use serde_rlp::ser::to_bytes;
     // https://github.com/ethereum/tests/blob/b44cea1cccf1e4b63a05d1ca9f70f2063f28da6d/BasicTests/txtest.json
     let tx = Transaction {
-        nonce: BigEndianInt::from_str_radix("00", 16).unwrap(),
+        nonce: Uint256::from_str_radix("00", 16).unwrap(),
         gas_price: "1000000000000".parse().unwrap(),
         gas_limit: "10000".parse().unwrap(),
         to: "13978aee95f38490e9769c39b2773ed763d9cd5f".parse().unwrap(),
