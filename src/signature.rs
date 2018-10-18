@@ -1,22 +1,26 @@
 use constants::SECPK1N;
 use error::ClarityError;
 use failure::Error;
+use num256::Uint256;
 use num_traits::Zero;
 use serde::ser::SerializeTuple;
 use serde::Serialize;
 use serde::Serializer;
-use types::BigEndianInt;
+use utils::big_endian_int_serialize;
 use utils::bytes_to_hex_str;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Signature {
-    pub v: BigEndianInt,
-    pub r: BigEndianInt,
-    pub s: BigEndianInt,
+    #[serde(serialize_with = "big_endian_int_serialize")]
+    pub v: Uint256,
+    #[serde(serialize_with = "big_endian_int_serialize")]
+    pub r: Uint256,
+    #[serde(serialize_with = "big_endian_int_serialize")]
+    pub s: Uint256,
 }
 
 impl Signature {
-    pub fn new(v: BigEndianInt, r: BigEndianInt, s: BigEndianInt) -> Signature {
+    pub fn new(v: Uint256, r: Uint256, s: Uint256) -> Signature {
         Signature { v, r, s }
     }
 
@@ -27,8 +31,8 @@ impl Signature {
 
         if self.r >= *SECPK1N
             || self.s >= *SECPK1N
-            || self.r == BigEndianInt::zero()
-            || self.s == BigEndianInt::zero()
+            || self.r == Uint256::zero()
+            || self.s == Uint256::zero()
         {
             return false;
         }
@@ -36,25 +40,25 @@ impl Signature {
         true
     }
 
-    pub fn network_id(&self) -> Option<BigEndianInt> {
-        if self.r == BigEndianInt::zero() && self.s == BigEndianInt::zero() {
+    pub fn network_id(&self) -> Option<Uint256> {
+        if self.r == Uint256::zero() && self.s == Uint256::zero() {
             Some(self.v.clone())
         } else if self.v == 27u32.into() || self.v == 28u32.into() {
             None
         } else {
-            Some(((self.v.clone() - 1u32.into()) / 2u32.into()) - 17u32.into())
+            Some(((self.v.clone() - 1u32) / 2u32) - 17u32)
         }
     }
 
     pub fn check_low_s_metropolis(&self) -> Result<(), Error> {
-        if self.s > (SECPK1N.clone() / 2u32.into()) {
+        if self.s > (SECPK1N.clone() / Uint256::from(2u32)) {
             return Err(ClarityError::InvalidS.into());
         }
         Ok(())
     }
 
     pub fn check_low_s_homestead(&self) -> Result<(), Error> {
-        if self.s > (SECPK1N.clone() / 2u32.into()) || self.s == BigEndianInt::zero() {
+        if self.s > (SECPK1N.clone() / Uint256::from(2u32)) || self.s == Uint256::zero() {
             return Err(ClarityError::InvalidS.into());
         }
         Ok(())
@@ -64,9 +68,9 @@ impl Signature {
 impl Default for Signature {
     fn default() -> Signature {
         Signature {
-            r: BigEndianInt::zero(),
-            v: BigEndianInt::zero(),
-            s: BigEndianInt::zero(),
+            r: Uint256::zero(),
+            v: Uint256::zero(),
+            s: Uint256::zero(),
         }
     }
 }
