@@ -1,17 +1,16 @@
+//! A module to simplify ABI encoding
+//!
+//! For simplicity, it is based on tokens. You have to specify a list of
+//! tokens and they will be automatically encoded.
+//!
+//! Additionally there are helpers to help deal with deriving a function
+//! signatures.
+//!
+//! This is not a full fledged implemementation of ABI encoder, it is more
+//! like a bunch of helpers that would help to successfuly encode a contract
+//! call.
+//!
 use address::Address;
-
-/// A module to simplify ABI encoding
-///
-/// For simplicity, it is based on tokens. You have to specify a list of
-/// tokens and they will be automatically encoded.
-///
-/// Additionally there are helpers to help deal with deriving a function
-/// signatures.
-///
-/// This is not a full fledged implemementation of ABI encoder, it is more
-/// like a bunch of helpers that would help to successfuly encode a contract
-/// call.
-///
 use num256::Uint256;
 use sha3::{Digest, Keccak256};
 use types::BigEndianInt;
