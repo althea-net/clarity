@@ -4,7 +4,7 @@
 //! You can create, sign, verify transactions, as well as work with contract calls, and encode ABI.
 //! It is designed with embedded devices on mind so big/little endian architectures and 32/64 bits are supported.
 //!
-//! # Features
+//! ## Features
 //!
 //! * Supports both little endian and big endian
 //! * Works well on both 32 and 64 bit architectures
@@ -15,7 +15,7 @@
 //! * Handle signatures
 //! * Encode ABI for contract calls
 //!
-//! # Documentation
+//! ## Documentation
 //!
 //! * [GitHub repository](https://github.com/althea-mesh/clarity)
 //! * [Cargo package](https://crates.io/crates/clarity)
