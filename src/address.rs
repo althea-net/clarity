@@ -6,7 +6,11 @@ use std::str;
 use std::str::FromStr;
 use utils::bytes_to_hex_str;
 use utils::{hex_str_to_bytes, ByteDecodeError};
-/// This type represents ETH address
+
+/// Representation of an Ethereum address.
+///
+/// Address is usually derived from a `PrivateKey`, or converted from its
+/// textual representation back to a binary form.
 #[derive(PartialEq, Debug, Clone, Eq, PartialOrd, Hash, Deserialize)]
 pub struct Address {
     // TODO: address seems to be limited to 20 characters, but we keep it flexible
@@ -29,16 +33,23 @@ impl Serialize for Address {
 }
 
 impl Address {
+    /// Creates new `Address` filled with zeros.
+    ///
+    /// The actual implementation of this doesn't really
+    /// creates the zeros. In our case we treat it as "empty"
+    /// address, which is then reperesented by zeros.
     pub fn new() -> Address {
         Address { data: Vec::new() }
     }
 
+    /// Get raw bytes of the address.
     pub fn as_bytes(&self) -> &[u8] {
         &self.data
     }
 }
 
 impl Default for Address {
+    /// Construct a default `Address` filled with zeros.
     fn default() -> Address {
         Address { data: Vec::new() }
     }
@@ -115,6 +126,24 @@ impl From<ByteDecodeError> for AddressError {
 impl FromStr for Address {
     type Err = AddressError;
 
+    /// Parses a string into a valid Ethereum address.
+    ///
+    /// # Supported formats
+    ///
+    /// * `0x` prefixed address
+    /// * Raw bytes of an address represented by a bytes as an hexadecimal.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use std::str::FromStr;
+    /// use clarity::Address;
+    /// // Method 1
+    /// Address::from_str("0x0102030405060708090a0b0c0d0e0f1011121314").unwrap();
+    /// // Method 1 (without 0x prefix)
+    /// Address::from_str("0102030405060708090a0b0c0d0e0f1011121314").unwrap();
+    /// // Method 2
+    /// let _address : Address = "14131211100f0e0d0c0b0a090807060504030201".parse().unwrap();
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if s.len() == 0 {
             return Ok(Address::default());
@@ -131,6 +160,15 @@ impl FromStr for Address {
 }
 
 impl ToString for Address {
+    /// Creates a textual representation of the `Address`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use clarity::Address;
+    /// let address = Address::default();
+    /// address.to_string(); // 0x0000000000000000000000000000000000000000
+    /// ```
     fn to_string(&self) -> String {
         bytes_to_hex_str(&self.data)
     }
