@@ -14,12 +14,25 @@ pub enum PrivateKeyError {
     InvalidLengthError,
 }
 
+/// Representation of an Ethereum private key.
+///
+/// Private key can be created using a textual representation,
+/// a raw binary form using array of bytes.
+///
+/// With PrivateKey you are able to sign messages, derive
+/// public keys. Cryptography-related methods use
+/// SECP256K1 elliptic curves.
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct PrivateKey([u8; 32]);
 
 impl FromStr for PrivateKey {
     type Err = Error;
 
+    /// Parse a textual representation of a private key back into PrivateKey type.
+    ///
+    /// It has to be a string that represents 64 characters that are hexadecimal
+    /// representation of 32 bytes. Optionally this string can be prefixed with `0x`
+    /// at the beggining.
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if s.len() != 64 {
             return Err(PrivateKeyError::InvalidLengthError.into());
@@ -39,10 +52,16 @@ impl From<[u8; 32]> for PrivateKey {
 }
 
 impl PrivateKey {
+    /// Creates a null private key that uses zeros.
     pub fn new() -> PrivateKey {
         PrivateKey([0u8; 32])
     }
 
+    /// Convert a given slice of bytes into a valid private key.
+    ///
+    /// Input bytes are validated for a length only.
+    ///
+    /// * `slice` - A slice of raw bytes with a length of 32.
     pub fn from_slice(slice: &[u8]) -> Result<PrivateKey, Error> {
         if slice.len() != 32 {
             return Err(ClarityError::InvalidPrivKey.into());
@@ -52,13 +71,22 @@ impl PrivateKey {
         Ok(PrivateKey(res))
     }
 
+    /// Get bytes back from a PrivateKey
     pub fn to_bytes(&self) -> [u8; 32] {
         self.0
     }
 
-    /// Given a private key it generates a valid public key.
+    /// Create a public key for a given private key.
     ///
-    /// This is well explained in the EthereumYellow Paper Appendix F.
+    /// This is well explained in the Ethereum Yellow Paper Appendix F.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use clarity::PrivateKey;
+    /// let private_key = PrivateKey::new();
+    /// let public_key = private_key.to_public_key().unwrap();
+    /// ```
     pub fn to_public_key(&self) -> Result<Address, Error> {
         let secp256k1 = Secp256k1::new();
         let sk = SecretKey::from_slice(&secp256k1, &self.0)?;
@@ -112,6 +140,7 @@ impl PrivateKey {
 }
 
 impl ToString for PrivateKey {
+    /// Converts PrivateKey into a textual representation.
     fn to_string(&self) -> String {
         format!("0x{}", bytes_to_hex_str(&self.to_bytes()))
     }
