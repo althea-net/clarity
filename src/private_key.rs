@@ -84,7 +84,7 @@ impl PrivateKey {
     ///
     /// ```rust
     /// use clarity::PrivateKey;
-    /// let private_key = PrivateKey::new();
+    /// let private_key : PrivateKey = "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f1e".parse().unwrap();
     /// let public_key = private_key.to_public_key().unwrap();
     /// ```
     pub fn to_public_key(&self) -> Result<Address, Error> {
