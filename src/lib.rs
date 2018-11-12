@@ -1,3 +1,24 @@
+//! # Introduction
+//! Clarity is a low level library designed to handle Ethereum transactions.
+//!
+//! You can create, sign, verify transactions, as well as work with contract calls, and encode ABI.
+//! It is designed with embedded devices on mind so big/little endian architectures and 32/64 bits are supported.
+//!
+//! ## Features
+//!
+//! * Supports both little endian and big endian
+//! * Works well on both 32 and 64 bit architectures
+//! * Handle private keys
+//! * Create public keys
+//! * Sign transactions
+//! * Verify transaction
+//! * Handle signatures
+//! * Encode ABI for contract calls
+//!
+//! ## Documentation
+//!
+//! * [GitHub repository](https://github.com/althea-mesh/clarity)
+//! * [Cargo package](https://crates.io/crates/clarity)
 extern crate num_bigint;
 extern crate num_traits;
 extern crate serde;

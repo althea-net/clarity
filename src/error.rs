@@ -1,5 +1,7 @@
-use failure::Error;
-
+/// Custom error implementation that describes possible
+/// error states.
+///
+/// This is shared by a whole crate.
 #[derive(Fail, Debug)]
 pub enum ClarityError {
     #[fail(display = "Invalid network id")]

@@ -1,44 +1,62 @@
+//! A module to simplify ABI encoding
+//!
+//! For simplicity, it is based on tokens. You have to specify a list of
+//! tokens and they will be automatically encoded.
+//!
+//! Additionally there are helpers to help deal with deriving a function
+//! signatures.
+//!
+//! This is not a full fledged implemementation of ABI encoder, it is more
+//! like a bunch of helpers that would help to successfuly encode a contract
+//! call.
+//!
+//! ## Limitation
+//!
+//! Currently this module can only serialize types that can be represented by a [Token](#struct.Token).
+//!
+//! Unfortunately if you need to support custom type that is not currently supported you are welcome to open an issue [on issues page](https://github.com/althea-mesh/clarity/issues/new),
+//! or do the serialization yourself by converting your custom type into a `[u8; 32]` array and creating a proper Token instance.
 use address::Address;
-
-/// A module to simplify ABI encoding
-///
-/// For simplicity, it is based on tokens. You have to specify a list of
-/// tokens and they will be automatically encoded.
-///
-/// Additionally there are helpers to help deal with deriving a function
-/// signatures.
-///
-/// This is not a full fledged implemementation of ABI encoder, it is more
-/// like a bunch of helpers that would help to successfuly encode a contract
-/// call.
-///
 use num256::Uint256;
 use sha3::{Digest, Keccak256};
 use types::BigEndianInt;
 
 /// A token represents a value of parameter of the contract call.
 ///
-/// For numbers it uses `num_bigint` crate directly.
+/// For each supported type there is separate entry that later is helpful to determine
+/// actual byte representation.
 #[derive(Debug)]
 pub enum Token {
     /// Unsigned type with value already encoded.
     Uint(Uint256),
+    /// Ethereum Address
     Address(Address),
+    /// A boolean logic
     Bool(bool),
     /// Represents a string
     String(String),
     /// Fixed size array of bytes
     Bytes(Vec<u8>),
-    /// Dynamic array
+    /// Dynamic array with supported values of supported types already converted
     Dynamic(Vec<Token>),
 }
 
 /// Representation of a serialized token.
+///
+/// Serialization occurs once a list of tokens is passed. After that
+/// the library will determine the actual ABI encoding of a each type wrapped in
+/// a token, and then it will return a
+/// [SerializedToken::Static](#variant.Static), or
+/// [SerializedToken::Dynamic](#variant.Dynamic) depending on encoding rules
+/// used for a given type.
+///
+/// With a list of values of type `SerializedToken` a caller can construct a final
+/// binary data that will represent a valid ABI encoding of function parameters.
 pub enum SerializedToken {
     /// This data can be safely appended to the output stream
     Static([u8; 32]),
     /// This data should be saved up in a buffer, and an offset should be
-    /// appended to the output stream.
+    /// appended to the output stream instead.
     Dynamic(Vec<u8>),
 }
 
@@ -60,6 +78,7 @@ impl SerializedToken {
 }
 
 impl Token {
+    /// Serializes a token into a [SerializedToken]()
     pub fn serialize(&self) -> SerializedToken {
         match *self {
             Token::Uint(ref value) => {
