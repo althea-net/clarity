@@ -12,8 +12,10 @@
 //!
 //! ## Limitation
 //!
-//! Currently deeply nested data structures are not guaranteed to work.
+//! Currently this module can only serialize types that can be represented by a [Token](#struct.Token).
 //!
+//! Unfortunately if you need to support custom type that is not currently supported you are welcome to open an issue [on issues page](https://github.com/althea-mesh/clarity/issues/new),
+//! or do the serialization yourself by converting your custom type into a `[u8; 32]` array and creating a proper Token instance.
 use address::Address;
 use num256::Uint256;
 use sha3::{Digest, Keccak256};
