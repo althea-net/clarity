@@ -63,6 +63,27 @@ impl Signature {
         }
         Ok(())
     }
+
+    /// Converts a signature into a bytes string.
+    ///
+    /// A signature in binary form consists of 65 bytes where
+    /// first 32 bytes are "r" in big endian form, next 32 bytes are "s"
+    /// in big endian form, and at the end there is one byte made of "v".
+    ///
+    /// This also consumes the signature.
+    pub fn into_bytes(self) -> [u8; 65] {
+        let r: [u8; 32] = self.r.into();
+        let s: [u8; 32] = self.s.into();
+        let mut result = [0x00u8; 65];
+        // Put r at the beggining
+        result[0..32].copy_from_slice(&r);
+        // Add s in the middle
+        result[32..64].copy_from_slice(&s);
+        // End up with v at the end
+        let v = self.v.to_bytes_be();
+        result[64] = v[v.len() - 1];
+        result
+    }
 }
 
 impl Default for Signature {
@@ -82,17 +103,12 @@ impl ToString for Signature {
     // second 32 bytes i s "s" value
     // last byte is "v"
     fn to_string(&self) -> String {
-        let r: [u8; 32] = self.r.clone().into();
-        let s: [u8; 32] = self.s.clone().into();
-        let mut wtr = vec![];
-        wtr.extend(&r);
-        wtr.extend(&s);
+        // Convert and make a signature made of bytes
+        let sig_bytes = self.clone().into_bytes();
 
-        let v = self.v.to_bytes_be();
-        wtr.extend(&v[v.len() - 1..]);
-
+        // Convert those bytes in a string
         let mut result = "0x".to_owned();
-        result += &bytes_to_hex_str(&wtr);
+        result += &bytes_to_hex_str(&sig_bytes);
         result
     }
 }
@@ -117,6 +133,19 @@ fn to_string() {
             "0000000000000000000000000000000000000000000000000000000000000003",
             "01"
         )
+    );
+}
+
+#[test]
+fn into_bytes() {
+    let sig = Signature::new(1u32.into(), 2u32.into(), 3u32.into());
+    assert_eq!(
+        sig.into_bytes().to_vec(),
+        vec![
+            /* r */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 2, /* s */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, /* v */ 1
+        ],
     );
 }
 
