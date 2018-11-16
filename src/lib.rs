@@ -1,24 +1,59 @@
 //! # Introduction
-//! Clarity is a low level library designed to handle Ethereum transactions.
-//!
-//! You can create, sign, verify transactions, as well as work with contract calls, and encode ABI.
-//! It is designed with embedded devices on mind so big/little endian architectures and 32/64 bits are supported.
+//! Clarity is a low-level Ethereum transaction library written in pure Rust.
 //!
 //! ## Features
+//! * Any-endian, 32/64-bit support
+//! * Public/private key handling
+//! * Transaction signing and verification
+//! * ABI enconding for common data types (see `abi::Token` variants)
 //!
-//! * Supports both little endian and big endian
-//! * Works well on both 32 and 64 bit architectures
-//! * Handle private keys
-//! * Create public keys
-//! * Sign transactions
-//! * Verify transaction
-//! * Handle signatures
-//! * Encode ABI for contract calls
+//! ## Getting started
+//! Here's an example lifetime of an Alice-to-Bob Ethereum transaction made with Clarity:
+//! ```rust,no_run
+//! extern crate clarity;
+//! extern crate futures;
+//! extern crate web3;
 //!
-//! ## Documentation
+//! use clarity::{Address, Signature, Transaction, PrivateKey};
 //!
-//! * [GitHub repository](https://github.com/althea-mesh/clarity)
-//! * [Cargo package](https://crates.io/crates/clarity)
+//! use futures::Future;
+//! use web3::{transports, types::Bytes, Web3};
+//!
+//! // A helper for filling the keys
+//! let mut key_buf: [u8; 32] = rand::random();
+//!
+//! let alices_key = PrivateKey::from_slice(&key_buf).unwrap();
+//!
+//! key_buf = rand::random();
+//! let bobs_key = PrivateKey::from_slice(&key_buf).unwrap();
+//!
+//! // Create a new transaction
+//! let tx = Transaction {
+//!     nonce: 0.into(),
+//!     gas_price: 1_000_000_000.into(),
+//!     gas_limit: 21_000.into(),
+//!     to: bobs_key.to_public_key().unwrap(),
+//!     value: 100.into(),
+//!     data: Vec::new(),
+//!     signature: None, // Not signed. Yet.
+//! };
+//!
+//! let tx_signed: Transaction = tx.sign(&alices_key, None);
+//! assert!(tx_signed.is_valid());
+//!
+//! // You can always derive the sender from a signed transaction
+//! let sender: Address = tx_signed.sender().unwrap();
+//!
+//! // Send the locally assembled raw transaction over web3 (no need to trust another
+//! // machine with your wallet or host a node locally).
+//! let (_loop, transport) = transports::Http::new("http://localhost:8545").unwrap();
+//! let web3 = Web3::new(transport);
+//! let res = web3
+//!     .eth()
+//!     .send_raw_transaction(Bytes::from(tx_signed.to_bytes().unwrap()))
+//!     .wait()
+//!     .unwrap();
+//! ```
 extern crate num_bigint;
 extern crate num_traits;
 extern crate serde;

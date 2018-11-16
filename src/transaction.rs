@@ -133,6 +133,8 @@ impl Transaction {
         tx
     }
 
+    /// Get the sender's `Address`; derived from the `signature` field, null ETH address if the
+    /// field is `None`.
     pub fn sender(&self) -> Result<Address, Error> {
         if self.signature.is_none() {
             // Returns a "null" address
