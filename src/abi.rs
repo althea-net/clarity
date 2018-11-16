@@ -37,6 +37,8 @@ pub enum Token {
     String(String),
     /// Fixed size array of bytes
     Bytes(Vec<u8>),
+    /// This is a dynamic array of bytes that reflects dynamic "bytes" type in Solidity
+    UnboundedBytes(Vec<u8>),
     /// Dynamic array with supported values of supported types already converted
     Dynamic(Vec<Token>),
 }
@@ -113,6 +115,17 @@ impl Token {
                 }
                 SerializedToken::Dynamic(wtr)
             }
+            Token::UnboundedBytes(ref v) => {
+                let mut wtr = vec![];
+                // Encode prefix
+                let prefix: Token = (v.len() as u64).into();
+                wtr.extend(prefix.serialize().as_static_ref().unwrap());
+                // Pad on the right
+                wtr.extend(v);
+                let pad_right = (((v.len() - 1) / 32) + 1) * 32;
+                wtr.extend(vec![0x00u8; pad_right - v.len()]);
+                SerializedToken::Dynamic(wtr)
+            }
             Token::String(ref s) => {
                 let mut wtr = vec![];
                 // Encode prefix
@@ -171,6 +184,12 @@ impl From<u64> for Token {
 impl From<bool> for Token {
     fn from(v: bool) -> Token {
         Token::Bool(v)
+    }
+}
+
+impl From<Vec<u8>> for Token {
+    fn from(v: Vec<u8>) -> Token {
+        Token::UnboundedBytes(v)
     }
 }
 
@@ -371,6 +390,35 @@ fn encode_f() {
         vec![0x456u32, 0x789u32].into(),
         Token::Bytes("1234567890".as_bytes().to_vec()),
         "Hello, world!".into(),
+    ]);
+    assert!(result.len() % 8 == 0);
+    assert_eq!(
+        result[..]
+            .chunks(32)
+            .map(|c| bytes_to_hex_str(&c))
+            .collect::<Vec<String>>(),
+        vec![
+            "0000000000000000000000000000000000000000000000000000000000000123".to_owned(),
+            "0000000000000000000000000000000000000000000000000000000000000080".to_owned(),
+            "3132333435363738393000000000000000000000000000000000000000000000".to_owned(),
+            "00000000000000000000000000000000000000000000000000000000000000e0".to_owned(),
+            "0000000000000000000000000000000000000000000000000000000000000002".to_owned(),
+            "0000000000000000000000000000000000000000000000000000000000000456".to_owned(),
+            "0000000000000000000000000000000000000000000000000000000000000789".to_owned(),
+            "000000000000000000000000000000000000000000000000000000000000000d".to_owned(),
+            "48656c6c6f2c20776f726c642100000000000000000000000000000000000000".to_owned(),
+        ]
+    );
+}
+
+#[test]
+fn encode_f_with_real_unbounded_bytes() {
+    use utils::bytes_to_hex_str;
+    let result = encode_tokens(&[
+        0x123u32.into(),
+        vec![0x456u32, 0x789u32].into(),
+        Token::Bytes("1234567890".as_bytes().to_vec()),
+        "Hello, world!".as_bytes().to_vec().into(),
     ]);
     assert!(result.len() % 8 == 0);
     assert_eq!(
