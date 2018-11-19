@@ -2,14 +2,20 @@ use num256::Uint256;
 use num_traits::Zero;
 use serde::Serialize;
 use serde::Serializer;
-use utils::big_endian_int_serialize;
+use utils::{big_endian_uint256_deserialize, big_endian_uint256_serialize};
 
 /// A thin wrapper type to change the way Uint256 is serialized.
 ///
 /// This is done this way to overcome the "orphan rule" where you can't
 /// implement traits for a type that comes from different crate.
-#[derive(Serialize)]
-pub struct BigEndianInt(#[serde(serialize_with = "big_endian_int_serialize")] pub Uint256);
+#[derive(Serialize, Deserialize)]
+pub struct BigEndianInt(
+    #[serde(
+        serialize_with = "big_endian_uint256_serialize",
+        deserialize_with = "big_endian_uint256_deserialize"
+    )]
+    pub Uint256,
+);
 
 #[test]
 fn serialize() {

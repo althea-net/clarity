@@ -6,16 +6,24 @@ use num_traits::Zero;
 use serde::ser::SerializeTuple;
 use serde::Serialize;
 use serde::Serializer;
-use utils::big_endian_int_serialize;
-use utils::bytes_to_hex_str;
+use utils::{big_endian_uint256_deserialize, big_endian_uint256_serialize, bytes_to_hex_str};
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Signature {
-    #[serde(serialize_with = "big_endian_int_serialize")]
+    #[serde(
+        serialize_with = "big_endian_uint256_serialize",
+        deserialize_with = "big_endian_uint256_deserialize"
+    )]
     pub v: Uint256,
-    #[serde(serialize_with = "big_endian_int_serialize")]
+    #[serde(
+        serialize_with = "big_endian_uint256_serialize",
+        deserialize_with = "big_endian_uint256_deserialize"
+    )]
     pub r: Uint256,
-    #[serde(serialize_with = "big_endian_int_serialize")]
+    #[serde(
+        serialize_with = "big_endian_uint256_serialize",
+        deserialize_with = "big_endian_uint256_deserialize"
+    )]
     pub s: Uint256,
 }
 
