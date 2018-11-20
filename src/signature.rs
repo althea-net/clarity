@@ -8,7 +8,7 @@ use serde::Serialize;
 use serde::Serializer;
 use utils::{big_endian_uint256_deserialize, big_endian_uint256_serialize, bytes_to_hex_str};
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
 pub struct Signature {
     #[serde(
         serialize_with = "big_endian_uint256_serialize",
