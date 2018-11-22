@@ -6,7 +6,11 @@ use num_traits::Zero;
 use serde::ser::SerializeTuple;
 use serde::Serialize;
 use serde::Serializer;
-use utils::{big_endian_uint256_deserialize, big_endian_uint256_serialize, bytes_to_hex_str};
+use std::str::FromStr;
+use utils::{
+    big_endian_uint256_deserialize, big_endian_uint256_serialize, bytes_to_hex_str,
+    hex_str_to_bytes,
+};
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
 pub struct Signature {
@@ -92,6 +96,29 @@ impl Signature {
         result[64] = v[v.len() - 1];
         result
     }
+
+    /// Constructs a signature from a bytes string
+    ///
+    /// This is opposite to `into_bytes()` where a signature is created based
+    /// on a slice of bytes.
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, Error> {
+        ensure!(
+            bytes.len() == 65,
+            "Signature in binary form is exactly 65 bytes long"
+        );
+        let r: Uint256 = {
+            let mut data: [u8; 32] = Default::default();
+            data.copy_from_slice(&bytes[0..32]);
+            data.into()
+        };
+        let s: Uint256 = {
+            let mut data: [u8; 32] = Default::default();
+            data.copy_from_slice(&bytes[32..64]);
+            data.into()
+        };
+        let v = bytes[64];
+        Ok(Signature::new(v.into(), r, s))
+    }
 }
 
 impl Default for Signature {
@@ -121,6 +148,27 @@ impl ToString for Signature {
     }
 }
 
+impl FromStr for Signature {
+    type Err = Error;
+    /// Constructs a signature back from a string representation
+    ///
+    /// The input string's length should be exactly 130 not including
+    /// optional "0x" prefix at the beggining.
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        // Strip optional prefix
+        let s = if s.starts_with("0x") { &s[2..] } else { &s };
+
+        // Signature has exactly 130 characters (65 as bytes)
+        ensure!(
+            s.len() == 130,
+            "Signature as a string should contain exactly 130 characters"
+        );
+        // Parse hexadecimal form back to bytes
+        let bytes = hex_str_to_bytes(&s)?;
+        Signature::from_bytes(&bytes)
+    }
+}
+
 #[test]
 fn new_signature() {
     let sig = Signature::new(1u32.into(), 2u32.into(), 3u32.into());
@@ -132,9 +180,9 @@ fn new_signature() {
 #[test]
 fn to_string() {
     let sig = Signature::new(1u32.into(), 2u32.into(), 3u32.into());
-    // assert_eq!(sig.to_string().len(), 132);
+    let sig_string = sig.to_string();
     assert_eq!(
-        sig.to_string(),
+        sig_string,
         concat!(
             "0x",
             "0000000000000000000000000000000000000000000000000000000000000002",
@@ -142,27 +190,39 @@ fn to_string() {
             "01"
         )
     );
+    let new_sig = Signature::from_str(&sig_string).expect("Unable to parse signature");
+    assert_eq!(sig, new_sig);
+
+    // Without 0x
+    assert!(sig_string.starts_with("0x"));
+    let new_sig = Signature::from_str(&sig_string[2..]).expect("Unable to parse signature");
+    assert_eq!(sig, new_sig);
 }
 
 #[test]
 fn into_bytes() {
     let sig = Signature::new(1u32.into(), 2u32.into(), 3u32.into());
+
+    let sig_bytes = sig.clone().into_bytes();
     assert_eq!(
-        sig.into_bytes().to_vec(),
+        sig_bytes.to_vec(),
         vec![
             /* r */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 2, /* s */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, /* v */ 1
         ],
     );
+
+    let new_sig = Signature::from_bytes(&sig_bytes).expect("Unable to reconstruct signature");
+    assert_eq!(sig, new_sig);
 }
 
 #[test]
 fn to_string_with_zero_v() {
     let sig = Signature::new(0u32.into(), 2u32.into(), 3u32.into());
-    // assert_eq!(sig.to_string().len(), 132);
+    let sig_str = sig.to_string();
     assert_eq!(
-        sig.to_string(),
+        sig_str,
         concat!(
             "0x",
             "0000000000000000000000000000000000000000000000000000000000000002",
@@ -170,4 +230,14 @@ fn to_string_with_zero_v() {
             "00"
         )
     );
+
+    let new_sig = Signature::from_str(&sig_str).expect("Unable to reconstruct signature");
+    assert_eq!(sig, new_sig);
+}
+
+#[test]
+#[should_panic]
+fn parse_invalid_signature() {
+    let _sig: Signature = "deadbeef".parse().unwrap();
+    let _sig: Signature = "0x".parse().unwrap();
 }
