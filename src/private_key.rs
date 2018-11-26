@@ -22,7 +22,7 @@ pub enum PrivateKeyError {
 /// With PrivateKey you are able to sign messages, derive
 /// public keys. Cryptography-related methods use
 /// SECP256K1 elliptic curves.
-#[derive(Debug, PartialEq, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Copy, Clone)]
 pub struct PrivateKey([u8; 32]);
 
 impl FromStr for PrivateKey {

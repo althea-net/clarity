@@ -11,7 +11,7 @@ use utils::{hex_str_to_bytes, ByteDecodeError};
 ///
 /// Address is usually derived from a `PrivateKey`, or converted from its
 /// textual representation.
-#[derive(PartialEq, Debug, Clone, Eq, PartialOrd, Hash, Deserialize)]
+#[derive(PartialEq, Debug, Clone, Eq, PartialOrd, Ord, Hash, Deserialize)]
 pub struct Address {
     // TODO: address seems to be limited to 20 characters, but we keep it flexible
     data: Vec<u8>,

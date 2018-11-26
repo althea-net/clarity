@@ -22,7 +22,7 @@ use types::BigEndianInt;
 use utils::{bytes_to_hex_str, hex_str_to_bytes, zpad};
 
 /// Transaction as explained in the Ethereum Yellow paper section 4.2
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Transaction {
     pub nonce: Uint256,
     pub gas_price: Uint256,
