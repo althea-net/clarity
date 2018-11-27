@@ -3,6 +3,10 @@ use error::ClarityError;
 use failure::Error;
 use num256::Uint256;
 use secp256k1::{Message, PublicKey, Secp256k1, SecretKey};
+use serde::Deserialize;
+use serde::Deserializer;
+use serde::Serialize;
+use serde::Serializer;
 use sha3::{Digest, Keccak256};
 use signature::Signature;
 use std::str::FromStr;
@@ -146,6 +150,32 @@ impl ToString for PrivateKey {
     }
 }
 
+impl Serialize for PrivateKey {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(&self.to_string())
+    }
+}
+
+impl<'de> Deserialize<'de> for PrivateKey {
+    fn deserialize<D>(deserializer: D) -> Result<PrivateKey, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        let s = if s.starts_with("0x") { &s[2..] } else { &s };
+
+        hex_str_to_bytes(&s)
+            .and_then(move |bytes| PrivateKey::from_slice(&bytes))
+            .map_err(serde::de::Error::custom)
+
+        // Ok(PrivateKey::from_slice(&bytes)?)
+        //
+    }
+}
+
 #[test]
 #[should_panic]
 fn too_short() {
@@ -250,4 +280,18 @@ fn sign_message() {
 
     let sig_2 = key.sign_msg(&"Hello, world!".as_bytes());
     assert_eq!(sig, sig_2);
+}
+
+#[test]
+fn serialize_to_json() {
+    let unsafe_key: PrivateKey = "0101010101010101010101010101010101010101010101010101010101010101"
+        .parse()
+        .unwrap();
+    let j = serde_json::to_string(&unsafe_key).unwrap();
+    assert_eq!(
+        j,
+        r#""0x0101010101010101010101010101010101010101010101010101010101010101""#
+    );
+    let recovered_key: PrivateKey = serde_json::from_str(&j).unwrap();
+    assert_eq!(unsafe_key, recovered_key);
 }

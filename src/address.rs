@@ -1,3 +1,4 @@
+use failure::Error;
 use serde::Serialize;
 use serde::Serializer;
 use std::fmt;
@@ -124,7 +125,7 @@ impl From<ByteDecodeError> for AddressError {
 }
 
 impl FromStr for Address {
-    type Err = AddressError;
+    type Err = Error;
 
     /// Parses a string into a valid Ethereum address.
     ///
@@ -154,7 +155,7 @@ impl FromStr for Address {
                 data: hex_str_to_bytes(&s)?,
             })
         } else {
-            Err(AddressError::InvalidLengthError)
+            Err(AddressError::InvalidLengthError.into())
         }
     }
 }

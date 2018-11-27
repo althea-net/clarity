@@ -1,3 +1,4 @@
+use failure::Error;
 use num256::Uint256;
 use serde::{
     de::{Deserialize, Deserializer},
@@ -16,16 +17,16 @@ pub enum ByteDecodeError {
 
 /// A function that takes a hexadecimal representation of bytes
 /// back into a stream of bytes.
-pub fn hex_str_to_bytes(s: &str) -> Result<Vec<u8>, ByteDecodeError> {
+pub fn hex_str_to_bytes(s: &str) -> Result<Vec<u8>, Error> {
     let s = if s.starts_with("0x") { &s[2..] } else { s };
     s.as_bytes()
         .chunks(2)
+        // .into_iter()
         .map(|ch| {
             str::from_utf8(&ch)
-                .map_err(|e| ByteDecodeError::DecodeError(e))
-                .and_then(|res| {
-                    u8::from_str_radix(&res, 16).map_err(|e| ByteDecodeError::ParseError(e))
-                })
+                .map_err(ByteDecodeError::DecodeError)
+                .and_then(|res| u8::from_str_radix(&res, 16).map_err(ByteDecodeError::ParseError))
+                .map_err(Error::from)
         }).collect()
 }
 
@@ -63,16 +64,24 @@ fn decode_odd_amount_of_bytes() {
 
 #[test]
 fn bytes_raises_decode_error() {
-    match hex_str_to_bytes(&"\u{012345}deadbeef".to_owned()).unwrap_err() {
-        ByteDecodeError::DecodeError(_) => assert!(true),
+    let e = hex_str_to_bytes(&"\u{012345}deadbeef".to_owned())
+        .unwrap_err()
+        .downcast::<ByteDecodeError>()
+        .unwrap();
+    match e {
+        ByteDecodeError::DecodeError(_) => {}
         _ => assert!(false),
-    }
+    };
 }
 
 #[test]
 fn bytes_raises_parse_error() {
-    match hex_str_to_bytes(&"Lorem ipsum".to_owned()).unwrap_err() {
-        ByteDecodeError::ParseError(_) => assert!(true),
+    let e = hex_str_to_bytes(&"Lorem ipsum".to_owned())
+        .unwrap_err()
+        .downcast::<ByteDecodeError>()
+        .unwrap();
+    match e {
+        ByteDecodeError::ParseError(_) => {}
         _ => assert!(false),
     }
 }
