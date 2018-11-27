@@ -1,4 +1,6 @@
 use failure::Error;
+use serde::Deserialize;
+use serde::Deserializer;
 use serde::Serialize;
 use serde::Serializer;
 use std::fmt;
@@ -12,26 +14,8 @@ use utils::{hex_str_to_bytes, ByteDecodeError};
 ///
 /// Address is usually derived from a `PrivateKey`, or converted from its
 /// textual representation.
-#[derive(PartialEq, Debug, Clone, Eq, PartialOrd, Ord, Hash, Deserialize)]
-pub struct Address {
-    // TODO: address seems to be limited to 20 characters, but we keep it flexible
-    data: Vec<u8>,
-}
-
-impl Serialize for Address {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        if *self == Address::default() {
-            // If the address is empty we can serialize it as empty value
-            serializer.serialize_bytes(&[])
-        } else {
-            // Here we serialize all bytes
-            serializer.serialize_bytes(&self.data)
-        }
-    }
-}
+#[derive(PartialEq, Debug, Clone, Copy, Eq, PartialOrd, Ord, Hash)]
+pub struct Address([u8; 20]);
 
 impl Address {
     /// Creates new `Address` filled with zeros.
@@ -40,31 +24,62 @@ impl Address {
     /// creates the zeros. In our case we treat it as "empty"
     /// address, which is then reperesented by zeros.
     pub fn new() -> Address {
-        Address { data: Vec::new() }
+        Address([0; 20])
     }
 
     /// Get raw bytes of the address.
     pub fn as_bytes(&self) -> &[u8] {
-        &self.data
+        &self.0
+    }
+
+    /// Creates an Address from a slice.
+    ///
+    /// This requires a slice to be exactly 20 bytes in length,
+    pub fn from_slice(data: &[u8]) -> Result<Address, Error> {
+        ensure!(
+            data.len() == 20,
+            "Address requires exactly 20 bytes but {} were found",
+            data.len()
+        );
+        let mut result: [u8; 20] = Default::default();
+        result.copy_from_slice(&data);
+        Ok(Address(result))
     }
 }
 
 impl Default for Address {
     /// Construct a default `Address` filled with zeros.
     fn default() -> Address {
-        Address { data: Vec::new() }
+        Address([0; 20])
+    }
+}
+
+impl Serialize for Address {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(&self.to_string())
+    }
+}
+
+impl<'de> Deserialize<'de> for Address {
+    fn deserialize<D>(deserializer: D) -> Result<Address, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        let s = if s.starts_with("0x") { &s[2..] } else { &s };
+
+        hex_str_to_bytes(&s)
+            .and_then(move |bytes| Address::from_slice(&bytes))
+            .map_err(serde::de::Error::custom)
     }
 }
 
 impl From<[u8; 20]> for Address {
     fn from(val: [u8; 20]) -> Address {
-        Address { data: val.to_vec() }
-    }
-}
-
-impl<'a> From<&'a [u8]> for Address {
-    fn from(val: &'a [u8]) -> Address {
-        Address { data: val.to_vec() }
+        Address(val)
     }
 }
 
@@ -77,7 +92,7 @@ impl fmt::LowerHex for Address {
             }
         }
 
-        for hex_char in self.data.iter() {
+        for hex_char in self.0.iter() {
             let res = write!(f, "{:x}", hex_char);
             if res.is_err() {
                 return res;
@@ -96,7 +111,7 @@ impl fmt::UpperHex for Address {
             }
         }
 
-        for hex_char in self.data.iter() {
+        for hex_char in self.0.iter() {
             let res = write!(f, "{:X}", hex_char);
             if res.is_err() {
                 return res;
@@ -150,10 +165,8 @@ impl FromStr for Address {
             return Ok(Address::default());
         }
         let s = if s.starts_with("0x") { &s[2..] } else { &s };
-        if s.len() == 40 || s.len() == 48 {
-            Ok(Address {
-                data: hex_str_to_bytes(&s)?,
-            })
+        if s.len() == 40 {
+            Ok(Address::from_slice(&hex_str_to_bytes(&s)?)?)
         } else {
             Err(AddressError::InvalidLengthError.into())
         }
@@ -171,7 +184,7 @@ impl ToString for Address {
     /// address.to_string(); // 0x0000000000000000000000000000000000000000
     /// ```
     fn to_string(&self) -> String {
-        bytes_to_hex_str(&self.data)
+        format!("0x{}", bytes_to_hex_str(&self.0))
     }
 }
 
@@ -206,18 +219,20 @@ fn decode() {
 
 #[test]
 fn serialize_null_address() {
-    use serde_rlp::ser::to_bytes;
     let address = Address::new();
-    assert_eq!(to_bytes(&address).unwrap(), [128]);
+    let s = serde_json::to_string(&address).unwrap();
+    assert_eq!(s, r#""0x0000000000000000000000000000000000000000""#);
+    let recovered_addr: Address = serde_json::from_str(&s).unwrap();
+    assert_eq!(address, recovered_addr);
 }
 
 #[test]
 fn serialize_padded_address() {
-    use serde_rlp::ser::to_bytes;
-    let address: Address = "00000000000000000000000000000000000000c0".parse().unwrap();
+    let raw_address = "00000000000000000000000000000000000000c0";
+    let address: Address = raw_address.parse().unwrap();
     assert_eq!(
-        to_bytes(&address).unwrap(),
-        [148, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xc0]
+        serde_json::to_string(&address).unwrap(),
+        format!(r#""0x{}""#, raw_address)
     );
 }
 

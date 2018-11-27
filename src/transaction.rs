@@ -10,6 +10,7 @@ use opcodes::GTXCOST;
 use opcodes::GTXDATANONZERO;
 use opcodes::GTXDATAZERO;
 use private_key::PrivateKey;
+use rlp::AddressDef;
 use secp256k1::{Message, RecoverableSignature, RecoveryId, Secp256k1, SecretKey};
 use serde::ser::SerializeTuple;
 use serde::Serialize;
@@ -45,7 +46,7 @@ impl Serialize for Transaction {
             &BigEndianInt(self.nonce.clone()),
             &BigEndianInt(self.gas_price.clone()),
             &BigEndianInt(self.gas_limit.clone()),
-            &self.to,
+            &AddressDef(&self.to),
             &BigEndianInt(self.value.clone()),
             &ByteBuf::from(self.data.clone()),
             &BigEndianInt(sig.v.clone()),
@@ -89,7 +90,7 @@ impl Transaction {
             &BigEndianInt(self.nonce.clone()),
             &BigEndianInt(self.gas_price.clone()),
             &BigEndianInt(self.gas_limit.clone()),
-            &self.to,
+            &AddressDef(&self.to),
             &BigEndianInt(self.value.clone()),
             &ByteBuf::from(self.data.clone()),
         );
@@ -102,7 +103,7 @@ impl Transaction {
             &BigEndianInt(self.nonce.clone()),
             &BigEndianInt(self.gas_price.clone()),
             &BigEndianInt(self.gas_limit.clone()),
-            &self.to,
+            &AddressDef(&self.to),
             &BigEndianInt(self.value.clone()),
             &ByteBuf::from(self.data.clone()),
             &BigEndianInt(network_id.clone()),
@@ -206,7 +207,7 @@ impl Transaction {
             // Finally an address is last 20 bytes of a hash of the public key.
             let sender = Keccak256::digest(&pkey[1..]);
             debug_assert_eq!(sender.len(), 32);
-            return Ok(Address::from(&sender[12..]));
+            Address::from_slice(&sender[12..])
         }
     }
     /// Creates a hash of a transaction given all TX attributes
