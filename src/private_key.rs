@@ -106,7 +106,7 @@ impl PrivateKey {
         // Finally an address is last 20 bytes of a hash of the public key.
         let sender = Keccak256::digest(&pkey[1..]);
         debug_assert_eq!(sender.len(), 32);
-        Ok(Address::from(&sender[12..]))
+        Address::from_slice(&sender[12..])
     }
     /// Signs any message that is represented by a data buffer
     pub fn sign_hash(&self, data: &[u8]) -> Signature {

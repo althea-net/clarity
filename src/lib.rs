@@ -75,6 +75,7 @@ pub mod constants;
 pub mod error;
 pub mod opcodes;
 pub mod private_key;
+mod rlp;
 mod signature;
 pub mod transaction;
 pub mod types;

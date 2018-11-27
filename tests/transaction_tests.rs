@@ -174,7 +174,7 @@ fn test_fn(fixtures: &TestFixture, filler: &TestFiller, expect: Option<&TestFill
         nonce: (&*data[0]).into(),
         gas_price: (&*data[1]).into(),
         gas_limit: (&*data[2]).into(),
-        to: (&*data[3]).into(),
+        to: Address::from_slice(&*data[3]).unwrap_or(Address::default()),
         value: (&*data[4]).into(),
         data: (&*data[5]).into(),
         signature: Some(Signature::new(
