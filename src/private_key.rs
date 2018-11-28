@@ -38,6 +38,8 @@ impl FromStr for PrivateKey {
     /// representation of 32 bytes. Optionally this string can be prefixed with `0x`
     /// at the beggining.
     fn from_str(s: &str) -> Result<Self, Self::Err> {
+        // Strip optional prefix if its there
+        let s = if s.starts_with("0x") { &s[2..] } else { &s };
         if s.len() != 64 {
             return Err(PrivateKeyError::InvalidLengthError.into());
         }
@@ -294,4 +296,19 @@ fn serialize_to_json() {
     );
     let recovered_key: PrivateKey = serde_json::from_str(&j).unwrap();
     assert_eq!(unsafe_key, recovered_key);
+}
+
+#[test]
+fn from_string_with_prefix_issue_58() {
+    let unsafe_key: PrivateKey =
+        "0x0101010101010101010101010101010101010101010101010101010101010101"
+            .parse()
+            .unwrap();
+    assert_eq!(
+        unsafe_key.to_bytes(),
+        [
+            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+            1, 1, 1
+        ]
+    );
 }
