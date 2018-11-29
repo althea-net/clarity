@@ -3,6 +3,7 @@ use error::ClarityError;
 use failure::Error;
 use num256::Uint256;
 use num_traits::Zero;
+use std::fmt;
 use std::str::FromStr;
 use utils::{
     big_endian_uint256_deserialize, big_endian_uint256_serialize, bytes_to_hex_str,
@@ -166,6 +167,42 @@ impl FromStr for Signature {
     }
 }
 
+impl fmt::LowerHex for Signature {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        if f.alternate() {
+            write!(
+                f,
+                "0x{}",
+                bytes_to_hex_str(&self.clone().into_bytes()).to_lowercase()
+            )
+        } else {
+            write!(
+                f,
+                "{}",
+                bytes_to_hex_str(&self.clone().into_bytes()).to_lowercase()
+            )
+        }
+    }
+}
+
+impl fmt::UpperHex for Signature {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        if f.alternate() {
+            write!(
+                f,
+                "0x{}",
+                bytes_to_hex_str(&self.clone().into_bytes()).to_uppercase()
+            )
+        } else {
+            write!(
+                f,
+                "{}",
+                bytes_to_hex_str(&self.clone().into_bytes()).to_uppercase()
+            )
+        }
+    }
+}
+
 #[test]
 fn new_signature() {
     let sig = Signature::new(1u32.into(), 2u32.into(), 3u32.into());
@@ -194,6 +231,53 @@ fn to_string() {
     assert!(sig_string.starts_with("0x"));
     let new_sig = Signature::from_str(&sig_string[2..]).expect("Unable to parse signature");
     assert_eq!(sig, new_sig);
+}
+
+#[test]
+fn to_upper_hex() {
+    let sig = Signature::new(1u32.into(), 65450u32.into(), 32456u32.into());
+    let sig_string = format!("{:#X}", sig);
+    assert_eq!(
+        sig_string,
+        concat!(
+            "0x",
+            "000000000000000000000000000000000000000000000000000000000000FFAA",
+            "0000000000000000000000000000000000000000000000000000000000007EC8",
+            "01"
+        )
+    );
+    let sig_string = format!("{:X}", sig);
+    assert_eq!(
+        sig_string,
+        concat!(
+            "000000000000000000000000000000000000000000000000000000000000FFAA",
+            "0000000000000000000000000000000000000000000000000000000000007EC8",
+            "01"
+        )
+    );
+}
+#[test]
+fn to_lower_hex() {
+    let sig = Signature::new(1u32.into(), 65450u32.into(), 32456u32.into());
+    let sig_string = format!("{:#x}", sig);
+    assert_eq!(
+        sig_string,
+        concat!(
+            "0x",
+            "000000000000000000000000000000000000000000000000000000000000ffaa",
+            "0000000000000000000000000000000000000000000000000000000000007ec8",
+            "01"
+        )
+    );
+    let sig_string = format!("{:x}", sig);
+    assert_eq!(
+        sig_string,
+        concat!(
+            "000000000000000000000000000000000000000000000000000000000000ffaa",
+            "0000000000000000000000000000000000000000000000000000000000007ec8",
+            "01"
+        )
+    );
 }
 
 #[test]

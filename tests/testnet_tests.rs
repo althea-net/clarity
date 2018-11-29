@@ -121,8 +121,7 @@ fn testnet_alice_and_bob() {
         .balance(
             alice_priv_key.to_public_key().unwrap().as_bytes().into(),
             None,
-        )
-        .wait()
+        ).wait()
         .unwrap();
 
     // assert_eq!("")
@@ -163,8 +162,7 @@ fn testnet_alice_and_bob() {
         .balance(
             alice_priv_key.to_public_key().unwrap().as_bytes().into(),
             None,
-        )
-        .wait()
+        ).wait()
         .unwrap();
     println!("Alice balance {:?}", res);
     assert_eq!(res, (one_eth * 5u64) - 2100u64 * 5u64 * 10000000000u64);
@@ -173,8 +171,7 @@ fn testnet_alice_and_bob() {
         .balance(
             bob_priv_key.to_public_key().unwrap().as_bytes().into(),
             None,
-        )
-        .wait()
+        ).wait()
         .unwrap();
     println!("Bob balance {:?}", res);
     assert_eq!(res, one_eth * 5u64);

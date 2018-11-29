@@ -243,8 +243,7 @@ fn test_fn(fixtures: &TestFixture, filler: &TestFiller, expect: Option<&TestFill
             .into_iter()
             .map(String::from)
             .collect::<Vec<String>>(),
-    )
-    .is_subset(&expect.network)
+    ).is_subset(&expect.network)
     {
         let res = tx.signature.as_ref().unwrap().check_low_s_homestead();
         if expect.result == "invalid" {
@@ -286,8 +285,7 @@ fn test_fn(fixtures: &TestFixture, filler: &TestFiller, expect: Option<&TestFill
             .into_iter()
             .map(String::from)
             .collect::<Vec<String>>(),
-    )
-    .is_subset(&expect.network)
+    ).is_subset(&expect.network)
     {
         // Since Spurious Dragon
         assert!(network_id.is_some() || network_id.unwrap() == 1u32.into());
@@ -394,8 +392,7 @@ fn tests() -> Vec<TestDescAndFn> {
     visit_dirs(&testdir, &mut |entry| match make_test(entry.path()) {
         Some(tests) => res.extend(tests),
         None => (),
-    })
-    .unwrap();
+    }).unwrap();
     res
 }
 

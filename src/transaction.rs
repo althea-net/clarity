@@ -18,7 +18,10 @@ use serde_bytes::ByteBuf;
 use serde_rlp::ser::to_bytes;
 use sha3::{Digest, Keccak256};
 use signature::Signature;
+use std::fmt;
+use std::fmt::Display;
 use types::BigEndianInt;
+use utils::bytes_to_hex_str;
 use utils::zpad;
 
 /// Transaction as explained in the Ethereum Yellow paper section 4.2
@@ -31,6 +34,52 @@ pub struct Transaction {
     pub value: Uint256,
     pub data: Vec<u8>,
     pub signature: Option<Signature>,
+}
+
+impl Display for Transaction {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "0x{}",
+            bytes_to_hex_str(&self.to_bytes().unwrap_or_default())
+        )
+    }
+}
+
+impl fmt::LowerHex for Transaction {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        if f.alternate() {
+            write!(
+                f,
+                "0x{}",
+                bytes_to_hex_str(&self.to_bytes().unwrap_or_default()).to_lowercase()
+            )
+        } else {
+            write!(
+                f,
+                "{}",
+                bytes_to_hex_str(&self.to_bytes().unwrap_or_default()).to_lowercase()
+            )
+        }
+    }
+}
+
+impl fmt::UpperHex for Transaction {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        if f.alternate() {
+            write!(
+                f,
+                "0x{}",
+                bytes_to_hex_str(&self.to_bytes().unwrap_or_default()).to_uppercase()
+            )
+        } else {
+            write!(
+                f,
+                "{}",
+                bytes_to_hex_str(&self.to_bytes().unwrap_or_default()).to_uppercase()
+            )
+        }
+    }
 }
 
 impl Serialize for Transaction {
@@ -237,13 +286,11 @@ fn test_vitaliks_eip_158_vitalik_12_json() {
             Uint256::from_str_radix(
                 "a310f4d0b26207db76ba4e1e6e7cf1857ee3aa8559bcbc399a6b09bfea2d30b4",
                 16,
-            )
-            .unwrap(),
+            ).unwrap(),
             Uint256::from_str_radix(
                 "6dff38c645a1486651a717ddf3daccb4fd9a630871ecea0758ddfcf2774f9bc6",
                 16,
-            )
-            .unwrap(),
+            ).unwrap(),
         )),
     };
     let lhs = to_bytes(&tx).unwrap();
@@ -274,13 +321,11 @@ fn test_vitaliks_eip_158_vitalik_1_json() {
             Uint256::from_str_radix(
                 "044852b2a670ade5407e78fb2863c51de9fcb96542a07186fe3aeda6bb8a116d",
                 16,
-            )
-            .unwrap(),
+            ).unwrap(),
             Uint256::from_str_radix(
                 "044852b2a670ade5407e78fb2863c51de9fcb96542a07186fe3aeda6bb8a116d",
                 16,
-            )
-            .unwrap(),
+            ).unwrap(),
         )),
     };
     let lhs = to_bytes(&tx).unwrap();

@@ -9,6 +9,7 @@ use serde::Serialize;
 use serde::Serializer;
 use sha3::{Digest, Keccak256};
 use signature::Signature;
+use std::fmt;
 use std::str::FromStr;
 use utils::{bytes_to_hex_str, hex_str_to_bytes};
 
@@ -172,9 +173,42 @@ impl<'de> Deserialize<'de> for PrivateKey {
         hex_str_to_bytes(&s)
             .and_then(move |bytes| PrivateKey::from_slice(&bytes))
             .map_err(serde::de::Error::custom)
+    }
+}
 
-        // Ok(PrivateKey::from_slice(&bytes)?)
-        //
+impl fmt::LowerHex for PrivateKey {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        if f.alternate() {
+            write!(
+                f,
+                "0x{}",
+                bytes_to_hex_str(&self.clone().to_bytes()).to_lowercase()
+            )
+        } else {
+            write!(
+                f,
+                "{}",
+                bytes_to_hex_str(&self.clone().to_bytes()).to_lowercase()
+            )
+        }
+    }
+}
+
+impl fmt::UpperHex for PrivateKey {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        if f.alternate() {
+            write!(
+                f,
+                "0x{}",
+                bytes_to_hex_str(&self.clone().to_bytes()).to_uppercase()
+            )
+        } else {
+            write!(
+                f,
+                "{}",
+                bytes_to_hex_str(&self.clone().to_bytes()).to_uppercase()
+            )
+        }
     }
 }
 
@@ -244,6 +278,39 @@ fn zero_address() {
     // A key full of zeros is an invalid private key.
     let key = PrivateKey::new();
     key.to_public_key().unwrap();
+}
+
+#[test]
+fn to_upper_hex() {
+    let key: PrivateKey = "c87f65ff3f271bf5dc8643484f66b200109caffe4bf98c4cb393dc35740b28c0"
+        .parse()
+        .unwrap();
+    let key_string = format!("{:X}", key);
+    assert_eq!(
+        key_string,
+        "C87F65FF3F271BF5DC8643484F66B200109CAFFE4BF98C4CB393DC35740B28C0"
+    );
+    let key_string = format!("{:#X}", key);
+    assert_eq!(
+        key_string,
+        "0xC87F65FF3F271BF5DC8643484F66B200109CAFFE4BF98C4CB393DC35740B28C0"
+    );
+}
+#[test]
+fn to_lower_hex() {
+    let key: PrivateKey = "c87f65ff3f271bf5dc8643484f66b200109caffe4bf98c4cb393dc35740b28c0"
+        .parse()
+        .unwrap();
+    let key_string = format!("{:x}", key);
+    assert_eq!(
+        key_string,
+        "c87f65ff3f271bf5dc8643484f66b200109caffe4bf98c4cb393dc35740b28c0"
+    );
+    let key_string = format!("{:#x}", key);
+    assert_eq!(
+        key_string,
+        "0xc87f65ff3f271bf5dc8643484f66b200109caffe4bf98c4cb393dc35740b28c0"
+    );
 }
 
 #[test]
