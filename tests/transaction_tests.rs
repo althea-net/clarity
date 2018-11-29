@@ -12,7 +12,7 @@ use clarity::{Address, Signature, Transaction};
 use num256::Uint256;
 use num_traits::Zero;
 use serde_bytes::Bytes;
-use serde_json::{Error, Value};
+use serde_json::Value;
 use serde_rlp::de::from_bytes;
 use serde_rlp::ser::to_bytes;
 use std::collections::HashMap;
@@ -164,7 +164,6 @@ fn test_fn(fixtures: &TestFixture, filler: &TestFiller, expect: Option<&TestFill
         }
         Err(e) => {
             panic!("Decoding failed correctly with {:?}", e);
-            return;
         }
     };
     // A valid decoded transaction has exactly 9 elements.
@@ -244,7 +243,8 @@ fn test_fn(fixtures: &TestFixture, filler: &TestFiller, expect: Option<&TestFill
             .into_iter()
             .map(String::from)
             .collect::<Vec<String>>(),
-    ).is_subset(&expect.network)
+    )
+    .is_subset(&expect.network)
     {
         let res = tx.signature.as_ref().unwrap().check_low_s_homestead();
         if expect.result == "invalid" {
@@ -286,7 +286,8 @@ fn test_fn(fixtures: &TestFixture, filler: &TestFiller, expect: Option<&TestFill
             .into_iter()
             .map(String::from)
             .collect::<Vec<String>>(),
-    ).is_subset(&expect.network)
+    )
+    .is_subset(&expect.network)
     {
         // Since Spurious Dragon
         assert!(network_id.is_some() || network_id.unwrap() == 1u32.into());
@@ -393,7 +394,8 @@ fn tests() -> Vec<TestDescAndFn> {
     visit_dirs(&testdir, &mut |entry| match make_test(entry.path()) {
         Some(tests) => res.extend(tests),
         None => (),
-    }).unwrap();
+    })
+    .unwrap();
     res
 }
 

@@ -3,9 +3,6 @@ use error::ClarityError;
 use failure::Error;
 use num256::Uint256;
 use num_traits::Zero;
-use serde::ser::SerializeTuple;
-use serde::Serialize;
-use serde::Serializer;
 use std::str::FromStr;
 use utils::{
     big_endian_uint256_deserialize, big_endian_uint256_serialize, bytes_to_hex_str,

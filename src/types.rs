@@ -1,8 +1,5 @@
 use num256::Uint256;
-use num_traits::Zero;
-use serde::Serialize;
-use serde::Serializer;
-use utils::{big_endian_uint256_deserialize, big_endian_uint256_serialize};
+use utils::{big_endian_uint256_serialize, big_endian_uint256_deserialize};
 
 /// A thin wrapper type to change the way Uint256 is serialized.
 ///

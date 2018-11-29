@@ -8,8 +8,7 @@ use std::env;
 use std::{thread, time};
 use web3::api::Web3;
 use web3::futures::Future;
-use web3::helpers::{self, CallFuture};
-use web3::types::{Address, Bytes, TransactionRequest, U256};
+use web3::types::{Bytes, TransactionRequest, U256};
 
 /// Creates a random key by reading random data from the available OS facility
 fn make_random_key() -> PrivateKey {
@@ -122,7 +121,8 @@ fn testnet_alice_and_bob() {
         .balance(
             alice_priv_key.to_public_key().unwrap().as_bytes().into(),
             None,
-        ).wait()
+        )
+        .wait()
         .unwrap();
 
     // assert_eq!("")
@@ -163,7 +163,8 @@ fn testnet_alice_and_bob() {
         .balance(
             alice_priv_key.to_public_key().unwrap().as_bytes().into(),
             None,
-        ).wait()
+        )
+        .wait()
         .unwrap();
     println!("Alice balance {:?}", res);
     assert_eq!(res, (one_eth * 5u64) - 2100u64 * 5u64 * 10000000000u64);
@@ -172,7 +173,8 @@ fn testnet_alice_and_bob() {
         .balance(
             bob_priv_key.to_public_key().unwrap().as_bytes().into(),
             None,
-        ).wait()
+        )
+        .wait()
         .unwrap();
     println!("Bob balance {:?}", res);
     assert_eq!(res, one_eth * 5u64);
