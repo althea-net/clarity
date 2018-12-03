@@ -111,7 +111,26 @@ impl PrivateKey {
         debug_assert_eq!(sender.len(), 32);
         Address::from_slice(&sender[12..])
     }
-    /// Signs any message that is represented by a data buffer
+    /// Signs a message that is represented by a hash contained in a binary form.
+    ///
+    /// Requires the data buffer to be exactly 32 bytes in length. You can prepare
+    /// an inpput using a hashing function such as `Keccak256` which will return
+    /// a buffer of exact size.
+    ///
+    /// You are advised, though, to use [sign_msg](#method.sign_msg)
+    /// which is more user friendly version that uses Keccak256 internally.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # extern crate sha3;
+    /// # extern crate clarity;
+    /// # use clarity::PrivateKey;
+    /// # use sha3::{Keccak256, Digest};
+    /// let private_key : PrivateKey = "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f1e".parse().unwrap();
+    /// let hash = Keccak256::digest("Hello, world!".as_bytes());
+    /// let signature = private_key.sign_hash(&hash);
+    /// ```
     pub fn sign_hash(&self, data: &[u8]) -> Signature {
         debug_assert_eq!(data.len(), 32);
         // Sign RLP encoded data
@@ -138,8 +157,21 @@ impl PrivateKey {
         // This will swap the signature of a transaction, and returns a new signed TX.
         Signature::new(v, r, s)
     }
-    /// Signs a message. This makes a hash of data, and then
-    /// makes prepares a signature of it.
+    /// Signs any message represented by a slice of data.
+    ///
+    /// Internally it makes `Keccak256` hash out of your data, and then creates a
+    /// signature.
+    ///
+    /// This is more user friendly version of [sign_hash](#method.sign_hash) which means
+    /// it will use `Keccak256` function to hash your input data.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use clarity::PrivateKey;
+    /// let private_key : PrivateKey = "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f1e".parse().unwrap();
+    /// let signature = private_key.sign_msg("Hello, world!".as_bytes());
+    /// ```
     pub fn sign_msg(&self, data: &[u8]) -> Signature {
         let digest = Keccak256::digest(data);
         self.sign_hash(&digest)
