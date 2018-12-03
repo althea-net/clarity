@@ -13,19 +13,10 @@ use utils::{hex_str_to_bytes, ByteDecodeError};
 ///
 /// Address is usually derived from a `PrivateKey`, or converted from its
 /// textual representation.
-#[derive(PartialEq, Debug, Clone, Copy, Eq, PartialOrd, Ord, Hash)]
+#[derive(PartialEq, Debug, Clone, Copy, Eq, PartialOrd, Ord, Hash, Default)]
 pub struct Address([u8; 20]);
 
 impl Address {
-    /// Creates new `Address` filled with zeros.
-    ///
-    /// The actual implementation of this doesn't really
-    /// creates the zeros. In our case we treat it as "empty"
-    /// address, which is then reperesented by zeros.
-    pub fn new() -> Address {
-        Address([0; 20])
-    }
-
     /// Get raw bytes of the address.
     pub fn as_bytes(&self) -> &[u8] {
         &self.0
@@ -43,13 +34,6 @@ impl Address {
         let mut result: [u8; 20] = Default::default();
         result.copy_from_slice(&data);
         Ok(Address(result))
-    }
-}
-
-impl Default for Address {
-    /// Construct a default `Address` filled with zeros.
-    fn default() -> Address {
-        Address([0; 20])
     }
 }
 
@@ -218,7 +202,7 @@ fn decode() {
 
 #[test]
 fn serialize_null_address() {
-    let address = Address::new();
+    let address = Address::default();
     let s = serde_json::to_string(&address).unwrap();
     assert_eq!(s, r#""0x0000000000000000000000000000000000000000""#);
     let recovered_addr: Address = serde_json::from_str(&s).unwrap();

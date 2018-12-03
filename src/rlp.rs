@@ -28,7 +28,7 @@ impl<'a> Serialize for AddressDef<'a> {
 #[test]
 fn serialize_null_address() {
     use serde_rlp::ser::to_bytes;
-    let address = Address::new();
+    let address = Address::default();
     assert_eq!(to_bytes(&AddressDef(&address)).unwrap(), [128]);
 }
 

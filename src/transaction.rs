@@ -278,7 +278,7 @@ fn test_vitaliks_eip_158_vitalik_12_json() {
         nonce: Uint256::from_str_radix("0e", 16).unwrap(),
         gas_price: Uint256::from_str_radix("00", 16).unwrap(),
         gas_limit: Uint256::from_str_radix("0493e0", 16).unwrap(),
-        to: Address::new(), // "" - zeros only
+        to: Address::default(), // "" - zeros only
         value: Uint256::from_str_radix("00", 16).unwrap(),
         data: hex_str_to_bytes("60f2ff61000080610011600039610011565b6000f3").unwrap(),
         signature: Some(Signature::new(
@@ -378,7 +378,7 @@ fn test_basictests_txtest_2() {
         nonce: "0".parse().unwrap(),
         gas_price: "1000000000000".parse().unwrap(),
         gas_limit: "10000".parse().unwrap(),
-        to: Address::new(),
+        to: Address::default(),
         value: "0".parse().unwrap(),
         data: hex_str_to_bytes("6025515b525b600a37f260003556601b596020356000355760015b525b54602052f260255860005b525b54602052f2").unwrap(),
         signature: None
