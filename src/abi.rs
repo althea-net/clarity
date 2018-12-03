@@ -19,7 +19,6 @@
 use address::Address;
 use num256::Uint256;
 use sha3::{Digest, Keccak256};
-use types::BigEndianInt;
 
 /// A token represents a value of parameter of the contract call.
 ///

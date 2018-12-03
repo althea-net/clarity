@@ -8,8 +8,7 @@ use std::env;
 use std::{thread, time};
 use web3::api::Web3;
 use web3::futures::Future;
-use web3::helpers::{self, CallFuture};
-use web3::types::{Address, Bytes, TransactionRequest, U256};
+use web3::types::{Bytes, TransactionRequest, U256};
 
 /// Creates a random key by reading random data from the available OS facility
 fn make_random_key() -> PrivateKey {
