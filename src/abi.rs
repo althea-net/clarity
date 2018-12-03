@@ -69,13 +69,6 @@ impl SerializedToken {
             _ => None,
         }
     }
-    /// Gets a reference to value held by Dynamic
-    fn as_dynamic_ref(&self) -> Option<&Vec<u8>> {
-        match *self {
-            SerializedToken::Dynamic(ref data) => Some(&data),
-            _ => None,
-        }
-    }
 }
 
 impl Token {
@@ -212,7 +205,7 @@ impl<'a> From<&'a str> for Token {
 
 impl From<Uint256> for Token {
     fn from(v: Uint256) -> Token {
-        Token::Uint(v.into())
+        Token::Uint(v)
     }
 }
 
@@ -295,7 +288,7 @@ pub fn encode_tokens(tokens: &[Token]) -> Vec<u8> {
     // A cache of dynamic data buffers that are stored here.
     let mut dynamic_data: Vec<Vec<u8>> = Vec::new();
 
-    for ref token in tokens.iter() {
+    for token in tokens.iter() {
         match token.serialize() {
             SerializedToken::Static(data) => res.extend(&data),
             SerializedToken::Dynamic(data) => {
@@ -325,7 +318,8 @@ pub fn encode_tokens(tokens: &[Token]) -> Vec<u8> {
     // Concat all the dynamic data buffers at the end of the process
     // All the offsets are calculated while iterating and properly stored
     // in a single pass.
-    for ref data in dynamic_data.iter() {
+    // let valuse = &dynamic_data.iter();
+    for data in dynamic_data.iter() {
         res.extend(&data[..]);
     }
     res
@@ -387,7 +381,7 @@ fn encode_f() {
     let result = encode_tokens(&[
         0x123u32.into(),
         vec![0x456u32, 0x789u32].into(),
-        Token::Bytes("1234567890".as_bytes().to_vec()),
+        Token::Bytes(b"1234567890".to_vec()),
         "Hello, world!".into(),
     ]);
     assert!(result.len() % 8 == 0);
@@ -416,8 +410,8 @@ fn encode_f_with_real_unbounded_bytes() {
     let result = encode_tokens(&[
         0x123u32.into(),
         vec![0x456u32, 0x789u32].into(),
-        Token::Bytes("1234567890".as_bytes().to_vec()),
-        "Hello, world!".as_bytes().to_vec().into(),
+        Token::Bytes(b"1234567890".to_vec()),
+        b"Hello, world!".to_vec().into(),
     ]);
     assert!(result.len() % 8 == 0);
     assert_eq!(

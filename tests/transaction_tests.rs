@@ -173,7 +173,7 @@ fn test_fn(fixtures: &TestFixture, filler: &TestFiller, expect: Option<&TestFill
         nonce: (&*data[0]).into(),
         gas_price: (&*data[1]).into(),
         gas_limit: (&*data[2]).into(),
-        to: Address::from_slice(&*data[3]).unwrap_or(Address::default()),
+        to: Address::from_slice(&*data[3]).unwrap_or_default(),
         value: (&*data[4]).into(),
         data: (&*data[5]).into(),
         signature: Some(Signature::new(
@@ -187,14 +187,17 @@ fn test_fn(fixtures: &TestFixture, filler: &TestFiller, expect: Option<&TestFill
     let raw_params = filler.transaction.as_ref().unwrap();
     // Create a tx based on filler params
     let tx = Transaction {
-        nonce: raw_params.nonce.parse().unwrap_or(Uint256::zero()),
-        gas_price: raw_params.gas_price.parse().unwrap_or(Uint256::zero()),
+        nonce: raw_params.nonce.parse().unwrap_or_else(|_| Uint256::zero()),
+        gas_price: raw_params
+            .gas_price
+            .parse()
+            .unwrap_or_else(|_| Uint256::zero()),
         gas_limit: raw_params
             .gas_limit
             .parse()
             .expect("Unable to parse gas_limit"),
         to: raw_params.to.parse().expect("Unable to parse address"),
-        value: raw_params.value.parse().unwrap_or(Uint256::zero()),
+        value: raw_params.value.parse().unwrap_or_else(|_| Uint256::zero()),
         data: hex_str_to_bytes(&raw_params.data).expect("Unable to parse data"),
         signature: Some(Signature::new(
             raw_params.v.parse().expect("Unable to parse v"),
@@ -269,7 +272,7 @@ fn test_fn(fixtures: &TestFixture, filler: &TestFiller, expect: Option<&TestFill
 
     // Retrieving sender key is also validating parameters
     let sender = tx.sender().unwrap();
-    if !expect.sender.is_none() {
+    if expect.sender.is_some() {
         // Compare only if we know we have sender provided
         assert_eq!(
             &bytes_to_hex_str(&sender.as_bytes()),
@@ -296,7 +299,7 @@ fn test_fn(fixtures: &TestFixture, filler: &TestFiller, expect: Option<&TestFill
 }
 
 /// Takes a path to JSON file and returns a test
-fn make_test(path: PathBuf) -> Option<Vec<TestDescAndFn>> {
+fn make_test(path: &PathBuf) -> Option<Vec<TestDescAndFn>> {
     // For now all the test and filler data is parsed upfront,
     // to only create tests that contains data that we're able to parse.
     // This means only tests that have filler "transaction" values can be verified.
@@ -314,19 +317,18 @@ fn make_test(path: PathBuf) -> Option<Vec<TestDescAndFn>> {
     let (_name, filler) = filler.into_iter().nth(0).unwrap();
 
     // Obvious expected failure as there are no expect values
-    if filler.expect.len() == 0 {
-        let mut desc = TestDesc::new(DynTestName(format!(
-            "{}",
+    if filler.expect.is_empty() {
+        let mut desc = TestDesc::new(DynTestName(
             path.strip_prefix(get_fixtures_path())
                 .unwrap()
                 .to_string_lossy()
-                .to_string()
-        )));
+                .to_string(),
+        ));
         assert!(filler.transaction.is_none());
         desc.should_panic = ShouldPanic::Yes;
 
         let test = TestDescAndFn {
-            desc: desc,
+            desc,
             testfn: DynTestFn(Box::new(move || {
                 test_fn(&fixtures, &filler, None);
             })),
@@ -371,7 +373,7 @@ fn make_test(path: PathBuf) -> Option<Vec<TestDescAndFn>> {
         let c = expect.clone();
 
         let test = TestDescAndFn {
-            desc: desc,
+            desc,
             testfn: DynTestFn(Box::new(move || {
                 test_fn(&a, &b, Some(&c));
             })),
@@ -389,9 +391,10 @@ fn tests() -> Vec<TestDescAndFn> {
     if !testdir.is_dir() {
         panic!("Directory does not exists. Did you remember to execute \"git submodule update --init\"?");
     }
-    visit_dirs(&testdir, &mut |entry| match make_test(entry.path()) {
-        Some(tests) => res.extend(tests),
-        None => (),
+    visit_dirs(&testdir, &mut |entry| {
+        if let Some(tests) = make_test(&entry.path()) {
+            res.extend(tests)
+        }
     }).unwrap();
     res
 }

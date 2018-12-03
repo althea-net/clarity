@@ -97,7 +97,7 @@ impl fmt::LowerHex for Address {
                 return res;
             }
         }
-        return Ok(());
+        Ok(())
     }
 }
 
@@ -116,7 +116,7 @@ impl fmt::UpperHex for Address {
                 return res;
             }
         }
-        return Ok(());
+        Ok(())
     }
 }
 
@@ -160,7 +160,7 @@ impl FromStr for Address {
     /// // Method 2
     /// let _address : Address = "14131211100f0e0d0c0b0a090807060504030201".parse().unwrap();
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s.len() == 0 {
+        if s.is_empty() {
             return Ok(Address::default());
         }
         let s = if s.starts_with("0x") { &s[2..] } else { &s };
@@ -263,11 +263,11 @@ fn hashed() {
     let a = Address::from_str("0x000000000000000000000000000b9331677e6ebf").unwrap();
     let b = Address::from_str("0x00000000000000000000000000000000deadbeef").unwrap();
     let mut map = HashMap::new();
-    map.insert(a.clone(), "Foo");
-    map.insert(b.clone(), "Bar");
+    map.insert(a, "Foo");
+    map.insert(b, "Bar");
 
-    assert_eq!(map.get(&a).unwrap(), &"Foo");
-    assert_eq!(map.get(&b).unwrap(), &"Bar");
+    assert_eq!(&map[&a], &"Foo");
+    assert_eq!(&map[&b], &"Bar");
 }
 
 #[test]
