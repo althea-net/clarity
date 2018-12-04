@@ -7,14 +7,6 @@ use clarity::{PrivateKey, Transaction};
 use criterion::Criterion;
 use num256::Uint256;
 
-fn fibonacci(n: u64) -> u64 {
-    match n {
-        0 => 1,
-        1 => 1,
-        n => fibonacci(n - 1) + fibonacci(n - 2),
-    }
-}
-
 fn tx_sign_bench(c: &mut Criterion) {
     let key: PrivateKey = "c87f65ff3f271bf5dc8643484f66b200109caffe4bf98c4cb393dc35740b28c0"
         .parse()

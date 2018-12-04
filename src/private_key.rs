@@ -1,8 +1,9 @@
 use address::Address;
+use context::SECP256K1;
 use error::ClarityError;
 use failure::Error;
 use num256::Uint256;
-use secp256k1::{Message, PublicKey, Secp256k1, SecretKey};
+use secp256k1::{All, Message, PublicKey, Secp256k1, SecretKey};
 use serde::Deserialize;
 use serde::Deserializer;
 use serde::Serialize;
@@ -128,17 +129,24 @@ impl PrivateKey {
     /// ```
     pub fn sign_hash(&self, data: &[u8]) -> Signature {
         debug_assert_eq!(data.len(), 32);
-        // Sign RLP encoded data
-        let full = Secp256k1::new(); // TODO: in original libsecp256k1 source code there is a suggestion that the context should be kept for the duration of the program.
-                                     // TODO: secp256k1 types could be hidden somehow
-        let msg = Message::from_slice(&data).unwrap();
-        let sk = SecretKey::from_slice(&full, &self.to_bytes()).unwrap();
-        // Sign the raw hash of RLP encoded transaction data with a private key.
-        let sig = full.sign_recoverable(&msg, &sk);
-        // Serialize the signature into the "compact" form which means
-        // it will be exactly 64 bytes, and the "excess" information of
-        // recovery id will be given to us.
-        let (recovery_id, compact) = sig.serialize_compact(&full);
+        // Acquire SECP256K1 context from thread local storage and
+        // do some operations on it.
+        let (recovery_id, compact) = SECP256K1.with(move |object| {
+            // Borrow from a cell and reuse that borrow for subsequent
+            // operations.
+            let context = object.borrow();
+            // Create a Secp256k1 message inside the scope without polluting
+            // outside scope.
+            let msg = Message::from_slice(&data).unwrap();
+            // Create a secret key for Secp256k1 operations
+            let sk = SecretKey::from_slice(&context, &self.to_bytes()).unwrap();
+            // Sign the raw hash of RLP encoded transaction data with a private key.
+            let sig = context.sign_recoverable(&msg, &sk);
+            // Serialize the signature into the "compact" form which means
+            // it will be exactly 64 bytes, and the "excess" information of
+            // recovery id will be given to us.
+            sig.serialize_compact(&context)
+        });
         debug_assert_eq!(compact.len(), 64);
         // I assume recovery ID is always greater than 0 to simplify
         // the conversion from i32 to Uint256. On a side note,
