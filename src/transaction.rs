@@ -25,7 +25,7 @@ use utils::bytes_to_hex_str;
 use utils::zpad;
 
 /// Transaction as explained in the Ethereum Yellow paper section 4.2
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Transaction {
     pub nonce: Uint256,
     pub gas_price: Uint256,
