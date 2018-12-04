@@ -17,7 +17,7 @@ fn make_random_key() -> PrivateKey {
     rng.fill_bytes(&mut data);
 
     let res = PrivateKey::from(data);
-    debug_assert_ne!(res, PrivateKey::new());
+    debug_assert_ne!(res, PrivateKey::default());
     res
 }
 
@@ -26,7 +26,7 @@ fn make_web3() -> Option<(
     web3::transports::EventLoopHandle,
     Web3<web3::transports::Http>,
 )> {
-    let address = env::var("GANACHE_HOST").unwrap_or("http://localhost:8545".to_owned());
+    let address = env::var("GANACHE_HOST").unwrap_or_else(|_| "http://localhost:8545".to_string());
     eprintln!("Trying to create a Web3 connection to {:?}", address);
     for counter in 0..30 {
         match web3::transports::Http::new(&address) {
@@ -101,7 +101,7 @@ fn testnet_alice_and_bob() {
 
     let one_eth: U256 = "de0b6b3a7640000".parse().unwrap();
 
-    let seed = accounts.iter().nth(0).unwrap();
+    let seed = &accounts[0];
     println!("Sending 10 ETH to Alice from {:?}", seed);
     // Send 1 ETH to Alice from a first account from Ganache
     let tx_req = TransactionRequest {
@@ -132,7 +132,7 @@ fn testnet_alice_and_bob() {
     for nonce in 0u64..5u64 {
         let tx = Transaction {
             nonce: nonce.into(),
-            gas_price: 1000000000u64.into(),
+            gas_price: 1_000_000_000u64.into(),
             gas_limit: 21000u64.into(),
             to: bob_priv_key.to_public_key().unwrap(),
             value: 1_000_000_000_000_000_000u64.into(), // 0.1ETH
@@ -165,7 +165,7 @@ fn testnet_alice_and_bob() {
         ).wait()
         .unwrap();
     println!("Alice balance {:?}", res);
-    assert_eq!(res, (one_eth * 5u64) - 2100u64 * 5u64 * 10000000000u64);
+    assert_eq!(res, (one_eth * 5u64) - 2100u64 * 5u64 * 10_000_000_000u64);
     let res = web3
         .eth()
         .balance(

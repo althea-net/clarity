@@ -27,7 +27,7 @@ pub enum PrivateKeyError {
 /// With PrivateKey you are able to sign messages, derive
 /// public keys. Cryptography-related methods use
 /// SECP256K1 elliptic curves.
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Copy, Clone, Default)]
 pub struct PrivateKey([u8; 32]);
 
 impl FromStr for PrivateKey {
@@ -59,11 +59,6 @@ impl From<[u8; 32]> for PrivateKey {
 }
 
 impl PrivateKey {
-    /// Creates a null private key that uses zeros.
-    pub fn new() -> PrivateKey {
-        PrivateKey([0u8; 32])
-    }
-
     /// Convert a given slice of bytes into a valid private key.
     ///
     /// Input bytes are validated for a length only.
@@ -308,7 +303,7 @@ fn parse_address_2() {
 #[should_panic]
 fn zero_address() {
     // A key full of zeros is an invalid private key.
-    let key = PrivateKey::new();
+    let key = PrivateKey::default();
     key.to_public_key().unwrap();
 }
 
@@ -360,7 +355,7 @@ fn sign_message() {
         ]
     );
 
-    let hash = Keccak256::digest(&"Hello, world!".as_bytes());
+    let hash = Keccak256::digest(b"Hello, world!");
 
     // geth account import <(echo c87f65ff3f271bf5dc8643484f66b200109caffe4bf98c4cb393dc35740b28c0)
     let sig = key.sign_hash(&hash);
@@ -378,7 +373,7 @@ fn sign_message() {
             .unwrap()
     );
 
-    let sig_2 = key.sign_msg(&"Hello, world!".as_bytes());
+    let sig_2 = key.sign_msg(b"Hello, world!");
     assert_eq!(sig, sig_2);
 }
 

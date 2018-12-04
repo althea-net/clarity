@@ -89,7 +89,7 @@ impl Serialize for Transaction {
     {
         // Serialization of a transaction without signature serializes
         // the data assuming the "vrs" params are set to 0.
-        let sig = self.signature.clone().unwrap_or(Signature::default());
+        let sig = self.signature.clone().unwrap_or_default();
         let data = (
             &BigEndianInt(self.nonce.clone()),
             &BigEndianInt(self.gas_price.clone()),
@@ -124,7 +124,7 @@ impl Transaction {
     }
 
     pub fn intrinsic_gas_used(&self) -> Uint256 {
-        let num_zero_bytes = self.data.iter().filter(|&&b| b == 0u8).count();
+        let num_zero_bytes = bytecount::count(&self.data, 0u8);
         let num_non_zero_bytes = self.data.len() - num_zero_bytes;
         Uint256::from(GTXCOST)
             + Uint256::from(GTXDATAZERO) * Uint256::from(num_zero_bytes as u32)
@@ -144,7 +144,7 @@ impl Transaction {
         );
         to_bytes(&data).unwrap()
     }
-    fn to_unsigned_tx_params_for_network(&self, network_id: Uint256) -> Vec<u8> {
+    fn to_unsigned_tx_params_for_network(&self, network_id: &Uint256) -> Vec<u8> {
         // assert!(self.signature.is_none());
         // TODO: Could be refactored in a better way somehow
         let data = (
@@ -165,8 +165,8 @@ impl Transaction {
         // This is a special matcher to prepare raw RLP data with correct network_id.
         let rlpdata = match network_id {
             Some(network_id) => {
-                assert!(1 <= network_id && network_id < 9223372036854775790u64); // 1 <= id < 2**63 - 18
-                self.to_unsigned_tx_params_for_network(network_id.into())
+                assert!(1 <= network_id && network_id < 9_223_372_036_854_775_790u64); // 1 <= id < 2**63 - 18
+                self.to_unsigned_tx_params_for_network(&network_id.into())
             }
             None => self.to_unsigned_tx_params(),
         };
@@ -192,7 +192,7 @@ impl Transaction {
         let sig = self.signature.as_ref().unwrap();
         // Zero RS also mean the resulting address is "null"
         if sig.r == Uint256::zero() && sig.s == Uint256::zero() {
-            return Ok(Address::from([0xffu8; 20]));
+            Ok(Address::from([0xffu8; 20]))
         } else {
             let (vee, sighash) = if sig.v == 27u32.into() || sig.v == 28u32.into() {
                 // Valid V values are in {27, 28} according to Ethereum Yellow paper Appendix F (282).
@@ -207,7 +207,7 @@ impl Transaction {
                 assert!(vee == 27u32.into() || vee == 28u32.into());
                 // In this case hash of the transaction is usual RLP paremeters but "VRS" params
                 // are swapped for [network_id, '', '']. See Appendix F (285)
-                let rlp_data = self.to_unsigned_tx_params_for_network(network_id.clone());
+                let rlp_data = self.to_unsigned_tx_params_for_network(&network_id);
                 let sighash = Keccak256::digest(&rlp_data);
                 (vee, sighash)
             } else {
@@ -278,7 +278,7 @@ fn test_vitaliks_eip_158_vitalik_12_json() {
         nonce: Uint256::from_str_radix("0e", 16).unwrap(),
         gas_price: Uint256::from_str_radix("00", 16).unwrap(),
         gas_limit: Uint256::from_str_radix("0493e0", 16).unwrap(),
-        to: Address::new(), // "" - zeros only
+        to: Address::default(), // "" - zeros only
         value: Uint256::from_str_radix("00", 16).unwrap(),
         data: hex_str_to_bytes("60f2ff61000080610011600039610011565b6000f3").unwrap(),
         signature: Some(Signature::new(
@@ -378,7 +378,7 @@ fn test_basictests_txtest_2() {
         nonce: "0".parse().unwrap(),
         gas_price: "1000000000000".parse().unwrap(),
         gas_limit: "10000".parse().unwrap(),
-        to: Address::new(),
+        to: Address::default(),
         value: "0".parse().unwrap(),
         data: hex_str_to_bytes("6025515b525b600a37f260003556601b596020356000355760015b525b54602052f260255860005b525b54602052f2").unwrap(),
         signature: None

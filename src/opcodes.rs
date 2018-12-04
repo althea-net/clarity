@@ -41,5 +41,5 @@ pub const GMODEXPQUADDIVISOR: u32 = 20;
 pub const GECADD: u32 = 500;
 pub const GECMUL: u32 = 40000;
 
-pub const GPAIRINGBASE: u32 = 100000;
+pub const GPAIRINGBASE: u32 = 100_000;
 pub const GPAIRINGPERPOINT: u32 = 80000;

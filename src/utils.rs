@@ -111,10 +111,10 @@ pub fn bytes_to_hex_str(bytes: &[u8]) -> String {
 
 #[test]
 fn encode_bytes() {
-    assert_eq!(bytes_to_hex_str(&vec![0xf]), "0f".to_owned());
-    assert_eq!(bytes_to_hex_str(&vec![0xff]), "ff".to_owned());
+    assert_eq!(bytes_to_hex_str(&[0xf]), "0f".to_owned());
+    assert_eq!(bytes_to_hex_str(&[0xff]), "ff".to_owned());
     assert_eq!(
-        bytes_to_hex_str(&vec![0xde, 0xad, 0xbe, 0xef]),
+        bytes_to_hex_str(&[0xde, 0xad, 0xbe, 0xef]),
         "deadbeef".to_owned()
     );
 }
