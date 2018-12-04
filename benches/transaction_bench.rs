@@ -5,7 +5,6 @@ extern crate num256;
 
 use clarity::{PrivateKey, Transaction};
 use criterion::Criterion;
-use num256::Uint256;
 
 fn tx_sign_bench(c: &mut Criterion) {
     let key: PrivateKey = "c87f65ff3f271bf5dc8643484f66b200109caffe4bf98c4cb393dc35740b28c0"

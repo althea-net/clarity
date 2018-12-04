@@ -3,7 +3,7 @@ use context::SECP256K1;
 use error::ClarityError;
 use failure::Error;
 use num256::Uint256;
-use secp256k1::{All, Message, PublicKey, Secp256k1, SecretKey};
+use secp256k1::{Message, PublicKey, Secp256k1, SecretKey};
 use serde::Deserialize;
 use serde::Deserializer;
 use serde::Serialize;
