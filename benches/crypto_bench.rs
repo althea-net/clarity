@@ -19,8 +19,17 @@ fn tx_sign_bench(c: &mut Criterion) {
         data: Vec::new(),
         signature: None,
     };
+
+    let signed_tx = tx.clone().sign(&key, None);
+
     c.bench_function("sign tx without network id", move |b| {
         b.iter(|| tx.sign(&key, None))
+    });
+
+    c.bench_function("recover sender", move |b| {
+        b.iter(|| {
+            signed_tx.sender().unwrap();
+        })
     });
 }
 
