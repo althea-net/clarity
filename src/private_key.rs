@@ -1,8 +1,9 @@
 use address::Address;
+use context::SECP256K1;
 use error::ClarityError;
 use failure::Error;
 use num256::Uint256;
-use secp256k1::{Message, PublicKey, Secp256k1, SecretKey};
+use secp256k1::{Message, PublicKey, SecretKey};
 use serde::Deserialize;
 use serde::Deserializer;
 use serde::Serialize;
@@ -90,15 +91,19 @@ impl PrivateKey {
     /// let public_key = private_key.to_public_key().unwrap();
     /// ```
     pub fn to_public_key(&self) -> Result<Address, Error> {
-        let secp256k1 = Secp256k1::new();
-        let sk = SecretKey::from_slice(&secp256k1, &self.0)?;
-        let pkey = PublicKey::from_secret_key(&secp256k1, &sk);
+        // Closure below has Result type with inferred T as we don't
+        // need to really assume type of the returned array from
+        // `serialize_uncompressed`.
+        let pkey = SECP256K1.with(move |object| -> Result<_, Error> {
+            let secp256k1 = object.borrow();
+            let sk = SecretKey::from_slice(&secp256k1, &self.0)?;
+            let pkey = PublicKey::from_secret_key(&secp256k1, &sk);
+            // Serialize the recovered public key in uncompressed format
+            Ok(pkey.serialize_uncompressed())
+        })?;
         // TODO: This part is duplicated with sender code.
-
-        // Serialize the recovered public key in uncompressed format
-        let pkey = pkey.serialize_uncompressed();
         assert_eq!(pkey.len(), 65);
-        if pkey[1..].to_vec() == [0x00u8; 64].to_vec() {
+        if pkey[1..] == [0x00u8; 64][..] {
             return Err(ClarityError::ZeroPrivKey.into());
         }
         // Finally an address is last 20 bytes of a hash of the public key.
@@ -128,17 +133,24 @@ impl PrivateKey {
     /// ```
     pub fn sign_hash(&self, data: &[u8]) -> Signature {
         debug_assert_eq!(data.len(), 32);
-        // Sign RLP encoded data
-        let full = Secp256k1::new(); // TODO: in original libsecp256k1 source code there is a suggestion that the context should be kept for the duration of the program.
-                                     // TODO: secp256k1 types could be hidden somehow
-        let msg = Message::from_slice(&data).unwrap();
-        let sk = SecretKey::from_slice(&full, &self.to_bytes()).unwrap();
-        // Sign the raw hash of RLP encoded transaction data with a private key.
-        let sig = full.sign_recoverable(&msg, &sk);
-        // Serialize the signature into the "compact" form which means
-        // it will be exactly 64 bytes, and the "excess" information of
-        // recovery id will be given to us.
-        let (recovery_id, compact) = sig.serialize_compact(&full);
+        // Acquire SECP256K1 context from thread local storage and
+        // do some operations on it.
+        let (recovery_id, compact) = SECP256K1.with(move |object| {
+            // Borrow from a cell and reuse that borrow for subsequent
+            // operations.
+            let context = object.borrow();
+            // Create a Secp256k1 message inside the scope without polluting
+            // outside scope.
+            let msg = Message::from_slice(&data).unwrap();
+            // Create a secret key for Secp256k1 operations
+            let sk = SecretKey::from_slice(&context, &self.to_bytes()).unwrap();
+            // Sign the raw hash of RLP encoded transaction data with a private key.
+            let sig = context.sign_recoverable(&msg, &sk);
+            // Serialize the signature into the "compact" form which means
+            // it will be exactly 64 bytes, and the "excess" information of
+            // recovery id will be given to us.
+            sig.serialize_compact(&context)
+        });
         debug_assert_eq!(compact.len(), 64);
         // I assume recovery ID is always greater than 0 to simplify
         // the conversion from i32 to Uint256. On a side note,

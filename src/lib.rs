@@ -73,6 +73,7 @@ extern crate num256;
 pub mod abi;
 pub mod address;
 pub mod constants;
+mod context;
 pub mod error;
 pub mod opcodes;
 pub mod private_key;
