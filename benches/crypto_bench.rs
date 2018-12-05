@@ -24,5 +24,15 @@ fn tx_sign_bench(c: &mut Criterion) {
     });
 }
 
-criterion_group!(benches, tx_sign_bench);
+fn private_key_to_public(c: &mut Criterion) {
+    let key: PrivateKey = "0102010201020102010201020102010201020102010201020102010201020102"
+        .parse()
+        .unwrap();
+
+    c.bench_function("private key to public", move |b| {
+        b.iter(|| key.to_public_key().unwrap())
+    });
+}
+
+criterion_group!(benches, tx_sign_bench, private_key_to_public);
 criterion_main!(benches);

@@ -91,15 +91,19 @@ impl PrivateKey {
     /// let public_key = private_key.to_public_key().unwrap();
     /// ```
     pub fn to_public_key(&self) -> Result<Address, Error> {
-        let secp256k1 = Secp256k1::new();
-        let sk = SecretKey::from_slice(&secp256k1, &self.0)?;
-        let pkey = PublicKey::from_secret_key(&secp256k1, &sk);
+        // Closure below has Result type with inferred T as we don't
+        // need to really assume type of the returned array from
+        // `serialize_uncompressed`.
+        let pkey = SECP256K1.with(move |object| -> Result<_, Error> {
+            let secp256k1 = object.borrow();
+            let sk = SecretKey::from_slice(&secp256k1, &self.0)?;
+            let pkey = PublicKey::from_secret_key(&secp256k1, &sk);
+            // Serialize the recovered public key in uncompressed format
+            Ok(pkey.serialize_uncompressed())
+        })?;
         // TODO: This part is duplicated with sender code.
-
-        // Serialize the recovered public key in uncompressed format
-        let pkey = pkey.serialize_uncompressed();
         assert_eq!(pkey.len(), 65);
-        if pkey[1..].to_vec() == [0x00u8; 64].to_vec() {
+        if &pkey[1..] == &[0x00u8; 64][..] {
             return Err(ClarityError::ZeroPrivKey.into());
         }
         // Finally an address is last 20 bytes of a hash of the public key.

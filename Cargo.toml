@@ -42,5 +42,5 @@ web3 = "0.4.0"
 criterion = "0.2"
 
 [[bench]]
-name = "transaction_bench"
+name = "crypto_bench"
 harness = false
