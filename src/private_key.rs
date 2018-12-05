@@ -3,7 +3,7 @@ use context::SECP256K1;
 use error::ClarityError;
 use failure::Error;
 use num256::Uint256;
-use secp256k1::{Message, PublicKey, Secp256k1, SecretKey};
+use secp256k1::{Message, PublicKey, SecretKey};
 use serde::Deserialize;
 use serde::Deserializer;
 use serde::Serialize;
@@ -103,7 +103,7 @@ impl PrivateKey {
         })?;
         // TODO: This part is duplicated with sender code.
         assert_eq!(pkey.len(), 65);
-        if &pkey[1..] == &[0x00u8; 64][..] {
+        if pkey[1..] == [0x00u8; 64][..] {
             return Err(ClarityError::ZeroPrivKey.into());
         }
         // Finally an address is last 20 bytes of a hash of the public key.

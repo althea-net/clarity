@@ -12,7 +12,7 @@ use opcodes::GTXDATANONZERO;
 use opcodes::GTXDATAZERO;
 use private_key::PrivateKey;
 use rlp::AddressDef;
-use secp256k1::{Message, RecoverableSignature, RecoveryId, Secp256k1};
+use secp256k1::{Message, RecoverableSignature, RecoveryId};
 use serde::Serialize;
 use serde::Serializer;
 use serde_bytes::ByteBuf;
