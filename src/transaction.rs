@@ -1,6 +1,7 @@
 use address::Address;
 use constants::SECPK1N;
 use constants::TT256;
+use context::SECP256K1;
 use error::ClarityError;
 use failure::Error;
 use num256::Uint256;
@@ -224,9 +225,6 @@ impl Transaction {
                 return Err(ClarityError::InvalidSignatureValues.into());
             }
 
-            // prepare secp256k1 context
-            let secp256k1 = Secp256k1::new();
-
             // Prepare compact signature that consists of (r, s) padded to 32 bytes to make 64 bytes data
             let r = zpad(&sig.r.to_bytes_be(), 32);
             debug_assert_eq!(r.len(), 32);
@@ -242,12 +240,19 @@ impl Transaction {
             // Create recovery ID which is "v" minus 27. Without this it wouldn't be possible to extract recoverable signature.
             let v = RecoveryId::from_i32(vee.to_i32().expect("Unable to convert vee to i32") - 27)?;
             // Get recoverable signature given rs, and v.
-            let compact = RecoverableSignature::from_compact(&secp256k1, &compact_bytes, v)?;
+
             // A message to recover which is a hash of the transaction
             let msg = Message::from_slice(&sighash)?;
-            let pkey = secp256k1.recover(&msg, &compact)?;
-            // Serialize the recovered public key in uncompressed format
-            let pkey = pkey.serialize_uncompressed();
+            // Acquire secp256k1 context from thread local storage
+            let pkey = SECP256K1.with(move |object| -> Result<_, Error> {
+                // Borrow once and reuse
+                let secp256k1 = object.borrow();
+                let compact = RecoverableSignature::from_compact(&secp256k1, &compact_bytes, v)?;
+                // Recover public key
+                let pkey = secp256k1.recover(&msg, &compact)?;
+                // Serialize the recovered public key in uncompressed format
+                Ok(pkey.serialize_uncompressed())
+            })?;
             assert_eq!(pkey.len(), 65);
             if pkey[1..].to_vec() == [0x00u8; 64].to_vec() {
                 return Err(ClarityError::ZeroPrivKey.into());
