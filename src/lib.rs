@@ -29,11 +29,11 @@
 //!
 //! // Create a new transaction
 //! let tx = Transaction {
-//!     nonce: 0.into(),
-//!     gas_price: 1_000_000_000.into(),
-//!     gas_limit: 21_000.into(),
+//!     nonce: 0u32.into(),
+//!     gas_price: 1_000_000_000u32.into(),
+//!     gas_limit: 21_000u32.into(),
 //!     to: bobs_key.to_public_key().unwrap(),
-//!     value: 100.into(),
+//!     value: 100u32.into(),
 //!     data: Vec::new(),
 //!     signature: None, // Not signed. Yet.
 //! };

@@ -56,7 +56,7 @@ impl Signature {
         } else if self.v == 27u32.into() || self.v == 28u32.into() {
             None
         } else {
-            Some(((self.v.clone() - 1u32) / 2u32) - 17u32)
+            Some(((self.v.clone() - 1u32.into()) / 2u32.into()) - 17u32.into())
         }
     }
 
