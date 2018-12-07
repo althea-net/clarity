@@ -27,7 +27,8 @@ pub fn hex_str_to_bytes(s: &str) -> Result<Vec<u8>, Error> {
                 .map_err(ByteDecodeError::DecodeError)
                 .and_then(|res| u8::from_str_radix(&res, 16).map_err(ByteDecodeError::ParseError))
                 .map_err(Error::from)
-        }).collect()
+        })
+        .collect()
 }
 
 pub fn big_endian_uint256_serialize<S>(x: &Uint256, s: S) -> Result<S::Ok, S::Error>

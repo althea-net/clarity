@@ -174,9 +174,9 @@ impl Transaction {
         // Prepare a raw hash of RLP encoded TX params
         let rawhash = Keccak256::digest(&rlpdata);
         let mut sig = key.sign_hash(&rawhash);
-        if network_id.is_some() {
+        if let Some(network_id) = network_id {
             // Account v for the network_id value
-            sig.v += 8u64 + network_id.unwrap() * 2u64;
+            sig.v += Uint256::from(8u64) + Uint256::from(network_id) * 2u64.into();
         }
         let mut tx = self.clone();
         tx.signature = Some(sig);
@@ -203,7 +203,7 @@ impl Transaction {
             } else if sig.v >= 37u32.into() {
                 let network_id = sig.network_id().ok_or(ClarityError::InvalidNetworkId)?;
                 // Otherwise we have to extract "v"...
-                let vee = sig.v.clone() - network_id.clone() * 2u32 - 8u32;
+                let vee = sig.v.clone() - (network_id.clone() * 2u32.into()) - 8u32.into();
                 // ... so after all v will still match 27<=v<=28
                 assert!(vee == 27u32.into() || vee == 28u32.into());
                 // In this case hash of the transaction is usual RLP paremeters but "VRS" params
@@ -291,11 +291,13 @@ fn test_vitaliks_eip_158_vitalik_12_json() {
             Uint256::from_str_radix(
                 "a310f4d0b26207db76ba4e1e6e7cf1857ee3aa8559bcbc399a6b09bfea2d30b4",
                 16,
-            ).unwrap(),
+            )
+            .unwrap(),
             Uint256::from_str_radix(
                 "6dff38c645a1486651a717ddf3daccb4fd9a630871ecea0758ddfcf2774f9bc6",
                 16,
-            ).unwrap(),
+            )
+            .unwrap(),
         )),
     };
     let lhs = to_bytes(&tx).unwrap();
@@ -326,11 +328,13 @@ fn test_vitaliks_eip_158_vitalik_1_json() {
             Uint256::from_str_radix(
                 "044852b2a670ade5407e78fb2863c51de9fcb96542a07186fe3aeda6bb8a116d",
                 16,
-            ).unwrap(),
+            )
+            .unwrap(),
             Uint256::from_str_radix(
                 "044852b2a670ade5407e78fb2863c51de9fcb96542a07186fe3aeda6bb8a116d",
                 16,
-            ).unwrap(),
+            )
+            .unwrap(),
         )),
     };
     let lhs = to_bytes(&tx).unwrap();
