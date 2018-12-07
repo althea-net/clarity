@@ -11,7 +11,7 @@ fn tx_sign_bench(c: &mut Criterion) {
         .parse()
         .unwrap();
     let tx = Transaction {
-        nonce: 0.into(),
+        nonce: 0u32.into(),
         gas_price: "1000000000000".parse().unwrap(),
         gas_limit: "10000".parse().unwrap(),
         to: "13978aee95f38490e9769c39b2773ed763d9cd5f".parse().unwrap(),
