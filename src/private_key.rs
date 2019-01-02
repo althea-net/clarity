@@ -91,12 +91,13 @@ impl PrivateKey {
     /// let public_key = private_key.to_public_key().unwrap();
     /// ```
     pub fn to_public_key(&self) -> Result<Address, Error> {
+        // Create a secret key instance first
+        let sk = SecretKey::from_slice(&self.0)?;
         // Closure below has Result type with inferred T as we don't
         // need to really assume type of the returned array from
         // `serialize_uncompressed`.
         let pkey = SECP256K1.with(move |object| -> Result<_, Error> {
             let secp256k1 = object.borrow();
-            let sk = SecretKey::from_slice(&secp256k1, &self.0)?;
             let pkey = PublicKey::from_secret_key(&secp256k1, &sk);
             // Serialize the recovered public key in uncompressed format
             Ok(pkey.serialize_uncompressed())
@@ -133,6 +134,8 @@ impl PrivateKey {
     /// ```
     pub fn sign_hash(&self, data: &[u8]) -> Signature {
         debug_assert_eq!(data.len(), 32);
+        // Create a secret key for Secp256k1 operations
+        let sk = SecretKey::from_slice(&self.to_bytes()).unwrap();
         // Acquire SECP256K1 context from thread local storage and
         // do some operations on it.
         let (recovery_id, compact) = SECP256K1.with(move |object| {
@@ -142,14 +145,12 @@ impl PrivateKey {
             // Create a Secp256k1 message inside the scope without polluting
             // outside scope.
             let msg = Message::from_slice(&data).unwrap();
-            // Create a secret key for Secp256k1 operations
-            let sk = SecretKey::from_slice(&context, &self.to_bytes()).unwrap();
             // Sign the raw hash of RLP encoded transaction data with a private key.
             let sig = context.sign_recoverable(&msg, &sk);
             // Serialize the signature into the "compact" form which means
             // it will be exactly 64 bytes, and the "excess" information of
             // recovery id will be given to us.
-            sig.serialize_compact(&context)
+            sig.serialize_compact()
         });
         debug_assert_eq!(compact.len(), 64);
         // I assume recovery ID is always greater than 0 to simplify

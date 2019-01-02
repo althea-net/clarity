@@ -243,11 +243,12 @@ impl Transaction {
 
             // A message to recover which is a hash of the transaction
             let msg = Message::from_slice(&sighash)?;
+            // Get the compact form using bytes, and "v" parameter
+            let compact = RecoverableSignature::from_compact(&compact_bytes, v)?;
             // Acquire secp256k1 context from thread local storage
             let pkey = SECP256K1.with(move |object| -> Result<_, Error> {
                 // Borrow once and reuse
                 let secp256k1 = object.borrow();
-                let compact = RecoverableSignature::from_compact(&secp256k1, &compact_bytes, v)?;
                 // Recover public key
                 let pkey = secp256k1.recover(&msg, &compact)?;
                 // Serialize the recovered public key in uncompressed format
