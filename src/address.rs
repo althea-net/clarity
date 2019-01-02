@@ -3,7 +3,7 @@ use serde::Deserialize;
 use serde::Deserializer;
 use serde::Serialize;
 use serde::Serializer;
-use std::fmt;
+use std::fmt::{self, Display};
 use std::str;
 use std::str::FromStr;
 use utils::bytes_to_hex_str;
@@ -156,18 +156,9 @@ impl FromStr for Address {
     }
 }
 
-impl ToString for Address {
-    /// Creates a textual representation of the `Address`.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use clarity::Address;
-    /// let address = Address::default();
-    /// address.to_string(); // 0x0000000000000000000000000000000000000000
-    /// ```
-    fn to_string(&self) -> String {
-        format!("0x{}", bytes_to_hex_str(&self.0))
+impl Display for Address {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "0x{}", bytes_to_hex_str(&self.0))
     }
 }
 
@@ -285,5 +276,18 @@ fn to_hex() {
     assert_eq!(
         format!("{:#X}", address),
         "0x1234567890123456789ABCDEF678901234567890",
+    );
+}
+
+#[test]
+fn display() {
+    let address: Address = "1234567890123456789ABCDEF678901234567890".parse().unwrap();
+    assert_eq!(
+        format!("{}", address),
+        "0x1234567890123456789abcdef678901234567890"
+    );
+    assert_eq!(
+        address.to_string(),
+        "0x1234567890123456789abcdef678901234567890"
     );
 }
