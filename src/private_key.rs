@@ -388,6 +388,15 @@ fn sign_message() {
 
     let sig_2 = key.sign_msg(b"Hello, world!");
     assert_eq!(sig, sig_2);
+
+    // Recover address using just a signature
+    let recovered = sig
+        .recover(&hash)
+        .expect("Unable to recover address from a signature");
+    assert_eq!(
+        recovered,
+        key.to_public_key().expect("Unable to get address")
+    );
 }
 
 #[test]
