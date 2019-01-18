@@ -1,8 +1,12 @@
+use address::Address;
 use constants::SECPK1N;
+use context::SECP256K1;
 use error::ClarityError;
 use failure::Error;
 use num256::Uint256;
-use num_traits::Zero;
+use num_traits::{ToPrimitive, Zero};
+use secp256k1::{Message, RecoverableSignature, RecoveryId};
+use sha3::{Digest, Keccak256};
 use std::fmt;
 use std::str::FromStr;
 use utils::{
@@ -81,9 +85,22 @@ impl Signature {
     /// in big endian form, and at the end there is one byte made of "v".
     ///
     /// This also consumes the signature.
+    #[deprecated(since = "0.1.20", note = "please use `as_bytes` instead")]
     pub fn into_bytes(self) -> [u8; 65] {
-        let r: [u8; 32] = self.r.into();
-        let s: [u8; 32] = self.s.into();
+        // Since 0.1.20 it calls `as_bytes` and consumes self
+        self.to_bytes()
+    }
+    /// Extracts signature as bytes.
+    ///
+    /// This supersedes `into_bytes` as it does not consume the object itself.
+    pub fn to_bytes(&self) -> [u8; 65] {
+        // This is new since 0.1.20 in a way that this just borrows self,
+        // and won't consume the object itself.
+        // Usually `to_bytes` function in standard library returns a borrowed
+        // value, but its impossible in our case since VRS are separate objects,
+        // and its impossible to just cast a struct into a slice of bytes.
+        let r: [u8; 32] = self.r.clone().into();
+        let s: [u8; 32] = self.s.clone().into();
         let mut result = [0x00u8; 65];
         // Put r at the beggining
         result[0..32].copy_from_slice(&r);
@@ -94,7 +111,6 @@ impl Signature {
         result[64] = v[v.len() - 1];
         result
     }
-
     /// Constructs a signature from a bytes string
     ///
     /// This is opposite to `into_bytes()` where a signature is created based
@@ -117,6 +133,58 @@ impl Signature {
         let v = bytes[64];
         Ok(Signature::new(v.into(), r, s))
     }
+
+    /// Extract V parameter with regards to network ID.
+    fn vee(&self) -> Result<Uint256, Error> {
+        if self.v == 27u32.into() || self.v == 28u32.into() {
+            // Valid V values are in {27, 28} according to Ethereum Yellow paper Appendix F (282).
+            Ok(self.v.clone())
+        } else if self.v >= 37u32.into() {
+            let network_id = self.network_id().ok_or(ClarityError::InvalidNetworkId)?;
+            // // Otherwise we have to extract "v"...
+            let vee = self.v.clone() - (network_id.clone() * 2u32.into()) - 8u32.into();
+            // // ... so after all v will still match 27<=v<=28
+            assert!(vee == 27u32.into() || vee == 28u32.into());
+            Ok(vee)
+        } else {
+            // All other V values would be errorneous for our calculations
+            Err(ClarityError::InvalidV.into())
+        }
+    }
+    /// Recover an address from a signature
+    ///
+    /// This can be called with any arbitrary signature, and a hashed message.
+    pub fn recover(&self, hash: &[u8]) -> Result<Address, Error> {
+        // Create recovery ID which is "v" minus 27. Without this it wouldn't be possible to extract recoverable signature.
+        let v = RecoveryId::from_i32(
+            self.vee()?
+                .to_i32()
+                .ok_or_else(|| format_err!("Unable to convert extracted V to signed integer"))?
+                - 27,
+        )?;
+        // A message to recover which is a hash of the transaction
+        let msg = Message::from_slice(&hash)?;
+
+        // Get the compact form using bytes, and "v" parameter
+        let compact = RecoverableSignature::from_compact(&self.to_bytes()[..64], v)?;
+        // Acquire secp256k1 context from thread local storage
+        let pkey = SECP256K1.with(move |object| -> Result<_, Error> {
+            // Borrow once and reuse
+            let secp256k1 = object.borrow();
+            // Recover public key
+            let pkey = secp256k1.recover(&msg, &compact)?;
+            // Serialize the recovered public key in uncompressed format
+            Ok(pkey.serialize_uncompressed())
+        })?;
+        assert_eq!(pkey.len(), 65);
+        if pkey[1..].to_vec() == [0x00u8; 64].to_vec() {
+            return Err(ClarityError::ZeroPrivKey.into());
+        }
+        // Finally an address is last 20 bytes of a hash of the public key.
+        let sender = Keccak256::digest(&pkey[1..]);
+        debug_assert_eq!(sender.len(), 32);
+        Address::from_slice(&sender[12..])
+    }
 }
 
 impl Default for Signature {
@@ -137,7 +205,7 @@ impl ToString for Signature {
     // last byte is "v"
     fn to_string(&self) -> String {
         // Convert and make a signature made of bytes
-        let sig_bytes = self.clone().into_bytes();
+        let sig_bytes = self.to_bytes();
 
         // Convert those bytes in a string
         let mut result = "0x".to_owned();
@@ -173,13 +241,13 @@ impl fmt::LowerHex for Signature {
             write!(
                 f,
                 "0x{}",
-                bytes_to_hex_str(&self.clone().into_bytes()).to_lowercase()
+                bytes_to_hex_str(&self.clone().to_bytes()).to_lowercase()
             )
         } else {
             write!(
                 f,
                 "{}",
-                bytes_to_hex_str(&self.clone().into_bytes()).to_lowercase()
+                bytes_to_hex_str(&self.clone().to_bytes()).to_lowercase()
             )
         }
     }
@@ -188,17 +256,9 @@ impl fmt::LowerHex for Signature {
 impl fmt::UpperHex for Signature {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if f.alternate() {
-            write!(
-                f,
-                "0x{}",
-                bytes_to_hex_str(&self.clone().into_bytes()).to_uppercase()
-            )
+            write!(f, "0x{}", bytes_to_hex_str(&self.to_bytes()).to_uppercase())
         } else {
-            write!(
-                f,
-                "{}",
-                bytes_to_hex_str(&self.clone().into_bytes()).to_uppercase()
-            )
+            write!(f, "{}", bytes_to_hex_str(&self.to_bytes()).to_uppercase())
         }
     }
 }
@@ -284,7 +344,7 @@ fn to_lower_hex() {
 fn into_bytes() {
     let sig = Signature::new(1u32.into(), 2u32.into(), 3u32.into());
 
-    let sig_bytes = sig.clone().into_bytes();
+    let sig_bytes = sig.to_bytes();
     assert_eq!(
         sig_bytes.to_vec(),
         vec![
