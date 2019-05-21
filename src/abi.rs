@@ -187,7 +187,7 @@ impl From<Vec<u8>> for Token {
 
 impl From<Vec<u32>> for Token {
     fn from(v: Vec<u32>) -> Token {
-        Token::Dynamic(v.into_iter().map(|v| v.into()).collect())
+        Token::Dynamic(v.into_iter().map(Into::into).collect())
     }
 }
 

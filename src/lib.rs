@@ -54,6 +54,10 @@
 //!     .wait()
 //!     .unwrap();
 //! ```
+
+#![warn(clippy::all)]
+#![allow(clippy::pedantic)]
+
 extern crate num_bigint;
 extern crate num_traits;
 extern crate serde;
