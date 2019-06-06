@@ -20,7 +20,7 @@ serde-rlp = "0.1"
 num-bigint = { version = "0.2", default-features = false, features = ["serde"] }
 num-traits = "0.2"
 failure = "0.1"
-serde_bytes = "0.11"
+serde_bytes = "0.10"
 sha3 = "0.7"
 secp256k1 = "0.12"
 lazy_static = "1.3"
