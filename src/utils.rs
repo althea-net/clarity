@@ -71,7 +71,7 @@ fn bytes_raises_decode_error() {
         .unwrap();
     match e {
         ByteDecodeError::DecodeError(_) => {}
-        _ => assert!(false),
+        _ => panic!(),
     };
 }
 
@@ -83,7 +83,7 @@ fn bytes_raises_parse_error() {
         .unwrap();
     match e {
         ByteDecodeError::ParseError(_) => {}
-        _ => assert!(false),
+        _ => panic!(),
     }
 }
 
