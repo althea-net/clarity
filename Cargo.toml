@@ -21,12 +21,12 @@ num-bigint = { version = "0.2", default-features = false, features = ["serde"] }
 num-traits = "0.2"
 failure = "0.1"
 serde_bytes = "0.10"
-sha3 = "0.7"
-secp256k1 = "0.12"
-lazy_static = "1.3"
+sha3 = "0.8"
+secp256k1 = { version = "0.15", features = ["recovery"] }
+lazy_static = "1.4"
 serde_derive = "1.0"
 num256 = "0.2"
-bytecount = "0.5"
+bytecount = "0.6"
 
 [[test]]
 name = "transaction_tests"
@@ -39,7 +39,7 @@ rand = "0.6"
 rustc-test = "0.3.0"
 serde_json = "1.0"
 web3 = "0.6"
-criterion = "0.2"
+criterion = "0.3"
 
 [[bench]]
 name = "crypto_bench"
