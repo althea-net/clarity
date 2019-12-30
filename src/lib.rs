@@ -89,6 +89,7 @@ pub mod utils;
 
 pub use address::Address;
 pub use error::ClarityError;
+pub use num256::Uint256;
 pub use private_key::PrivateKey;
 pub use signature::Signature;
 pub use transaction::Transaction;
