@@ -3,6 +3,7 @@ use serde::Deserialize;
 use serde::Deserializer;
 use serde::Serialize;
 use serde::Serializer;
+use sha3::{Digest, Keccak256};
 use std::fmt::{self, Display};
 use std::str;
 use std::str::FromStr;
@@ -34,6 +35,17 @@ impl Address {
         let mut result: [u8; 20] = Default::default();
         result.copy_from_slice(&data);
         Ok(Address(result))
+    }
+
+    // Parses and validates the address according to the EIP-55 standard
+    pub fn parse_and_validate(input: &str) -> Result<Address, Error> {
+        let address: Address = input.parse()?;
+        let eip_55_encoded = address.to_string();
+        if eip_55_encoded == input {
+            Ok(address)
+        } else {
+            Err(format_err!("Invalid EIP-55 Address encoding!"))
+        }
     }
 }
 
@@ -172,9 +184,45 @@ impl FromStr for Address {
     }
 }
 
+/// Gets the EIP-55 encoded version of an address passed in as bytes
+fn eip_55_string(address_bytes: [u8; 20]) -> String {
+    let hex_str = bytes_to_hex_str(&address_bytes);
+    let hash = Keccak256::digest(&hex_str.as_bytes());
+    let mut capitalized_hex_str: Vec<char> = Vec::new();
+    let mut counter = 0;
+    for character in hex_str.chars() {
+        match character {
+            'a'..='f' => {
+                // this is the real doozy here we're indexing
+                // into the array to mask against the correct byte
+                let index = (4 * counter) / 8;
+                let bit = if counter > 0 {
+                    // the 4 * i th bit indexed from the right which is why
+                    // we need the -1 yes this is a bit backwards to think about
+                    ((4 * counter) - 1) % 8
+                } else {
+                    // represent the zeroth bit of the hash string which
+                    // is seven indexed from the other direction
+                    7
+                };
+                if hash[index] & 1 << bit != 0 {
+                    capitalized_hex_str.push(character.to_ascii_uppercase());
+                } else {
+                    capitalized_hex_str.push(character);
+                }
+            }
+            '0'..='9' => capitalized_hex_str.push(character),
+            // impossible output from bytes to hex str
+            _ => panic!(),
+        }
+        counter += 1;
+    }
+    capitalized_hex_str.iter().collect()
+}
+
 impl Display for Address {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "0x{}", bytes_to_hex_str(&self.0))
+        write!(f, "0x{}", eip_55_string(self.0))
     }
 }
 
@@ -218,7 +266,7 @@ fn serialize_null_address() {
 
 #[test]
 fn serialize_padded_address() {
-    let raw_address = "00000000000000000000000000000000000000c0";
+    let raw_address = "00000000000000000000000000000000000000C0";
     let address: Address = raw_address.parse().unwrap();
     assert_eq!(
         serde_json::to_string(&address).unwrap(),
@@ -296,14 +344,57 @@ fn to_hex() {
 }
 
 #[test]
-fn display() {
-    let address: Address = "1234567890123456789ABCDEF678901234567890".parse().unwrap();
-    assert_eq!(
-        format!("{}", address),
-        "0x1234567890123456789abcdef678901234567890"
-    );
-    assert_eq!(
-        address.to_string(),
-        "0x1234567890123456789abcdef678901234567890"
-    );
+fn eip_55_validate() {
+    // testcases taken from here https://eips.ethereum.org/EIPS/eip-55
+    let eip_55_testcases = [
+        "0x52908400098527886E0F7030069857D2E4169EE7",
+        "0x8617E340B3D01FA5F11F306F4090FD50E238070D",
+        "0xde709f2102306220921060314715629080e2fb77",
+        "0x27b1fdb04752bbc536007a920d24acb045561c26",
+        "0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed",
+        "0xfB6916095ca1df60bB79Ce92cE3Ea74c37c5d359",
+        "0xdbF03B407c01E7cD3CBea99509d93f8DDDC8C6FB",
+        "0xD1220A0cf47c7B9Be7A2E6BA89F429762e7b9aDb",
+    ];
+    let eip_55_invalid = [
+        "0x52908400098527886E0F7030069857D2E4169eE7",
+        "0x8617E340b3D01FA5F11F306F4090FD50E238070D",
+        "0xde709f2102306220921060314715629080e2fB77",
+        "0x27b1fDb04752bbc536007a920d24acb045561c26",
+        "0x5aaeb6053F3E94C9b9A09f33669435E7Ef1BeAed",
+        "0xFB6916095ca1df60bB79Ce92cE3Ea74c37c5d359",
+        "0xdbF03B407c01e7cD3CBea99509d93f8DDDC8C6FB",
+        "0xD1220A0cf47c7B9Be7A2E6BA89F429762e7b9aDB",
+    ];
+    for starting_address in eip_55_testcases.iter() {
+        let unvalidated: Address = starting_address.parse().unwrap();
+        let _address: Address = Address::parse_and_validate(starting_address).expect(&format!(
+            "Failed to validate address theirs: {} ours: {} !",
+            starting_address, unvalidated
+        ));
+    }
+    for starting_address in eip_55_invalid.iter() {
+        assert!(Address::parse_and_validate(starting_address).is_err())
+    }
+}
+
+#[test]
+fn eip_55_display() {
+    // testcases taken from here https://eips.ethereum.org/EIPS/eip-55
+    let eip_55_testcases = [
+        "0x52908400098527886E0F7030069857D2E4169EE7",
+        "0x8617E340B3D01FA5F11F306F4090FD50E238070D",
+        "0xde709f2102306220921060314715629080e2fb77",
+        "0x27b1fdb04752bbc536007a920d24acb045561c26",
+        "0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed",
+        "0xfB6916095ca1df60bB79Ce92cE3Ea74c37c5d359",
+        "0xdbF03B407c01E7cD3CBea99509d93f8DDDC8C6FB",
+        "0xD1220A0cf47c7B9Be7A2E6BA89F429762e7b9aDb",
+    ];
+    for starting_address in eip_55_testcases.iter() {
+        // this also checks that parse still functions properly with
+        // eip invalid but otherwise correct addresses
+        let unvalidated: Address = starting_address.parse().unwrap();
+        assert_eq!(format!("{}", unvalidated), **starting_address)
+    }
 }
