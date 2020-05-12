@@ -153,7 +153,7 @@ fn test_fn(fixtures: &TestFixture, filler: &TestFiller, expect: Option<&TestFill
     let raw_rlp_bytes = hex_str_to_bytes(&fixtures.rlp)
         .unwrap_or_else(|e| panic!("Unable to decode {}: {}", fixtures.rlp, e));
     // Try to decode the bytes into a Vec of Bytes which will enforce structure of a n-element vector with bytearrays.
-    let data: Vec<Bytes> = match from_bytes(&raw_rlp_bytes) {
+    let data: Vec<&Bytes> = match from_bytes(&raw_rlp_bytes) {
         Ok(data) => {
             if filler.transaction.is_none() {
                 assert_eq!(filler.expect.len(), 0);
@@ -170,16 +170,16 @@ fn test_fn(fixtures: &TestFixture, filler: &TestFiller, expect: Option<&TestFill
     assert_eq!(data.len(), 9);
 
     let decoded_tx = Transaction {
-        nonce: (&*data[0]).into(),
-        gas_price: (&*data[1]).into(),
-        gas_limit: (&*data[2]).into(),
+        nonce: (**data[0]).into(),
+        gas_price: (**data[1]).into(),
+        gas_limit: (**data[2]).into(),
         to: Address::from_slice(&*data[3]).unwrap_or_default(),
-        value: (&*data[4]).into(),
-        data: (&*data[5]).into(),
+        value: (**data[4]).into(),
+        data: (**data[5]).into(),
         signature: Some(Signature::new(
-            (&*data[6]).into(),
-            (&*data[7]).into(),
-            (&*data[8]).into(),
+            (**data[6]).into(),
+            (**data[7]).into(),
+            (**data[8]).into(),
         )),
     };
 
