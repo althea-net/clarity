@@ -103,7 +103,7 @@ impl Signature {
         let r: [u8; 32] = self.r.clone().into();
         let s: [u8; 32] = self.s.clone().into();
         let mut result = [0x00u8; 65];
-        // Put r at the beggining
+        // Put r at the beginning
         result[0..32].copy_from_slice(&r);
         // Add s in the middle
         result[32..64].copy_from_slice(&s);

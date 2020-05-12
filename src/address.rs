@@ -3,6 +3,7 @@ use serde::Deserialize;
 use serde::Deserializer;
 use serde::Serialize;
 use serde::Serializer;
+use sha3::{Digest, Keccak256};
 use std::fmt::{self, Display};
 use std::str;
 use std::str::FromStr;
@@ -35,6 +36,9 @@ impl Address {
         result.copy_from_slice(&data);
         Ok(Address(result))
     }
+
+    // Parses and validates the address according to the EIP-55 standard
+    //pub fn parse_and_validate(input: &str) -> Address {}
 }
 
 impl Serialize for Address {
@@ -172,9 +176,56 @@ impl FromStr for Address {
     }
 }
 
+/// gets the bit at position `n`. Bits are numbered from 0 (least significant) to 7 (most significant).
+fn get_bit_at(input: u8, n: u8) -> bool {
+    if n < 8 {
+        input & (1 << n) != 0
+    } else {
+        panic!()
+    }
+}
+
+/// Gets the EIP-55 encoded version of an address passed in as bytes
+fn eip_55_string(address_bytes: [u8; 20]) -> String {
+    let hex_str = bytes_to_hex_str(&address_bytes);
+    let ascii_bytes: Vec<u8> = hex_str
+        .as_bytes()
+        .iter()
+        .map(|b| *b as char)
+        .map(|c| c as u8)
+        .collect();
+    let hash = Keccak256::digest(&ascii_bytes);
+    let mut bit_array = [false; 256];
+    let mut counter = 0;
+    for byte in hash {
+        for i in (0..7).rev() {
+            bit_array[counter] = get_bit_at(byte, i);
+            counter += 1;
+        }
+    }
+    let mut capitalized_hex_str: Vec<char> = Vec::new();
+    let mut counter = 0;
+    for character in hex_str.chars() {
+        match character {
+            'a'..='f' => {
+                if bit_array[4 * counter] == true {
+                    capitalized_hex_str.push(character.to_ascii_uppercase());
+                } else {
+                    capitalized_hex_str.push(character);
+                }
+            }
+            '0'..='9' => capitalized_hex_str.push(character),
+            // impossible output from bytes to hex str
+            _ => panic!(),
+        }
+        counter += 1;
+    }
+    capitalized_hex_str.iter().collect()
+}
+
 impl Display for Address {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "0x{}", bytes_to_hex_str(&self.0))
+        write!(f, "0x{}", eip_55_string(self.0))
     }
 }
 
@@ -306,4 +357,12 @@ fn display() {
         address.to_string(),
         "0x1234567890123456789abcdef678901234567890"
     );
+}
+
+#[test]
+fn eip_55_print() {
+    let starting_address = "0x4a56fE7a4cFB239FbfBE8B24FF287D2a53228048";
+    let address: Address = starting_address.parse().unwrap();
+    let display_address = address.to_string();
+    assert_eq!(display_address, starting_address)
 }
