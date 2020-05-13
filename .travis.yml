@@ -6,7 +6,6 @@ services: docker
 rust:
   - stable
   - beta
-  - nightly
 
 env:
   global:
@@ -28,37 +27,37 @@ script:
 
 matrix:
   allow_failures:
-    - rust: nightly
+    - rust: beta
   fast_finish: true
   include:
-  - rust: stable
-    ? env
-    ? before_install
-    script:
-      - rustup component add rustfmt-preview
-      - cargo fmt --all -- --check
-  - name: Clippy
-    rust: stable
-    ? env
-    ? before_install
-    before_script:
-      - rustup component add clippy-preview
-    script:
-      - cargo clippy --all-targets --all-features -- -D warnings
-  - name: Benchmark
-    rust: stable
-    ? env
-    ? before_install
-    script:
-      - cargo bench
-  - rust: stable
-    env:
-    before_install:
-    before_script:
-    - docker run -d -p 8545:8545 trufflesuite/ganache-cli:latest -a 10 -i 42 -e 1000 --debug
-    script:
-    # Runs expensive testnet tests
-    - cargo test --verbose -- --ignored testnet
+    - rust: stable
+      env:
+      before_install:
+      script:
+        - rustup component add rustfmt-preview
+        - cargo fmt --all -- --check
+    - name: Clippy
+      rust: stable
+      env:
+      before_install:
+      before_script:
+        - rustup component add clippy-preview
+      script:
+        - cargo clippy --all-targets --all-features -- -D warnings
+    - name: Benchmark
+      rust: stable
+      env:
+      before_install:
+      script:
+        - cargo bench
+    - rust: stable
+      env:
+      before_install:
+      before_script:
+        - docker run -d -p 8545:8545 trufflesuite/ganache-cli:latest -a 10 -i 42 -e 1000 --debug
+      script:
+        # Runs expensive testnet tests
+        - cargo test --verbose -- --ignored testnet
 
 deploy:
   # Create new crates.io package
