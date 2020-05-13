@@ -22,7 +22,7 @@ fn serialize() {
             .parse()
             .unwrap();
     assert_eq!(
-        to_bytes(&BigEndianInt(value.clone())).expect("Unable to serialize BigEndianInt"),
+        to_bytes(&BigEndianInt(value)).expect("Unable to serialize BigEndianInt"),
         vec![
             160, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
             255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 254,

@@ -312,11 +312,11 @@ fn make_test(path: &PathBuf) -> Option<Vec<TestDescAndFn>> {
 
     let fixtures = load_fixtures(path.as_path());
     assert_eq!(fixtures.len(), 1);
-    let (_, fixtures) = fixtures.into_iter().nth(0).unwrap();
+    let (_, fixtures) = fixtures.into_iter().next().unwrap();
     // Load filler data
     let filler = load_filler(&fixtures);
     assert_eq!(filler.len(), 1);
-    let (_name, filler) = filler.into_iter().nth(0).unwrap();
+    let (_name, filler) = filler.into_iter().next().unwrap();
 
     // Obvious expected failure as there are no expect values
     if filler.expect.is_empty() {
@@ -391,7 +391,7 @@ fn tests() -> Vec<TestDescAndFn> {
     let mut testdir = get_fixtures_path();
     testdir.push("TransactionTests");
     if !testdir.is_dir() {
-        panic!("Directory does not exists. Did you remember to execute \"git submodule update --init\"?");
+        panic!("Directory does not exist {:?}. Did you remember to execute \"git submodule update --init\"?", testdir);
     }
     visit_dirs(&testdir, &mut |entry| {
         if let Some(tests) = make_test(&entry.path()) {
