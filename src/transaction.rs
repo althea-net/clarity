@@ -101,7 +101,7 @@ impl Serialize for Transaction {
             &ByteBuf::from(self.data.clone()),
             &BigEndianInt(sig.v.clone()),
             &BigEndianInt(sig.r.clone()),
-            &BigEndianInt(sig.s.clone()),
+            &BigEndianInt(sig.s),
         );
         data.serialize(serializer)
     }

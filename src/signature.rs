@@ -143,7 +143,7 @@ impl Signature {
         } else if self.v >= 37u32.into() {
             let network_id = self.network_id().ok_or(ClarityError::InvalidNetworkId)?;
             // // Otherwise we have to extract "v"...
-            let vee = self.v.clone() - (network_id.clone() * 2u32.into()) - 8u32.into();
+            let vee = self.v.clone() - (network_id * 2u32.into()) - 8u32.into();
             // // ... so after all v will still match 27<=v<=28
             assert!(vee == 27u32.into() || vee == 28u32.into());
             Ok(vee)

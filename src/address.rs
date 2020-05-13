@@ -189,8 +189,7 @@ fn eip_55_string(address_bytes: [u8; 20]) -> String {
     let hex_str = bytes_to_hex_str(&address_bytes);
     let hash = Keccak256::digest(&hex_str.as_bytes());
     let mut capitalized_hex_str: Vec<char> = Vec::new();
-    let mut counter = 0;
-    for character in hex_str.chars() {
+    for (counter, character) in hex_str.chars().enumerate() {
         match character {
             'a'..='f' => {
                 // this is the real doozy here we're indexing
@@ -215,7 +214,6 @@ fn eip_55_string(address_bytes: [u8; 20]) -> String {
             // impossible output from bytes to hex str
             _ => panic!(),
         }
-        counter += 1;
     }
     capitalized_hex_str.iter().collect()
 }
