@@ -20,7 +20,7 @@ env:
     - TARGET="aarch64-unknown-linux-gnu"
 
 before_install:
-  - command -v cross 1>/dev/null || cargo install cross
+  - cargo install cross --force
 
 script:
   - cross build --target $TARGET --verbose --all
