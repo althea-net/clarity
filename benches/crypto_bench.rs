@@ -20,7 +20,7 @@ fn tx_sign_bench(c: &mut Criterion) {
         signature: None,
     };
 
-    let signed_tx = tx.clone().sign(&key, None);
+    let signed_tx = tx.sign(&key, None);
 
     c.bench_function("sign tx without network id", move |b| {
         b.iter(|| tx.sign(&key, None))

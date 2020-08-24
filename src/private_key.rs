@@ -115,7 +115,7 @@ impl PrivateKey {
     /// Signs a message that is represented by a hash contained in a binary form.
     ///
     /// Requires the data buffer to be exactly 32 bytes in length. You can prepare
-    /// an inpput using a hashing function such as `Keccak256` which will return
+    /// an input using a hashing function such as `Keccak256` which will return
     /// a buffer of exact size.
     ///
     /// You are advised, though, to use [sign_msg](#method.sign_msg)
