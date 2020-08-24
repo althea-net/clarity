@@ -17,11 +17,11 @@ travis-ci = { repository = "althea-mesh/clarity", branch = "master" }
 [dependencies]
 serde = "1.0"
 serde-rlp = "0.1"
-num-bigint = { version = "0.2", default-features = false, features = ["serde"] }
+num-bigint = { version = "0.3", default-features = false, features = ["serde"] }
 num-traits = "0.2"
 failure = "0.1"
 serde_bytes = "0.11"
-sha3 = "0.8"
+sha3 = "0.9"
 secp256k1 = { version = "0.17", features = ["recovery"] }
 lazy_static = "1.4"
 serde_derive = "1.0"
