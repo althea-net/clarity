@@ -3,7 +3,6 @@ extern crate rand;
 extern crate web3;
 use clarity::utils::bytes_to_hex_str;
 use clarity::{PrivateKey, Transaction};
-use rand::rngs::OsRng;
 use rand::RngCore;
 use std::env;
 use std::{thread, time};
@@ -13,7 +12,7 @@ use web3::types::{Bytes, TransactionRequest, U256};
 
 /// Creates a random key by reading random data from the available OS facility
 fn make_random_key() -> PrivateKey {
-    let mut rng = OsRng::new().unwrap();
+    let mut rng = rand::thread_rng();
     let mut data = [0u8; 32];
     rng.fill_bytes(&mut data);
 
