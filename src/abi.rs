@@ -1,13 +1,13 @@
 //! A module to simplify ABI encoding
 //!
-//! For simplicity, it is based on tokens. You have to specify a list of
+//! For simplicity, it is based on tokens (as in items, not as in coin tokens). You have to specify a list of
 //! tokens and they will be automatically encoded.
 //!
 //! Additionally there are helpers to help deal with deriving a function
 //! signatures.
 //!
-//! This is not a full fledged implemementation of ABI encoder, it is more
-//! like a bunch of helpers that would help to successfuly encode a contract
+//! This is not a full fledged implementation of ABI encoder, it is more
+//! like a bunch of helpers that would help to successfully encode a contract
 //! call.
 //!
 //! ## Limitation
@@ -24,7 +24,7 @@ use sha3::{Digest, Keccak256};
 ///
 /// For each supported type there is separate entry that later is helpful to determine
 /// actual byte representation.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Token {
     /// Unsigned type with value already encoded.
     Uint(Uint256),
@@ -34,6 +34,8 @@ pub enum Token {
     Bool(bool),
     /// Represents a string
     String(String),
+    /// Represents a string encoded into a fixed size bytes32
+    FixedString(String),
     /// Fixed size array of bytes
     Bytes(Vec<u8>),
     /// This is a dynamic array of bytes that reflects dynamic "bytes" type in Solidity
@@ -130,6 +132,16 @@ impl Token {
                 wtr.extend(vec![0x00u8; pad_right - s.len()]);
                 SerializedToken::Dynamic(wtr)
             }
+            Token::FixedString(ref s) => {
+                // gets the utf8 encoded bytes of the string value
+                let value = s.to_string().as_bytes().to_vec();
+                // This value is padded at the end. It is limited to 32 bytes.
+                // if the fixed string is too long here we panic
+                assert!(value.len() <= 32);
+                let mut wtr: [u8; 32] = Default::default();
+                wtr[0..value.len()].copy_from_slice(&value[..]);
+                SerializedToken::Static(wtr)
+            }
             Token::Bytes(ref value) => {
                 // This value is padded at the end. It is limited to 32 bytes.
                 assert!(value.len() <= 32);
@@ -197,15 +209,51 @@ impl From<Address> for Token {
     }
 }
 
+impl From<&Address> for Token {
+    fn from(v: &Address) -> Token {
+        Token::Address(*v)
+    }
+}
+
 impl<'a> From<&'a str> for Token {
     fn from(v: &'a str) -> Token {
         Token::String(v.into())
     }
 }
 
+impl From<Vec<Address>> for Token {
+    fn from(v: Vec<Address>) -> Token {
+        Token::Dynamic(v.into_iter().map(Into::into).collect())
+    }
+}
+
+impl From<&[Address]> for Token {
+    fn from(v: &[Address]) -> Token {
+        Token::Dynamic(v.iter().map(Into::into).collect())
+    }
+}
+
 impl From<Uint256> for Token {
     fn from(v: Uint256) -> Token {
         Token::Uint(v)
+    }
+}
+
+impl From<&Uint256> for Token {
+    fn from(v: &Uint256) -> Token {
+        Token::Uint(v.clone())
+    }
+}
+
+impl From<Vec<Uint256>> for Token {
+    fn from(v: Vec<Uint256>) -> Token {
+        Token::Dynamic(v.into_iter().map(Into::into).collect())
+    }
+}
+
+impl From<&[Uint256]> for Token {
+    fn from(v: &[Uint256]) -> Token {
+        Token::Dynamic(v.iter().map(Into::into).collect())
     }
 }
 
@@ -293,7 +341,7 @@ pub fn encode_tokens(tokens: &[Token]) -> Vec<u8> {
             SerializedToken::Static(data) => res.extend(&data),
             SerializedToken::Dynamic(data) => {
                 // This is the offset for dynamic data that is calculated
-                // based on the lengtho f all dynamic data buffers stored,
+                // based on the length of all dynamic data buffers stored,
                 // and added to the "base" offset which is all tokens length.
                 // The base offset is assumed to be 32 * len(tokens) which is true
                 // since dynamic data is actually an static variable of size of
@@ -323,6 +371,20 @@ pub fn encode_tokens(tokens: &[Token]) -> Vec<u8> {
         res.extend(&data[..]);
     }
     res
+}
+
+/// Gets the Keccak256 hash of some input bytes. Signatures in Ethereum are nearly without
+/// exception performed after encoding using the ABI, then hashing using this function.
+pub fn get_hash(bytes: &[u8]) -> [u8; 32] {
+    Keccak256::digest(bytes).into()
+}
+
+/// A helper function that encodes both signature and a list of tokens.
+pub fn encode_call(sig: &str, tokens: &[Token]) -> Vec<u8> {
+    let mut wtr = vec![];
+    wtr.extend(&derive_method_id(sig));
+    wtr.extend(encode_tokens(tokens));
+    wtr
 }
 
 #[test]
@@ -471,10 +533,37 @@ fn encode_dynamic_only() {
     );
 }
 
-/// A helper function that encodes both signature and a list of tokens.
-pub fn encode_call(sig: &str, tokens: &[Token]) -> Vec<u8> {
-    let mut wtr = vec![];
-    wtr.extend(&derive_method_id(sig));
-    wtr.extend(encode_tokens(tokens));
-    wtr
+#[test]
+fn encode_peggy_call() {
+    use crate::utils::bytes_to_hex_str;
+    // the valset nonce
+    let nonce: Uint256 = 0u32.into();
+    // the list of validator ethereum addresses represented by this
+    let validators: Token = vec![
+        "0xc783df8a850f42e7F7e57013759C285caa701eB6"
+            .parse::<Address>()
+            .unwrap(),
+        "0xeAD9C93b79Ae7C1591b1FB5323BD777E86e150d4"
+            .parse()
+            .unwrap(),
+        "0xE5904695748fe4A84b40b3fc79De2277660BD1D3"
+            .parse()
+            .unwrap(),
+    ]
+    .into();
+    // list of powers represented
+    let powers: Token = vec![3333u32, 3333, 3333].into();
+    let encoded = "666f6f0000000000000000000000000000000000000000000000000000000000636865636b706f696e7400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000001200000000000000000000000000000000000000000000000000000000000000003000000000000000000000000c783df8a850f42e7f7e57013759c285caa701eb6000000000000000000000000ead9c93b79ae7c1591b1fb5323bd777e86e150d4000000000000000000000000e5904695748fe4a84b40b3fc79de2277660bd1d300000000000000000000000000000000000000000000000000000000000000030000000000000000000000000000000000000000000000000000000000000d050000000000000000000000000000000000000000000000000000000000000d050000000000000000000000000000000000000000000000000000000000000d05";
+    // the hash resulting from the encode call
+    let encoded_hash = "88165860d955aee7dc3e83d9d1156a5864b708841965585d206dbef6e9e1a499";
+    let result = encode_tokens(&[
+        Token::FixedString("foo".to_string()),
+        Token::FixedString("checkpoint".to_string()),
+        nonce.into(),
+        validators,
+        powers,
+    ]);
+
+    assert_eq!(encoded, bytes_to_hex_str(&result));
+    assert_eq!(encoded_hash, bytes_to_hex_str(&get_hash(&result)))
 }
