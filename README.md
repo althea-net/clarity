@@ -1,6 +1,6 @@
 # Clarity
 
-[![Build Status](https://travis-ci.org/althea-mesh/clarity.svg?branch=master)](https://travis-ci.org/althea-mesh/clarity)
+[![Build Status](https://travis-ci.org/althea-net/clarity.svg?branch=master)](https://travis-ci.org/althea-net/clarity)
 [![Latest Version](https://img.shields.io/crates/v/clarity.svg)](https://crates.io/crates/clarity)
 [![Documentation](https://docs.rs/clarity/badge.svg)](https://docs.rs/clarity)
 

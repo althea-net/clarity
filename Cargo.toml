@@ -8,11 +8,11 @@ include = [
     "Cargo.toml"
 ]
 description = "Lightweight Ethereum client"
-repository = "https://github.com/althea-mesh/clarity"
+repository = "https://github.com/althea-net/clarity"
 license-file = "LICENSE"
 
 [badges]
-travis-ci = { repository = "althea-mesh/clarity", branch = "master" }
+travis-ci = { repository = "althea-net/clarity", branch = "master" }
 
 [dependencies]
 serde = "1.0"
