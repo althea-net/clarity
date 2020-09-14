@@ -60,12 +60,10 @@
 
 extern crate num_bigint;
 extern crate num_traits;
+extern crate secp256k1;
 extern crate serde;
 extern crate serde_bytes;
 extern crate serde_rlp;
-#[macro_use]
-extern crate failure;
-extern crate secp256k1;
 extern crate sha3;
 #[macro_use]
 extern crate lazy_static;
@@ -88,7 +86,7 @@ pub mod types;
 pub mod utils;
 
 pub use address::Address;
-pub use error::ClarityError;
+pub use error::Error;
 pub use num256::Uint256;
 pub use private_key::PrivateKey;
 pub use signature::Signature;

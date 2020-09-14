@@ -1,7 +1,6 @@
 use address::Address;
 use context::SECP256K1;
-use error::ClarityError;
-use failure::Error;
+use error::Error;
 use num256::Uint256;
 use secp256k1::{Message, PublicKey, SecretKey};
 use serde::Deserialize;
@@ -13,12 +12,6 @@ use signature::Signature;
 use std::fmt;
 use std::str::FromStr;
 use utils::{bytes_to_hex_str, hex_str_to_bytes};
-
-#[derive(Fail, Debug, PartialEq)]
-pub enum PrivateKeyError {
-    #[fail(display = "Private key should be exactly 64 bytes")]
-    InvalidLengthError,
-}
 
 /// Representation of an Ethereum private key.
 ///
@@ -43,7 +36,10 @@ impl FromStr for PrivateKey {
         // Strip optional prefix if its there
         let s = if s.starts_with("0x") { &s[2..] } else { &s };
         if s.len() != 64 {
-            return Err(PrivateKeyError::InvalidLengthError.into());
+            return Err(Error::InvalidPrivKeyLength {
+                got: s.len(),
+                expected: 64,
+            });
         }
         let bytes = hex_str_to_bytes(&s)?;
         debug_assert_eq!(bytes.len(), 32);
@@ -67,7 +63,10 @@ impl PrivateKey {
     /// * `slice` - A slice of raw bytes with a length of 32.
     pub fn from_slice(slice: &[u8]) -> Result<PrivateKey, Error> {
         if slice.len() != 32 {
-            return Err(ClarityError::InvalidPrivKey.into());
+            return Err(Error::InvalidPrivKeyLength {
+                got: slice.len(),
+                expected: 32,
+            });
         }
         let mut res = [0u8; 32];
         res.copy_from_slice(slice);
@@ -92,7 +91,7 @@ impl PrivateKey {
     /// ```
     pub fn to_public_key(&self) -> Result<Address, Error> {
         // Create a secret key instance first
-        let sk = SecretKey::from_slice(&self.0)?;
+        let sk = SecretKey::from_slice(&self.0).map_err(Error::DecodePrivKey)?;
         // Closure below has Result type with inferred T as we don't
         // need to really assume type of the returned array from
         // `serialize_uncompressed`.
@@ -105,7 +104,7 @@ impl PrivateKey {
         // TODO: This part is duplicated with sender code.
         assert_eq!(pkey.len(), 65);
         if pkey[1..] == [0x00u8; 64][..] {
-            return Err(ClarityError::ZeroPrivKey.into());
+            return Err(Error::ZeroPrivKey);
         }
         // Finally an address is last 20 bytes of a hash of the public key.
         let sender = Keccak256::digest(&pkey[1..]);

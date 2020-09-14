@@ -2,8 +2,7 @@ use address::Address;
 use constants::SECPK1N;
 use constants::TT256;
 use context::SECP256K1;
-use error::ClarityError;
-use failure::Error;
+use error::Error;
 use num256::Uint256;
 use num_traits::ToPrimitive;
 use num_traits::Zero;
@@ -202,7 +201,7 @@ impl Transaction {
                 let sighash = Keccak256::digest(&self.to_unsigned_tx_params());
                 (vee, sighash)
             } else if sig.v >= 37u32.into() {
-                let network_id = sig.network_id().ok_or(ClarityError::InvalidNetworkId)?;
+                let network_id = sig.network_id().ok_or(Error::InvalidNetworkId)?;
                 // Otherwise we have to extract "v"...
                 let vee = sig.v.clone() - (network_id.clone() * 2u32.into()) - 8u32.into();
                 // ... so after all v will still match 27<=v<=28
@@ -214,7 +213,7 @@ impl Transaction {
                 (vee, sighash)
             } else {
                 // All other V values would be errorneous for our calculations
-                return Err(ClarityError::InvalidV.into());
+                return Err(Error::InvalidV);
             };
 
             // Validate signates
@@ -223,7 +222,7 @@ impl Transaction {
                 || sig.r == Uint256::zero()
                 || sig.s == Uint256::zero()
             {
-                return Err(ClarityError::InvalidSignatureValues.into());
+                return Err(Error::InvalidSignatureValues);
             }
 
             // Prepare compact signature that consists of (r, s) padded to 32 bytes to make 64 bytes data
@@ -239,25 +238,29 @@ impl Transaction {
             debug_assert_eq!(compact_bytes.len(), 64);
 
             // Create recovery ID which is "v" minus 27. Without this it wouldn't be possible to extract recoverable signature.
-            let v = RecoveryId::from_i32(vee.to_i32().expect("Unable to convert vee to i32") - 27)?;
+            let v = RecoveryId::from_i32(vee.to_i32().expect("Unable to convert vee to i32") - 27)
+                .map_err(Error::DecodeRecoveryId)?;
             // Get recoverable signature given rs, and v.
 
             // A message to recover which is a hash of the transaction
-            let msg = Message::from_slice(&sighash)?;
+            let msg = Message::from_slice(&sighash).map_err(Error::ParseMessage)?;
             // Get the compact form using bytes, and "v" parameter
-            let compact = RecoverableSignature::from_compact(&compact_bytes, v)?;
+            let compact = RecoverableSignature::from_compact(&compact_bytes, v)
+                .map_err(Error::ParseRecoverableSignature)?;
             // Acquire secp256k1 context from thread local storage
             let pkey = SECP256K1.with(move |object| -> Result<_, Error> {
                 // Borrow once and reuse
                 let secp256k1 = object.borrow();
                 // Recover public key
-                let pkey = secp256k1.recover(&msg, &compact)?;
+                let pkey = secp256k1
+                    .recover(&msg, &compact)
+                    .map_err(Error::RecoverSignature)?;
                 // Serialize the recovered public key in uncompressed format
                 Ok(pkey.serialize_uncompressed())
             })?;
             assert_eq!(pkey.len(), 65);
             if pkey[1..].to_vec() == [0x00u8; 64].to_vec() {
-                return Err(ClarityError::ZeroPrivKey.into());
+                return Err(Error::ZeroPrivKey);
             }
             // Finally an address is last 20 bytes of a hash of the public key.
             let sender = Keccak256::digest(&pkey[1..]);
@@ -265,14 +268,16 @@ impl Transaction {
             Address::from_slice(&sender[12..])
         }
     }
+
     /// Creates a hash of a transaction given all TX attributes
     /// including signature (VRS) whether it is present, or not.
     pub fn hash(&self) -> Vec<u8> {
         Keccak256::digest(&to_bytes(&self).unwrap()).to_vec()
     }
+
     /// Creates a byte representation of this transaction
     pub fn to_bytes(&self) -> Result<Vec<u8>, Error> {
-        Ok(to_bytes(&self)?)
+        Ok(to_bytes(&self).map_err(|_| Error::SerializeRlp)?)
     }
 }
 
