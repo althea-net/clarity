@@ -185,6 +185,12 @@ impl From<u64> for Token {
     }
 }
 
+impl From<u128> for Token {
+    fn from(v: u128) -> Token {
+        Token::Uint(Uint256::from(v))
+    }
+}
+
 impl From<bool> for Token {
     fn from(v: bool) -> Token {
         Token::Bool(v)
@@ -197,8 +203,26 @@ impl From<Vec<u8>> for Token {
     }
 }
 
+impl From<Vec<u16>> for Token {
+    fn from(v: Vec<u16>) -> Token {
+        Token::Dynamic(v.into_iter().map(Into::into).collect())
+    }
+}
+
 impl From<Vec<u32>> for Token {
     fn from(v: Vec<u32>) -> Token {
+        Token::Dynamic(v.into_iter().map(Into::into).collect())
+    }
+}
+
+impl From<Vec<u64>> for Token {
+    fn from(v: Vec<u64>) -> Token {
+        Token::Dynamic(v.into_iter().map(Into::into).collect())
+    }
+}
+
+impl From<Vec<u128>> for Token {
+    fn from(v: Vec<u128>) -> Token {
         Token::Dynamic(v.into_iter().map(Into::into).collect())
     }
 }
