@@ -1,4 +1,3 @@
-use failure::Error;
 use serde::Deserialize;
 use serde::Deserializer;
 use serde::Serialize;
@@ -8,7 +7,8 @@ use std::fmt::{self, Display};
 use std::str;
 use std::str::FromStr;
 use utils::bytes_to_hex_str;
-use utils::{hex_str_to_bytes, ByteDecodeError};
+use utils::hex_str_to_bytes;
+use Error;
 
 /// Representation of an Ethereum address.
 ///
@@ -27,11 +27,13 @@ impl Address {
     ///
     /// This requires a slice to be exactly 20 bytes in length,
     pub fn from_slice(data: &[u8]) -> Result<Address, Error> {
-        ensure!(
-            data.len() == 20,
-            "Address requires exactly 20 bytes but {} were found",
-            data.len()
-        );
+        if data.len() != 20 {
+            return Err(Error::InvalidAddressLength {
+                got: data.len(),
+                expected: 20,
+            });
+        }
+
         let mut result: [u8; 20] = Default::default();
         result.copy_from_slice(&data);
         Ok(Address(result))
@@ -44,7 +46,7 @@ impl Address {
         if eip_55_encoded == input {
             Ok(address)
         } else {
-            Err(format_err!("Invalid EIP-55 Address encoding!"))
+            Err(Error::InvalidEip55)
         }
     }
 }
@@ -132,24 +134,6 @@ impl fmt::UpperHex for Address {
     }
 }
 
-#[derive(Fail, Debug, PartialEq)]
-pub enum AddressError {
-    #[fail(display = "Address should be exactly 40 bytes")]
-    InvalidLengthError,
-    #[fail(display = "Unable to decode bytes: {}", _0)]
-    DecodeError(ByteDecodeError),
-    #[fail(display = "Checksum error")]
-    ChecksumError,
-    #[fail(display = "Invalid checksum")]
-    InvalidChecksum,
-}
-
-impl From<ByteDecodeError> for AddressError {
-    fn from(e: ByteDecodeError) -> AddressError {
-        AddressError::DecodeError(e)
-    }
-}
-
 impl FromStr for Address {
     type Err = Error;
 
@@ -179,7 +163,10 @@ impl FromStr for Address {
         if s.len() == 40 {
             Ok(Address::from_slice(&hex_str_to_bytes(&s)?)?)
         } else {
-            Err(AddressError::InvalidLengthError.into())
+            Err(Error::InvalidAddressLength {
+                got: s.len(),
+                expected: 40,
+            })
         }
     }
 }

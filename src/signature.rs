@@ -1,8 +1,7 @@
 use address::Address;
 use constants::SECPK1N;
 use context::SECP256K1;
-use error::ClarityError;
-use failure::Error;
+use error::Error;
 use num256::Uint256;
 use num_traits::{ToPrimitive, Zero};
 use secp256k1::recovery::{RecoverableSignature, RecoveryId};
@@ -67,14 +66,14 @@ impl Signature {
 
     pub fn check_low_s_metropolis(&self) -> Result<(), Error> {
         if self.s > (SECPK1N.clone() / Uint256::from(2u32)) {
-            return Err(ClarityError::InvalidS.into());
+            return Err(Error::InvalidS);
         }
         Ok(())
     }
 
     pub fn check_low_s_homestead(&self) -> Result<(), Error> {
         if self.s > (SECPK1N.clone() / Uint256::from(2u32)) || self.s == Uint256::zero() {
-            return Err(ClarityError::InvalidS.into());
+            return Err(Error::InvalidS);
         }
         Ok(())
     }
@@ -117,10 +116,10 @@ impl Signature {
     /// This is opposite to `into_bytes()` where a signature is created based
     /// on a slice of bytes.
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, Error> {
-        ensure!(
-            bytes.len() == 65,
-            "Signature in binary form is exactly 65 bytes long"
-        );
+        if bytes.len() != 65 {
+            return Err(Error::InvalidSignatureLength);
+        }
+
         let r: Uint256 = {
             let mut data: [u8; 32] = Default::default();
             data.copy_from_slice(&bytes[0..32]);
@@ -141,7 +140,7 @@ impl Signature {
             // Valid V values are in {27, 28} according to Ethereum Yellow paper Appendix F (282).
             Ok(self.v.clone())
         } else if self.v >= 37u32.into() {
-            let network_id = self.network_id().ok_or(ClarityError::InvalidNetworkId)?;
+            let network_id = self.network_id().ok_or(Error::InvalidNetworkId)?;
             // // Otherwise we have to extract "v"...
             let vee = self.v.clone() - (network_id * 2u32.into()) - 8u32.into();
             // // ... so after all v will still match 27<=v<=28
@@ -149,7 +148,7 @@ impl Signature {
             Ok(vee)
         } else {
             // All other V values would be errorneous for our calculations
-            Err(ClarityError::InvalidV.into())
+            Err(Error::InvalidV)
         }
     }
     /// Recover an address from a signature
@@ -157,29 +156,28 @@ impl Signature {
     /// This can be called with any arbitrary signature, and a hashed message.
     pub fn recover(&self, hash: &[u8]) -> Result<Address, Error> {
         // Create recovery ID which is "v" minus 27. Without this it wouldn't be possible to extract recoverable signature.
-        let v = RecoveryId::from_i32(
-            self.vee()?
-                .to_i32()
-                .ok_or_else(|| format_err!("Unable to convert extracted V to signed integer"))?
-                - 27,
-        )?;
+        let v = RecoveryId::from_i32(self.vee()?.to_i32().ok_or(Error::InvalidV)? - 27)
+            .map_err(Error::DecodeRecoveryId)?;
         // A message to recover which is a hash of the transaction
-        let msg = Message::from_slice(&hash)?;
+        let msg = Message::from_slice(&hash).map_err(Error::ParseMessage)?;
 
         // Get the compact form using bytes, and "v" parameter
-        let compact = RecoverableSignature::from_compact(&self.to_bytes()[..64], v)?;
+        let compact = RecoverableSignature::from_compact(&self.to_bytes()[..64], v)
+            .map_err(Error::ParseRecoverableSignature)?;
         // Acquire secp256k1 context from thread local storage
         let pkey = SECP256K1.with(move |object| -> Result<_, Error> {
             // Borrow once and reuse
             let secp256k1 = object.borrow();
             // Recover public key
-            let pkey = secp256k1.recover(&msg, &compact)?;
+            let pkey = secp256k1
+                .recover(&msg, &compact)
+                .map_err(Error::RecoverSignature)?;
             // Serialize the recovered public key in uncompressed format
             Ok(pkey.serialize_uncompressed())
         })?;
         assert_eq!(pkey.len(), 65);
         if pkey[1..].to_vec() == [0x00u8; 64].to_vec() {
-            return Err(ClarityError::ZeroPrivKey.into());
+            return Err(Error::ZeroPrivKey);
         }
         // Finally an address is last 20 bytes of a hash of the public key.
         let sender = Keccak256::digest(&pkey[1..]);
@@ -225,11 +223,6 @@ impl FromStr for Signature {
         // Strip optional prefix
         let s = if s.starts_with("0x") { &s[2..] } else { &s };
 
-        // Signature has exactly 130 characters (65 as bytes)
-        ensure!(
-            s.len() == 130,
-            "Signature as a string should contain exactly 130 characters"
-        );
         // Parse hexadecimal form back to bytes
         let bytes = hex_str_to_bytes(&s)?;
         Signature::from_bytes(&bytes)

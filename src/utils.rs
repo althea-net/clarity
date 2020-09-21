@@ -1,34 +1,27 @@
-use failure::Error;
 use num256::Uint256;
 use serde::{
     de::{Deserialize, Deserializer},
     ser::Serializer,
 };
-use std::num::ParseIntError;
 use std::str;
-
-#[derive(Debug, Fail, PartialEq)]
-pub enum ByteDecodeError {
-    #[fail(display = "{}", _0)]
-    DecodeError(str::Utf8Error),
-    #[fail(display = "{}", _0)]
-    ParseError(ParseIntError),
-}
+use Error;
 
 /// A function that takes a hexadecimal representation of bytes
 /// back into a stream of bytes.
 pub fn hex_str_to_bytes(s: &str) -> Result<Vec<u8>, Error> {
     let s = if s.starts_with("0x") { &s[2..] } else { s };
-    s.as_bytes()
+    let bytes = s
+        .as_bytes()
         .chunks(2)
-        // .into_iter()
-        .map(|ch| {
-            str::from_utf8(&ch)
-                .map_err(ByteDecodeError::DecodeError)
-                .and_then(|res| u8::from_str_radix(&res, 16).map_err(ByteDecodeError::ParseError))
-                .map_err(Error::from)
+        .map::<Result<u8, Error>, _>(|ch| {
+            let str = str::from_utf8(&ch)?;
+            let byte = u8::from_str_radix(&str, 16)?;
+
+            Ok(byte)
         })
-        .collect()
+        .collect::<Result<Vec<_>, _>>()?;
+
+    Ok(bytes)
 }
 
 pub fn big_endian_uint256_serialize<S>(x: &Uint256, s: S) -> Result<S::Ok, S::Error>
@@ -65,24 +58,19 @@ fn decode_odd_amount_of_bytes() {
 
 #[test]
 fn bytes_raises_decode_error() {
-    let e = hex_str_to_bytes(&"\u{012345}deadbeef".to_owned())
-        .unwrap_err()
-        .downcast::<ByteDecodeError>()
-        .unwrap();
+    let e = hex_str_to_bytes(&"\u{012345}deadbeef".to_owned()).unwrap_err();
+
     match e {
-        ByteDecodeError::DecodeError(_) => {}
+        Error::InvalidUtf8(_) => {}
         _ => panic!(),
     };
 }
 
 #[test]
 fn bytes_raises_parse_error() {
-    let e = hex_str_to_bytes(&"Lorem ipsum".to_owned())
-        .unwrap_err()
-        .downcast::<ByteDecodeError>()
-        .unwrap();
+    let e = hex_str_to_bytes(&"Lorem ipsum".to_owned()).unwrap_err();
     match e {
-        ByteDecodeError::ParseError(_) => {}
+        Error::InvalidHex(_) => {}
         _ => panic!(),
     }
 }
