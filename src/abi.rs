@@ -372,6 +372,18 @@ fn derive_f() {
 }
 
 #[test]
+fn derive_function_with_args() {
+    encode_call("f()", &[]).unwrap();
+    encode_call("f(uint256)", &["66u64".into()]).unwrap();
+    encode_call("f(uint256,uint256)", &["66u64".into(), "66u64".into()]).unwrap();
+    encode_call(
+        "f(uint256,uint256,uint256)",
+        &["66u64".into(), "66u64".into(), "66u64".into()],
+    )
+    .unwrap();
+}
+
+#[test]
 fn attempt_to_derive_invalid_function_signatures() {
     assert!(derive_method_id("dummyUpdateValset( address[])").is_err());
     assert!(derive_method_id("dummyUpdateValsetaddress[],uint256[])").is_err());
@@ -439,16 +451,34 @@ pub fn encode_call(sig: &str, tokens: &[Token]) -> Result<Vec<u8>, Error> {
     let mut wtr = vec![];
     wtr.extend(&derive_method_id(sig)?);
 
-    if sig.split(',').count() != tokens.len() {
+    let args_count = get_args_count(sig)?;
+    if args_count != tokens.len() {
         return Err(Error::InvalidCallError(format!(
             "Function call contains {} arguments, but {} provided",
-            sig.split(',').count(),
+            args_count,
             tokens.len()
         )));
     }
 
     wtr.extend(encode_tokens(tokens));
     Ok(wtr)
+}
+
+/// Gets the number of arguments by parsing a function signature
+/// string.
+fn get_args_count(sig: &str) -> Result<usize, Error> {
+    if !(sig.contains('(') && sig.contains(')')) {
+        return Err(Error::InvalidCallError(
+            "Mismatched call braces".to_string(),
+        ));
+    }
+    // can't panic because we ensure ( exists above and therefore we must have at least 1
+    let args_string = sig.split('(').nth(1).unwrap().replace(')', "");
+    if args_string.is_empty() {
+        Ok(0)
+    } else {
+        Ok(args_string.split(',').count())
+    }
 }
 
 #[test]
