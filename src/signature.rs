@@ -376,3 +376,8 @@ fn parse_invalid_signature() {
     let _sig: Signature = "deadbeef".parse().unwrap();
     let _sig: Signature = "0x".parse().unwrap();
 }
+
+#[test]
+fn parse_hex_signature() {
+    let _sig: Signature = "8e569f21c3797693bd592f070d6956ab65aba73c75723ee94c8c9c9227a687bb4739f574c30d3b3fc79f8af3133e6290790ce5c07a4b2e0701c11cb457f35bde1b".parse().unwrap();
+}
