@@ -23,6 +23,7 @@ pub enum Error {
     InvalidUtf8(Utf8Error),
     InvalidHex(ParseIntError),
     InvalidEip55,
+    InvalidCallError(String),
     InvalidSignatureLength,
     SerializeRlp, // TODO: error in serde_rlp is not public, cannot include source ...
 }
@@ -55,6 +56,7 @@ impl fmt::Display for Error {
             Error::InvalidUtf8(_) => write!(f, "Failed to parse bytes as utf8"),
             Error::InvalidHex(_) => write!(f, "Invalid hex character"),
             Error::InvalidEip55 => write!(f, "Invalid EIP-55 Address encoding"),
+            Error::InvalidCallError(val) => write!(f, "Invalid function call {}", val),
             Error::InvalidSignatureLength => write!(f, "Signature should be exactly 65 bytes long"),
             Error::SerializeRlp => write!(f, "failed to serialize using RLP-encoding"),
         }
