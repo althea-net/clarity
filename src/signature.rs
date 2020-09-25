@@ -85,7 +85,6 @@ impl Signature {
     /// in big endian form, and at the end there is one byte made of "v".
     ///
     /// This also consumes the signature.
-    #[deprecated(since = "0.1.20", note = "please use `as_bytes` instead")]
     pub fn into_bytes(self) -> [u8; 65] {
         // Since 0.1.20 it calls `as_bytes` and consumes self
         self.to_bytes()
@@ -378,6 +377,38 @@ fn parse_invalid_signature() {
 }
 
 #[test]
+fn generate_ethereum_signature() {
+    use crate::PrivateKey;
+    let private_key: PrivateKey =
+        "0xc5e8f61d1ab959b397eecc0a37a6517b8e67a0e7cf1f4bce5591f3ed80199122"
+            .parse()
+            .unwrap();
+    let address: Address = "0xc783df8a850f42e7F7e57013759C285caa701eB6"
+        .parse()
+        .unwrap();
+    let checkpoint =
+        hex_str_to_bytes("0x666f6f0000000000000000000000000000000000000000000000000000000000636865636b706f696e7400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000001200000000000000000000000000000000000000000000000000000000000000003000000000000000000000000c783df8a850f42e7f7e57013759c285caa701eb6000000000000000000000000ead9c93b79ae7c1591b1fb5323bd777e86e150d4000000000000000000000000e5904695748fe4a84b40b3fc79de2277660bd1d300000000000000000000000000000000000000000000000000000000000000030000000000000000000000000000000000000000000000000000000000000d050000000000000000000000000000000000000000000000000000000000000d050000000000000000000000000000000000000000000000000000000000000d05")
+            .unwrap();
+    let sig: Signature = "0xe108a7776de6b87183b0690484a74daef44aa6daf907e91abaf7bbfa426ae7706b12e0bd44ef7b0634710d99c2d81087a2f39e075158212343a3b2948ecf33d01c".parse().unwrap();
+
+    assert_eq!(private_key.to_public_key().unwrap(), address);
+
+    let generated_sig = private_key.sign_ethereum_msg(&checkpoint);
+    assert_eq!(sig, generated_sig)
+}
+
+#[test]
 fn parse_hex_signature() {
-    let _sig: Signature = "8e569f21c3797693bd592f070d6956ab65aba73c75723ee94c8c9c9227a687bb4739f574c30d3b3fc79f8af3133e6290790ce5c07a4b2e0701c11cb457f35bde1b".parse().unwrap();
+    let sig: Signature = "0xe108a7776de6b87183b0690484a74daef44aa6daf907e91abaf7bbfa426ae7706b12e0bd44ef7b0634710d99c2d81087a2f39e075158212343a3b2948ecf33d01c".parse().unwrap();
+    let correct_r =
+        hex_str_to_bytes("0xe108a7776de6b87183b0690484a74daef44aa6daf907e91abaf7bbfa426ae770")
+            .unwrap();
+    let correct_s =
+        hex_str_to_bytes("0x6b12e0bd44ef7b0634710d99c2d81087a2f39e075158212343a3b2948ecf33d0")
+            .unwrap();
+    let correct_v = vec![28u8];
+
+    assert_eq!(sig.r, Uint256::from_bytes_be(&correct_r));
+    assert_eq!(sig.s, Uint256::from_bytes_be(&correct_s));
+    assert_eq!(sig.v, Uint256::from_bytes_be(&correct_v));
 }

@@ -13,6 +13,12 @@ use std::fmt;
 use std::str::FromStr;
 use utils::{bytes_to_hex_str, hex_str_to_bytes};
 
+// the standard Ethereum message signing salt, used to prevent any signed message
+// from ever being a valid transaction. This prevents situations where an application
+// contrives a collision between the message you need to sign and a valid transaction that
+// can be submitted to spend your funds.
+const SALT: &str = "\x19Ethereum Signed Message:\n32";
+
 /// Representation of an Ethereum private key.
 ///
 /// Private key can be created using a textual representation,
@@ -172,6 +178,9 @@ impl PrivateKey {
     /// This is more user friendly version of [sign_hash](#method.sign_hash) which means
     /// it will use `Keccak256` function to hash your input data.
     ///
+    /// This method is deprecated as insecure, since it does not prevent signed messages
+    /// from being possibly valid transactions by appending the standard \x19Ethereum Signed Message:\n32
+    ///
     /// # Example
     ///
     /// ```rust
@@ -179,8 +188,61 @@ impl PrivateKey {
     /// let private_key : PrivateKey = "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f1e".parse().unwrap();
     /// let signature = private_key.sign_msg("Hello, world!".as_bytes());
     /// ```
+    #[deprecated(
+        since = "0.3.2",
+        note = "Please use sign_ethereum_msg or sign_insecure_msg instead"
+    )]
     pub fn sign_msg(&self, data: &[u8]) -> Signature {
         let digest = Keccak256::digest(data);
+        self.sign_hash(&digest)
+    }
+
+    /// Signs any message represented by a slice of data.
+    ///
+    /// Internally it makes `Keccak256` hash out of your data, and then creates a
+    /// signature.
+    ///
+    /// This is more user friendly version of [sign_hash](#method.sign_hash) which means
+    /// it will use `Keccak256` function to hash your input data.
+    ///
+    /// This method is provided on the assumption you know what you are doing, it does not prevent signed messages
+    /// from being possibly valid transactions. No Ethereum signed message salt is appended. Use with Caution!
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use clarity::PrivateKey;
+    /// let private_key : PrivateKey = "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f1e".parse().unwrap();
+    /// let signature = private_key.sign_msg("Hello, world!".as_bytes());
+    /// ```
+    pub fn sign_insecure_msg(&self, data: &[u8]) -> Signature {
+        let digest = Keccak256::digest(data);
+        self.sign_hash(&digest)
+    }
+
+    /// Signs any message represented by a slice of data.
+    ///
+    /// Internally it makes `Keccak256` hash out of your data, and then creates a
+    /// signature.
+    ///
+    /// This is more user friendly version of [sign_hash](#method.sign_hash) which means
+    /// it will use `Keccak256` function to hash your input data.
+    ///
+    /// Remember this function appends \x19Ethereum Signed Message:\n32 to your hash! so
+    /// you may need to take that into account when you go to verify
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use clarity::PrivateKey;
+    /// let private_key : PrivateKey = "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f1e".parse().unwrap();
+    /// let signature = private_key.sign_ethereum_msg("Hello, world!".as_bytes());
+    /// ```
+    pub fn sign_ethereum_msg(&self, data: &[u8]) -> Signature {
+        let digest = Keccak256::digest(data);
+        let salt_string = SALT.to_string();
+        let salt_bytes = salt_string.as_bytes();
+        let digest = Keccak256::digest(&[salt_bytes, &digest].concat());
         self.sign_hash(&digest)
     }
 }
@@ -385,7 +447,7 @@ fn sign_message() {
             .unwrap()
     );
 
-    let sig_2 = key.sign_msg(b"Hello, world!");
+    let sig_2 = key.sign_insecure_msg(b"Hello, world!");
     assert_eq!(sig, sig_2);
 
     // Recover address using just a signature
@@ -424,5 +486,15 @@ fn from_string_with_prefix_issue_58() {
             1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
             1, 1, 1
         ]
+    );
+}
+
+#[test]
+fn test_salt() {
+    let salt_string = SALT.to_string();
+    let salt_bytes = salt_string.as_bytes();
+    assert_eq!(
+        hex_str_to_bytes("0x19457468657265756d205369676e6564204d6573736167653a0a3332").unwrap(),
+        salt_bytes
     );
 }
