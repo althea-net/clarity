@@ -106,6 +106,13 @@ impl Serialize for Transaction {
     }
 }
 
+/// Naive bytecount function, is slower than the bytecount crate but we only count bytes
+/// for this single intrinsic gas function. Also has a limit of u32 bytes which is a 4gb
+/// transaction so I think that's reasonable to assume.
+fn naive_count_32(haystack: &[u8], needle: u8) -> u32 {
+    haystack.iter().fold(0, |n, c| n + (*c == needle) as u32)
+}
+
 impl Transaction {
     pub fn is_valid(&self) -> bool {
         if self.gas_price >= *TT256
@@ -125,11 +132,11 @@ impl Transaction {
     }
 
     pub fn intrinsic_gas_used(&self) -> Uint256 {
-        let num_zero_bytes = bytecount::count(&self.data, 0u8);
-        let num_non_zero_bytes = self.data.len() - num_zero_bytes;
+        let num_zero_bytes = naive_count_32(&self.data, 0u8);
+        let num_non_zero_bytes = self.data.len() as u32 - num_zero_bytes;
         Uint256::from(GTXCOST)
-            + Uint256::from(GTXDATAZERO) * Uint256::from(num_zero_bytes as u32)
-            + Uint256::from(GTXDATANONZERO) * Uint256::from(num_non_zero_bytes as u32)
+            + Uint256::from(GTXDATAZERO) * Uint256::from(num_zero_bytes)
+            + Uint256::from(GTXDATANONZERO) * Uint256::from(num_non_zero_bytes)
     }
 
     /// Creates a raw data without signature params

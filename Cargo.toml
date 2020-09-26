@@ -25,7 +25,6 @@ secp256k1 = { version = "0.19", features = ["recovery"] }
 lazy_static = "1.4"
 serde_derive = "1.0"
 num256 = "0.3"
-bytecount = "0.6"
 
 [[test]]
 name = "transaction_tests"
