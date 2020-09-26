@@ -252,6 +252,12 @@ impl From<Vec<Address>> for Token {
     }
 }
 
+impl From<Vec<Token>> for Token {
+    fn from(v: Vec<Token>) -> Token {
+        Token::Dynamic(v.into_iter().map(Into::into).collect())
+    }
+}
+
 impl From<&[Address]> for Token {
     fn from(v: &[Address]) -> Token {
         Token::Dynamic(v.iter().map(Into::into).collect())
