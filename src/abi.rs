@@ -293,26 +293,26 @@ impl From<&[Uint256]> for Token {
 /// This function should be used when trying to filter out interesting
 /// events from a contract. This is different than contract function
 /// calls because it uses whole 32 bytes of the hash digest.
-pub fn derive_signature(data: &str) -> [u8; 32] {
-    let digest = Keccak256::digest(data.as_bytes());
-    let mut result: [u8; 32] = Default::default();
-    result.copy_from_slice(&digest);
-    result
-}
-
-/// Given a signature it derives a Method ID
-pub fn derive_method_id(signature: &str) -> Result<[u8; 4], Error> {
-    if signature.contains(' ') {
+pub fn derive_signature(data: &str) -> Result<[u8; 32], Error> {
+    if data.contains(' ') {
         return Err(Error::InvalidCallError(
             "No spaces are allowed in call names".to_string(),
         ));
-    } else if !(signature.contains('(') && signature.contains(')')) {
+    } else if !(data.contains('(') && data.contains(')')) {
         return Err(Error::InvalidCallError(
             "Mismatched call braces".to_string(),
         ));
     }
 
-    let digest = derive_signature(signature);
+    let digest = Keccak256::digest(data.as_bytes());
+    let mut result: [u8; 32] = Default::default();
+    result.copy_from_slice(&digest);
+    Ok(result)
+}
+
+/// Given a signature it derives a Method ID
+pub fn derive_method_id(signature: &str) -> Result<[u8; 4], Error> {
+    let digest = derive_signature(signature)?;
     let mut result: [u8; 4] = Default::default();
     result.copy_from_slice(&digest[0..4]);
     Ok(result)
@@ -321,17 +321,17 @@ pub fn derive_method_id(signature: &str) -> Result<[u8; 4], Error> {
 #[test]
 fn derive_event_signature() {
     use utils::bytes_to_hex_str;
-    let derived = derive_signature("HelloWorld(string)");
+    let derived = derive_signature("HelloWorld(string)").unwrap();
     assert_eq!(
         bytes_to_hex_str(&derived),
         "86066750c0fd4457fd16f79750914fbd72db952f2ff0a7b5c6a2a531bc15ce2c"
     );
-    let derived = derive_signature("Transfer(address,address,uint256)");
+    let derived = derive_signature("Transfer(address,address,uint256)").unwrap();
     assert_eq!(
         bytes_to_hex_str(&derived),
         "ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
     );
-    let derived = derive_signature("Approval(address,address,uint256)");
+    let derived = derive_signature("Approval(address,address,uint256)").unwrap();
     assert_eq!(
         bytes_to_hex_str(&derived),
         "8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925"
