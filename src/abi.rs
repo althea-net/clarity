@@ -326,6 +326,16 @@ fn derive_event_signature() {
         bytes_to_hex_str(&derived),
         "86066750c0fd4457fd16f79750914fbd72db952f2ff0a7b5c6a2a531bc15ce2c"
     );
+    let derived = derive_signature("Transfer(address,address,uint256)");
+    assert_eq!(
+        bytes_to_hex_str(&derived),
+        "ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+    );
+    let derived = derive_signature("Approval(address,address,uint256)");
+    assert_eq!(
+        bytes_to_hex_str(&derived),
+        "8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925"
+    );
 }
 
 #[test]
