@@ -82,9 +82,7 @@ impl From<[u8; 20]> for Address {
 
 impl Into<[u8; 20]> for Address {
     fn into(self) -> [u8; 20] {
-        let mut data: [u8; 20] = Default::default();
-        data[12..].copy_from_slice(&self.as_bytes());
-        data
+        self.0
     }
 }
 
@@ -384,4 +382,16 @@ fn eip_55_display() {
         let unvalidated: Address = starting_address.parse().unwrap();
         assert_eq!(format!("{}", unvalidated), **starting_address)
     }
+}
+
+#[test]
+fn roundtrip_from_into_bytes() {
+    let address: Address = "1234567890123456789ABCDEF678901234567890"
+        .parse::<Address>()
+        .unwrap();
+
+    let bytes: [u8; 20] = address.clone().into();
+    let got: Address = bytes.into();
+
+    assert_eq!(got, address);
 }
