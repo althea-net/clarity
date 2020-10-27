@@ -9,7 +9,7 @@ use serde::Serialize;
 use serde::Serializer;
 use sha3::{Digest, Keccak256};
 use signature::Signature;
-use std::fmt;
+use std::fmt::{self, Debug, Display};
 use std::str::FromStr;
 use utils::{bytes_to_hex_str, hex_str_to_bytes};
 
@@ -27,7 +27,7 @@ const SALT: &str = "\x19Ethereum Signed Message:\n32";
 /// With PrivateKey you are able to sign messages, derive
 /// public keys. Cryptography-related methods use
 /// SECP256K1 elliptic curves.
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Copy, Clone, Default)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Copy, Clone, Default)]
 pub struct PrivateKey([u8; 32]);
 
 impl FromStr for PrivateKey {
@@ -247,10 +247,15 @@ impl PrivateKey {
     }
 }
 
-impl ToString for PrivateKey {
-    /// Converts PrivateKey into a textual representation.
-    fn to_string(&self) -> String {
-        format!("0x{}", bytes_to_hex_str(&self.to_bytes()))
+impl Display for PrivateKey {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "0x{}", bytes_to_hex_str(&self.to_bytes()))
+    }
+}
+
+impl Debug for PrivateKey {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "0x{}", bytes_to_hex_str(&self.to_bytes()))
     }
 }
 

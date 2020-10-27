@@ -14,7 +14,7 @@ use Error;
 ///
 /// Address is usually derived from a `PrivateKey`, or converted from its
 /// textual representation.
-#[derive(PartialEq, Debug, Clone, Copy, Eq, PartialOrd, Ord, Hash, Default)]
+#[derive(PartialEq, Clone, Copy, Eq, PartialOrd, Ord, Hash, Default)]
 pub struct Address([u8; 20]);
 
 impl Address {
@@ -206,6 +206,12 @@ fn eip_55_string(address_bytes: [u8; 20]) -> String {
 }
 
 impl Display for Address {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "0x{}", eip_55_string(self.0))
+    }
+}
+
+impl fmt::Debug for Address {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "0x{}", eip_55_string(self.0))
     }

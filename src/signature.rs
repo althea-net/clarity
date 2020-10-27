@@ -7,7 +7,7 @@ use num_traits::{ToPrimitive, Zero};
 use secp256k1::recovery::{RecoverableSignature, RecoveryId};
 use secp256k1::Message;
 use sha3::{Digest, Keccak256};
-use std::fmt;
+use std::fmt::{self, Display};
 use std::str::FromStr;
 use utils::{
     big_endian_uint256_deserialize, big_endian_uint256_serialize, bytes_to_hex_str,
@@ -195,20 +195,14 @@ impl Default for Signature {
     }
 }
 
-impl ToString for Signature {
+impl Display for Signature {
     // Constructs a string from a given signature
     // The resulting string's length is 130
     // first 32 bytes is "r" value
     // second 32 bytes i s "s" value
     // last byte is "v"
-    fn to_string(&self) -> String {
-        // Convert and make a signature made of bytes
-        let sig_bytes = self.to_bytes();
-
-        // Convert those bytes in a string
-        let mut result = "0x".to_owned();
-        result += &bytes_to_hex_str(&sig_bytes);
-        result
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "0x{}", bytes_to_hex_str(&self.to_bytes()))
     }
 }
 
