@@ -40,7 +40,10 @@ impl FromStr for PrivateKey {
     /// at the beggining.
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         // Strip optional prefix if its there
-        let s = if s.starts_with("0x") { &s[2..] } else { &s };
+        let s = match s.strip_prefix("0x") {
+            Some(s) => s,
+            None => &s,
+        };
         if s.len() != 64 {
             return Err(Error::InvalidPrivKeyLength {
                 got: s.len(),
@@ -274,7 +277,10 @@ impl<'de> Deserialize<'de> for PrivateKey {
         D: Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
-        let s = if s.starts_with("0x") { &s[2..] } else { &s };
+        let s = match s.strip_prefix("0x") {
+            Some(s) => s,
+            None => &s,
+        };
 
         hex_str_to_bytes(&s)
             .and_then(move |bytes| PrivateKey::from_slice(&bytes))

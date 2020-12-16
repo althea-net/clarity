@@ -214,7 +214,10 @@ impl FromStr for Signature {
     /// optional "0x" prefix at the beggining.
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         // Strip optional prefix
-        let s = if s.starts_with("0x") { &s[2..] } else { &s };
+        let s = match s.strip_prefix("0x") {
+            Some(s) => s,
+            None => &s,
+        };
 
         // Parse hexadecimal form back to bytes
         let bytes = hex_str_to_bytes(&s)?;

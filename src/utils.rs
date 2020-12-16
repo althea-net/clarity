@@ -9,7 +9,10 @@ use Error;
 /// A function that takes a hexadecimal representation of bytes
 /// back into a stream of bytes.
 pub fn hex_str_to_bytes(s: &str) -> Result<Vec<u8>, Error> {
-    let s = if s.starts_with("0x") { &s[2..] } else { s };
+    let s = match s.strip_prefix("0x") {
+        Some(s) => s,
+        None => &s,
+    };
     let bytes = s
         .as_bytes()
         .chunks(2)
@@ -108,7 +111,7 @@ fn encode_bytes() {
     );
 }
 
-/// Pad bytes with zeros at the beggining.
+/// Pad bytes with zeros at the start.
 pub fn zpad(bytes: &[u8], len: usize) -> Vec<u8> {
     if bytes.len() >= len {
         return bytes.to_vec();

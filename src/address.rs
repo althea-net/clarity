@@ -66,7 +66,10 @@ impl<'de> Deserialize<'de> for Address {
         D: Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
-        let s = if s.starts_with("0x") { &s[2..] } else { &s };
+        let s = match s.strip_prefix("0x") {
+            Some(s) => s,
+            None => &s,
+        };
 
         hex_str_to_bytes(&s)
             .and_then(move |bytes| Address::from_slice(&bytes))
@@ -159,7 +162,11 @@ impl FromStr for Address {
         if s.is_empty() {
             return Ok(Address::default());
         }
-        let s = if s.starts_with("0x") { &s[2..] } else { &s };
+        let s = match s.strip_prefix("0x") {
+            Some(s) => s,
+            None => &s,
+        };
+
         if s.len() == 40 {
             Ok(Address::from_slice(&hex_str_to_bytes(&s)?)?)
         } else {
