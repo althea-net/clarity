@@ -173,7 +173,7 @@ impl Transaction {
         // This is a special matcher to prepare raw RLP data with correct network_id.
         let rlpdata = match network_id {
             Some(network_id) => {
-                assert!(1 <= network_id && network_id < 9_223_372_036_854_775_790u64); // 1 <= id < 2**63 - 18
+                assert!((1..9_223_372_036_854_775_790u64).contains(&network_id)); // 1 <= id < 2**63 - 18
                 self.to_unsigned_tx_params_for_network(&network_id.into())
             }
             None => self.to_unsigned_tx_params(),

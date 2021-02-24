@@ -301,7 +301,7 @@ fn test_fn(fixtures: &TestFixture, filler: &TestFiller, expect: Option<&TestFill
 }
 
 /// Takes a path to JSON file and returns a test
-fn make_test(path: &PathBuf) -> Option<Vec<TestDescAndFn>> {
+fn make_test(path: &PathBuf) -> Vec<test::TestDescAndFn> {
     // For now all the test and filler data is parsed upfront,
     // to only create tests that contains data that we're able to parse.
     // This means only tests that have filler "transaction" values can be verified.
@@ -336,7 +336,7 @@ fn make_test(path: &PathBuf) -> Option<Vec<TestDescAndFn>> {
             })),
         };
 
-        return Some(vec![test]);
+        return vec![test];
     }
 
     // This stores all tests per all networks
@@ -382,7 +382,7 @@ fn make_test(path: &PathBuf) -> Option<Vec<TestDescAndFn>> {
         };
         tests.push(test);
     }
-    Some(tests)
+    tests
 }
 
 fn tests() -> Vec<TestDescAndFn> {
@@ -395,9 +395,8 @@ fn tests() -> Vec<TestDescAndFn> {
         println!("Directory does not exist {:?}. Did you remember to execute \"git submodule update --init\"?", testdir);
     }
     visit_dirs(&testdir, &mut |entry| {
-        if let Some(tests) = make_test(&entry.path()) {
-            res.extend(tests)
-        }
+        let tests = make_test(&entry.path());
+        res.extend(tests)
     })
     .unwrap();
     res
