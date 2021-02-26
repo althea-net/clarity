@@ -43,6 +43,8 @@ pub enum Token {
     UnboundedBytes(Vec<u8>),
     /// Dynamic array with supported values of supported types already converted
     Dynamic(Vec<Token>),
+    /// A struct to be encoded as a contract call argument
+    Struct(Vec<Token>),
 }
 
 /// Representation of a serialized token.
@@ -91,25 +93,13 @@ impl Token {
                 SerializedToken::Static(res)
             }
             Token::Dynamic(ref tokens) => {
-                // This one supports only 1 dimension, and in theory
-                // adding support for multiple dimmension mixed with static
-                // or dynamic bounds (i.e. string[10][9]) could be trivial
-                // and we could call serialize recursively, and return multiple
-                // SerializedTokens. For our needs it implements just simple case
-                // with one dimension max.
                 let mut wtr = vec![];
                 let prefix: Token = (tokens.len() as u64).into();
                 wtr.extend(prefix.serialize().as_static_ref().unwrap());
-                for token in tokens.iter() {
-                    wtr.extend(
-                        token
-                            .serialize()
-                            .as_static_ref()
-                            .expect("Only nested tokens of static size are supported"),
-                    );
-                }
+                wtr.extend(encode_tokens(tokens));
                 SerializedToken::Dynamic(wtr)
             }
+            Token::Struct(ref tokens) => SerializedToken::Dynamic(encode_tokens(tokens)),
             Token::UnboundedBytes(ref v) => {
                 let mut wtr = vec![];
                 // Encode prefix
@@ -449,7 +439,7 @@ pub fn encode_tokens(tokens: &[Token]) -> Vec<u8> {
     // Concat all the dynamic data buffers at the end of the process
     // All the offsets are calculated while iterating and properly stored
     // in a single pass.
-    // let valuse = &dynamic_data.iter();
+    // let values = &dynamic_data.iter();
     for data in dynamic_data.iter() {
         res.extend(&data[..]);
     }
@@ -497,183 +487,199 @@ fn get_args_count(sig: &str) -> Result<usize, Error> {
     }
 }
 
-#[test]
-fn encode_simple() {
-    use utils::bytes_to_hex_str;
-    let result = encode_tokens(&[69u32.into(), true.into()]);
-    assert_eq!(
-        bytes_to_hex_str(&result),
-        concat!(
-            "0000000000000000000000000000000000000000000000000000000000000045",
-            "0000000000000000000000000000000000000000000000000000000000000001"
-        )
-    );
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-#[test]
-fn encode_sam() {
-    use utils::bytes_to_hex_str;
-    let result = encode_tokens(&["dave".into(), true.into(), vec![1u32, 2u32, 3u32].into()]);
-    assert!(result.len() % 8 == 0);
-    assert_eq!(
-        bytes_to_hex_str(&result),
-        concat![
-            // the location of the data part of the first parameter
-            // (dynamic type), measured in bytes from the start of the
-            // arguments block. In this case, 0x60.
-            "0000000000000000000000000000000000000000000000000000000000000060",
-            // the second parameter: boolean true.
-            "0000000000000000000000000000000000000000000000000000000000000001",
-            // the location of the data part of the third parameter
-            // (dynamic type), measured in bytes. In this case, 0xa0.
-            "00000000000000000000000000000000000000000000000000000000000000a0",
-            // the data part of the first argument, it starts with the length
-            // of the byte array in elements, in this case, 4.
-            "0000000000000000000000000000000000000000000000000000000000000004",
-            // the contents of the first argument: the UTF-8 (equal to ASCII
-            // in this case) encoding of "dave", padded on the right to 32
-            // bytes.
-            "6461766500000000000000000000000000000000000000000000000000000000",
-            // the data part of the third argument, it starts with the length
-            // of the array in elements, in this case, 3.
-            "0000000000000000000000000000000000000000000000000000000000000003",
-            // the first entry of the third parameter.
-            "0000000000000000000000000000000000000000000000000000000000000001",
-            // the second entry of the third parameter.
-            "0000000000000000000000000000000000000000000000000000000000000002",
-            // the third entry of the third parameter.
-            "0000000000000000000000000000000000000000000000000000000000000003",
-        ]
-    );
-}
+    #[test]
+    fn encode_simple() {
+        use utils::bytes_to_hex_str;
+        let result = encode_tokens(&[69u32.into(), true.into()]);
+        assert_eq!(
+            bytes_to_hex_str(&result),
+            concat!(
+                "0000000000000000000000000000000000000000000000000000000000000045",
+                "0000000000000000000000000000000000000000000000000000000000000001"
+            )
+        );
+    }
 
-#[test]
-fn encode_f() {
-    use utils::bytes_to_hex_str;
-    let result = encode_tokens(&[
-        0x123u32.into(),
-        vec![0x456u32, 0x789u32].into(),
-        Token::Bytes(b"1234567890".to_vec()),
-        "Hello, world!".into(),
-    ]);
-    assert!(result.len() % 8 == 0);
-    assert_eq!(
-        result[..]
-            .chunks(32)
-            .map(|c| bytes_to_hex_str(&c))
-            .collect::<Vec<String>>(),
-        vec![
-            "0000000000000000000000000000000000000000000000000000000000000123".to_owned(),
-            "0000000000000000000000000000000000000000000000000000000000000080".to_owned(),
-            "3132333435363738393000000000000000000000000000000000000000000000".to_owned(),
-            "00000000000000000000000000000000000000000000000000000000000000e0".to_owned(),
-            "0000000000000000000000000000000000000000000000000000000000000002".to_owned(),
-            "0000000000000000000000000000000000000000000000000000000000000456".to_owned(),
-            "0000000000000000000000000000000000000000000000000000000000000789".to_owned(),
-            "000000000000000000000000000000000000000000000000000000000000000d".to_owned(),
-            "48656c6c6f2c20776f726c642100000000000000000000000000000000000000".to_owned(),
-        ]
-    );
-}
+    #[test]
+    fn encode_sam() {
+        use utils::bytes_to_hex_str;
+        let result = encode_tokens(&["dave".into(), true.into(), vec![1u32, 2u32, 3u32].into()]);
+        assert!(result.len() % 8 == 0);
+        assert_eq!(
+            bytes_to_hex_str(&result),
+            concat![
+                // the location of the data part of the first parameter
+                // (dynamic type), measured in bytes from the start of the
+                // arguments block. In this case, 0x60.
+                "0000000000000000000000000000000000000000000000000000000000000060",
+                // the second parameter: boolean true.
+                "0000000000000000000000000000000000000000000000000000000000000001",
+                // the location of the data part of the third parameter
+                // (dynamic type), measured in bytes. In this case, 0xa0.
+                "00000000000000000000000000000000000000000000000000000000000000a0",
+                // the data part of the first argument, it starts with the length
+                // of the byte array in elements, in this case, 4.
+                "0000000000000000000000000000000000000000000000000000000000000004",
+                // the contents of the first argument: the UTF-8 (equal to ASCII
+                // in this case) encoding of "dave", padded on the right to 32
+                // bytes.
+                "6461766500000000000000000000000000000000000000000000000000000000",
+                // the data part of the third argument, it starts with the length
+                // of the array in elements, in this case, 3.
+                "0000000000000000000000000000000000000000000000000000000000000003",
+                // the first entry of the third parameter.
+                "0000000000000000000000000000000000000000000000000000000000000001",
+                // the second entry of the third parameter.
+                "0000000000000000000000000000000000000000000000000000000000000002",
+                // the third entry of the third parameter.
+                "0000000000000000000000000000000000000000000000000000000000000003",
+            ]
+        );
+    }
 
-#[test]
-fn encode_f_with_real_unbounded_bytes() {
-    use utils::bytes_to_hex_str;
-    let result = encode_tokens(&[
-        0x123u32.into(),
-        vec![0x456u32, 0x789u32].into(),
-        Token::Bytes(b"1234567890".to_vec()),
-        b"Hello, world!".to_vec().into(),
-    ]);
-    assert!(result.len() % 8 == 0);
-    assert_eq!(
-        result[..]
-            .chunks(32)
-            .map(|c| bytes_to_hex_str(&c))
-            .collect::<Vec<String>>(),
-        vec![
-            "0000000000000000000000000000000000000000000000000000000000000123".to_owned(),
-            "0000000000000000000000000000000000000000000000000000000000000080".to_owned(),
-            "3132333435363738393000000000000000000000000000000000000000000000".to_owned(),
-            "00000000000000000000000000000000000000000000000000000000000000e0".to_owned(),
-            "0000000000000000000000000000000000000000000000000000000000000002".to_owned(),
-            "0000000000000000000000000000000000000000000000000000000000000456".to_owned(),
-            "0000000000000000000000000000000000000000000000000000000000000789".to_owned(),
-            "000000000000000000000000000000000000000000000000000000000000000d".to_owned(),
-            "48656c6c6f2c20776f726c642100000000000000000000000000000000000000".to_owned(),
-        ]
-    );
-}
+    #[test]
+    fn encode_f() {
+        use utils::bytes_to_hex_str;
+        let result = encode_tokens(&[
+            0x123u32.into(),
+            vec![0x456u32, 0x789u32].into(),
+            Token::Bytes(b"1234567890".to_vec()),
+            "Hello, world!".into(),
+        ]);
+        assert!(result.len() % 8 == 0);
+        assert_eq!(
+            result[..]
+                .chunks(32)
+                .map(|c| bytes_to_hex_str(&c))
+                .collect::<Vec<String>>(),
+            vec![
+                "0000000000000000000000000000000000000000000000000000000000000123".to_owned(),
+                "0000000000000000000000000000000000000000000000000000000000000080".to_owned(),
+                "3132333435363738393000000000000000000000000000000000000000000000".to_owned(),
+                "00000000000000000000000000000000000000000000000000000000000000e0".to_owned(),
+                "0000000000000000000000000000000000000000000000000000000000000002".to_owned(),
+                "0000000000000000000000000000000000000000000000000000000000000456".to_owned(),
+                "0000000000000000000000000000000000000000000000000000000000000789".to_owned(),
+                "000000000000000000000000000000000000000000000000000000000000000d".to_owned(),
+                "48656c6c6f2c20776f726c642100000000000000000000000000000000000000".to_owned(),
+            ]
+        );
+    }
 
-#[test]
-fn encode_address() {
-    use utils::bytes_to_hex_str;
-    let result = encode_tokens(&["0x00000000000000000000000000000000deadbeef"
-        .parse::<Address>()
-        .expect("Unable to parse address")
-        .into()]);
-    assert!(result.len() % 8 == 0);
-    assert_eq!(
-        result[..]
-            .chunks(32)
-            .map(|c| bytes_to_hex_str(&c))
-            .collect::<Vec<String>>(),
-        vec!["00000000000000000000000000000000000000000000000000000000deadbeef".to_owned(),]
-    );
-}
+    #[test]
+    fn encode_f_with_real_unbounded_bytes() {
+        use utils::bytes_to_hex_str;
+        let result = encode_tokens(&[
+            0x123u32.into(),
+            vec![0x456u32, 0x789u32].into(),
+            Token::Bytes(b"1234567890".to_vec()),
+            b"Hello, world!".to_vec().into(),
+        ]);
+        assert!(result.len() % 8 == 0);
+        assert_eq!(
+            result[..]
+                .chunks(32)
+                .map(|c| bytes_to_hex_str(&c))
+                .collect::<Vec<String>>(),
+            vec![
+                "0000000000000000000000000000000000000000000000000000000000000123".to_owned(),
+                "0000000000000000000000000000000000000000000000000000000000000080".to_owned(),
+                "3132333435363738393000000000000000000000000000000000000000000000".to_owned(),
+                "00000000000000000000000000000000000000000000000000000000000000e0".to_owned(),
+                "0000000000000000000000000000000000000000000000000000000000000002".to_owned(),
+                "0000000000000000000000000000000000000000000000000000000000000456".to_owned(),
+                "0000000000000000000000000000000000000000000000000000000000000789".to_owned(),
+                "000000000000000000000000000000000000000000000000000000000000000d".to_owned(),
+                "48656c6c6f2c20776f726c642100000000000000000000000000000000000000".to_owned(),
+            ]
+        );
+    }
 
-#[test]
-fn encode_dynamic_only() {
-    use utils::bytes_to_hex_str;
-    let result = encode_tokens(&["foo".into(), "bar".into()]);
-    assert!(result.len() % 8 == 0);
-    assert_eq!(
-        result[..]
-            .chunks(32)
-            .map(|c| bytes_to_hex_str(&c))
-            .collect::<Vec<String>>(),
-        vec![
-            "0000000000000000000000000000000000000000000000000000000000000040".to_owned(),
-            "0000000000000000000000000000000000000000000000000000000000000080".to_owned(),
-            "0000000000000000000000000000000000000000000000000000000000000003".to_owned(),
-            "666f6f0000000000000000000000000000000000000000000000000000000000".to_owned(),
-            "0000000000000000000000000000000000000000000000000000000000000003".to_owned(),
-            "6261720000000000000000000000000000000000000000000000000000000000".to_owned(),
-        ]
-    );
-}
-
-#[test]
-fn encode_peggy_call() {
-    use crate::utils::bytes_to_hex_str;
-    // the valset nonce
-    let nonce: Uint256 = 0u32.into();
-    // the list of validator ethereum addresses represented by this
-    let validators: Token = vec![
-        "0xc783df8a850f42e7F7e57013759C285caa701eB6"
+    #[test]
+    fn encode_address() {
+        use utils::bytes_to_hex_str;
+        let result = encode_tokens(&["0x00000000000000000000000000000000deadbeef"
             .parse::<Address>()
-            .unwrap(),
-        "0xeAD9C93b79Ae7C1591b1FB5323BD777E86e150d4"
-            .parse()
-            .unwrap(),
-        "0xE5904695748fe4A84b40b3fc79De2277660BD1D3"
-            .parse()
-            .unwrap(),
-    ]
-    .into();
-    // list of powers represented
-    let powers: Token = vec![3333u32, 3333, 3333].into();
-    let encoded = "666f6f0000000000000000000000000000000000000000000000000000000000636865636b706f696e7400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000001200000000000000000000000000000000000000000000000000000000000000003000000000000000000000000c783df8a850f42e7f7e57013759c285caa701eb6000000000000000000000000ead9c93b79ae7c1591b1fb5323bd777e86e150d4000000000000000000000000e5904695748fe4a84b40b3fc79de2277660bd1d300000000000000000000000000000000000000000000000000000000000000030000000000000000000000000000000000000000000000000000000000000d050000000000000000000000000000000000000000000000000000000000000d050000000000000000000000000000000000000000000000000000000000000d05";
-    // the hash resulting from the encode call
-    let encoded_hash = "88165860d955aee7dc3e83d9d1156a5864b708841965585d206dbef6e9e1a499";
-    let result = encode_tokens(&[
-        Token::FixedString("foo".to_string()),
-        Token::FixedString("checkpoint".to_string()),
-        nonce.into(),
-        validators,
-        powers,
-    ]);
+            .expect("Unable to parse address")
+            .into()]);
+        assert!(result.len() % 8 == 0);
+        assert_eq!(
+            result[..]
+                .chunks(32)
+                .map(|c| bytes_to_hex_str(&c))
+                .collect::<Vec<String>>(),
+            vec!["00000000000000000000000000000000000000000000000000000000deadbeef".to_owned(),]
+        );
+    }
 
-    assert_eq!(encoded, bytes_to_hex_str(&result));
-    assert_eq!(encoded_hash, bytes_to_hex_str(&get_hash(&result)))
+    #[test]
+    fn encode_dynamic_only() {
+        use utils::bytes_to_hex_str;
+        let result = encode_tokens(&["foo".into(), "bar".into()]);
+        assert!(result.len() % 8 == 0);
+        assert_eq!(
+            result[..]
+                .chunks(32)
+                .map(|c| bytes_to_hex_str(&c))
+                .collect::<Vec<String>>(),
+            vec![
+                "0000000000000000000000000000000000000000000000000000000000000040".to_owned(),
+                "0000000000000000000000000000000000000000000000000000000000000080".to_owned(),
+                "0000000000000000000000000000000000000000000000000000000000000003".to_owned(),
+                "666f6f0000000000000000000000000000000000000000000000000000000000".to_owned(),
+                "0000000000000000000000000000000000000000000000000000000000000003".to_owned(),
+                "6261720000000000000000000000000000000000000000000000000000000000".to_owned(),
+            ]
+        );
+    }
+
+    #[test]
+    fn encode_peggy_checkpoint_hash() {
+        use crate::utils::bytes_to_hex_str;
+        // the valset nonce
+        let nonce: Uint256 = 0u32.into();
+        // the list of validator ethereum addresses represented by this
+        let validators: Token = vec![
+            "0xc783df8a850f42e7F7e57013759C285caa701eB6"
+                .parse::<Address>()
+                .unwrap(),
+            "0xeAD9C93b79Ae7C1591b1FB5323BD777E86e150d4"
+                .parse()
+                .unwrap(),
+            "0xE5904695748fe4A84b40b3fc79De2277660BD1D3"
+                .parse()
+                .unwrap(),
+        ]
+        .into();
+        // list of powers represented
+        let powers: Token = vec![3333u32, 3333, 3333].into();
+        let encoded = "666f6f0000000000000000000000000000000000000000000000000000000000636865636b706f696e7400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000001200000000000000000000000000000000000000000000000000000000000000003000000000000000000000000c783df8a850f42e7f7e57013759c285caa701eb6000000000000000000000000ead9c93b79ae7c1591b1fb5323bd777e86e150d4000000000000000000000000e5904695748fe4a84b40b3fc79de2277660bd1d300000000000000000000000000000000000000000000000000000000000000030000000000000000000000000000000000000000000000000000000000000d050000000000000000000000000000000000000000000000000000000000000d050000000000000000000000000000000000000000000000000000000000000d05";
+        // the hash resulting from the encode call
+        let encoded_hash = "88165860d955aee7dc3e83d9d1156a5864b708841965585d206dbef6e9e1a499";
+        let result = encode_tokens(&[
+            Token::FixedString("foo".to_string()),
+            Token::FixedString("checkpoint".to_string()),
+            nonce.into(),
+            validators,
+            powers,
+        ]);
+
+        assert_eq!(encoded, bytes_to_hex_str(&result));
+        assert_eq!(encoded_hash, bytes_to_hex_str(&get_hash(&result)))
+    }
+
+    #[test]
+    /// This test encodes an abiV2 function call, specifically one
+    /// with a nontrivial struct in the header
+    fn encode_abiv2_function_header() {
+        use crate::utils::bytes_to_hex_str;
+        let signature = "submitLogicCall(address[],uint256[],uint256,uint8[],bytes32[],bytes32[],(uint256[],address[],uint256[],address[],address,bytes,uint256,bytes32,uint256))";
+        let encoded_method_id = "0x0c246c82";
+        let res = derive_method_id(signature).unwrap();
+        assert_eq!(encoded_method_id, format!("0x{}", bytes_to_hex_str(&res)));
+    }
 }
