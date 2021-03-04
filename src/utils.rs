@@ -27,6 +27,10 @@ pub fn hex_str_to_bytes(s: &str) -> Result<Vec<u8>, Error> {
     Ok(bytes)
 }
 
+pub fn display_uint256_as_address(input: Uint256) -> String {
+    format!("{:#066x}", input)
+}
+
 pub fn big_endian_uint256_serialize<S>(x: &Uint256, s: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
