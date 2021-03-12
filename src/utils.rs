@@ -1,10 +1,38 @@
+use crate::private_key::ETHEREUM_SALT;
 use num256::Uint256;
 use serde::{
     de::{Deserialize, Deserializer},
     ser::Serializer,
 };
+use sha3::{Digest, Keccak256};
 use std::str;
 use Error;
+
+/// Takes a signature payload of arbitrary size and creates a proper payload
+/// for an ethereum_msg signature.
+///
+/// Internally this means `Keccak256` hashing the data, appending the Ethereum signed
+/// msg constant, then hashing it again.
+///
+/// This is how you would verify the data from [sign_ethereum_msg](#method.sign_ethereum_msg)
+///
+/// # Example
+///
+/// ```rust
+/// # use clarity::PrivateKey;
+/// let private_key : PrivateKey = "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f1e".parse().unwrap();
+/// let signature = private_key.sign_ethereum_msg("Hello, world!".as_bytes());
+/// // on the other side verifying the signature
+/// let hash = get_ethereum_msg_hash("Hello, world!".as_bytes())
+/// assert_eq(signature.recover(&hash).unwrap(), private_key.to_public_key().unwrap())
+/// ```
+pub fn get_ethereum_msg_hash(data: &[u8]) -> Vec<u8> {
+    let digest = Keccak256::digest(data);
+    let salt_string = ETHEREUM_SALT.to_string();
+    let salt_bytes = salt_string.as_bytes();
+    let digest = Keccak256::digest(&[salt_bytes, &digest].concat());
+    digest.to_vec()
+}
 
 /// A function that takes a hexadecimal representation of bytes
 /// back into a stream of bytes.

@@ -17,7 +17,7 @@ use utils::{bytes_to_hex_str, hex_str_to_bytes};
 // from ever being a valid transaction. This prevents situations where an application
 // contrives a collision between the message you need to sign and a valid transaction that
 // can be submitted to spend your funds.
-const SALT: &str = "\x19Ethereum Signed Message:\n32";
+pub const ETHEREUM_SALT: &str = "\x19Ethereum Signed Message:\n32";
 
 /// Representation of an Ethereum private key.
 ///
@@ -243,7 +243,7 @@ impl PrivateKey {
     /// ```
     pub fn sign_ethereum_msg(&self, data: &[u8]) -> Signature {
         let digest = Keccak256::digest(data);
-        let salt_string = SALT.to_string();
+        let salt_string = ETHEREUM_SALT.to_string();
         let salt_bytes = salt_string.as_bytes();
         let digest = Keccak256::digest(&[salt_bytes, &digest].concat());
         self.sign_hash(&digest)
@@ -502,7 +502,7 @@ fn from_string_with_prefix_issue_58() {
 
 #[test]
 fn test_salt() {
-    let salt_string = SALT.to_string();
+    let salt_string = ETHEREUM_SALT.to_string();
     let salt_bytes = salt_string.as_bytes();
     assert_eq!(
         hex_str_to_bytes("0x19457468657265756d205369676e6564204d6573736167653a0a3332").unwrap(),
