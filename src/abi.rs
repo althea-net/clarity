@@ -16,6 +16,7 @@
 //!
 //! Unfortunately if you need to support custom type that is not currently supported you are welcome to open an issue [on issues page](https://github.com/althea-net/clarity/issues/new),
 //! or do the serialization yourself by converting your custom type into a `[u8; 32]` array and creating a proper Token instance.
+
 use crate::error::Error;
 use address::Address;
 use num256::Uint256;
@@ -308,94 +309,6 @@ pub fn derive_method_id(signature: &str) -> Result<[u8; 4], Error> {
     Ok(result)
 }
 
-#[test]
-fn derive_event_signature() {
-    use utils::bytes_to_hex_str;
-    let derived = derive_signature("HelloWorld(string)").unwrap();
-    assert_eq!(
-        bytes_to_hex_str(&derived),
-        "86066750c0fd4457fd16f79750914fbd72db952f2ff0a7b5c6a2a531bc15ce2c"
-    );
-    let derived = derive_signature("Transfer(address,address,uint256)").unwrap();
-    assert_eq!(
-        bytes_to_hex_str(&derived),
-        "ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
-    );
-    let derived = derive_signature("Approval(address,address,uint256)").unwrap();
-    assert_eq!(
-        bytes_to_hex_str(&derived),
-        "8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925"
-    );
-}
-
-#[test]
-fn derive_baz() {
-    use utils::bytes_to_hex_str;
-    assert_eq!(
-        bytes_to_hex_str(&derive_method_id("baz(uint32,bool)").unwrap()),
-        "cdcd77c0"
-    );
-}
-
-#[test]
-fn derive_bar() {
-    use utils::bytes_to_hex_str;
-    assert_eq!(
-        bytes_to_hex_str(&derive_method_id("bar(bytes3[2])").unwrap()),
-        "fce353f6"
-    );
-}
-
-#[test]
-fn derive_sam() {
-    use utils::bytes_to_hex_str;
-    assert_eq!(
-        bytes_to_hex_str(&derive_method_id("sam(bytes,bool,uint256[])").unwrap()),
-        "a5643bf2"
-    );
-}
-
-#[test]
-fn derive_update_valset() {
-    use utils::bytes_to_hex_str;
-    assert_eq!(
-        bytes_to_hex_str(&derive_method_id("dummyUpdateValset(address[])").unwrap()),
-        "fd9b9103"
-    );
-    assert_eq!(
-        bytes_to_hex_str(&derive_method_id("dummyUpdateValset(address[],uint256[])").unwrap()),
-        "711ca6ac"
-    );
-}
-
-#[test]
-fn derive_f() {
-    use utils::bytes_to_hex_str;
-    assert_eq!(
-        bytes_to_hex_str(&derive_method_id("f(uint256,uint32[],bytes10,bytes)").unwrap()),
-        "8be65246"
-    );
-}
-
-#[test]
-fn derive_function_with_args() {
-    encode_call("f()", &[]).unwrap();
-    encode_call("f(uint256)", &["66u64".into()]).unwrap();
-    encode_call("f(uint256,uint256)", &["66u64".into(), "66u64".into()]).unwrap();
-    encode_call(
-        "f(uint256,uint256,uint256)",
-        &["66u64".into(), "66u64".into(), "66u64".into()],
-    )
-    .unwrap();
-}
-
-#[test]
-fn attempt_to_derive_invalid_function_signatures() {
-    assert!(derive_method_id("dummyUpdateValset( address[])").is_err());
-    assert!(derive_method_id("dummyUpdateValsetaddress[],uint256[])").is_err());
-    assert!(encode_call("dummyUpdateValset(address[],uint256[])", &["66u64".into()]).is_err());
-}
-
 /// This one is a very simplified ABI encoder that takes a bunch of tokens,
 /// and serializes them.
 ///
@@ -458,7 +371,7 @@ pub fn encode_call(sig: &str, tokens: &[Token]) -> Result<Vec<u8>, Error> {
     wtr.extend(&derive_method_id(sig)?);
 
     let args_count = get_args_count(sig)?;
-    if args_count != tokens.len() {
+    if args_count != get_tokens_count(tokens) {
         return Err(Error::InvalidCallError(format!(
             "Function call contains {} arguments, but {} provided",
             args_count,
@@ -470,26 +383,135 @@ pub fn encode_call(sig: &str, tokens: &[Token]) -> Result<Vec<u8>, Error> {
     Ok(wtr)
 }
 
+/// Counts the number of tokens in a token array, including nested tokens
+/// this will give you the number of tokens you need in a function call
+/// argument string
+fn get_tokens_count(tokens: &[Token]) -> usize {
+    let mut count = 0;
+    for token in tokens {
+        match token {
+            Token::Struct(v) => count += get_tokens_count(v),
+            _ => count += 1,
+        }
+    }
+    count
+}
+
 /// Gets the number of arguments by parsing a function signature
 /// string.
 fn get_args_count(sig: &str) -> Result<usize, Error> {
-    if !(sig.contains('(') && sig.contains(')')) {
+    // number of opening brackets must match number of closing brackets
+    if sig.matches('(').count() != sig.matches(')').count() {
         return Err(Error::InvalidCallError(
             "Mismatched call braces".to_string(),
         ));
     }
-    // can't panic because we ensure ( exists above and therefore we must have at least 1
-    let args_string = sig.split('(').nth(1).unwrap().replace(')', "");
-    if args_string.is_empty() {
-        Ok(0)
-    } else {
-        Ok(args_string.split(',').count())
+    // split on either an opening or closing bracket, substrings are now all batches of arguments
+    let args = sig.split(|ch| ch == '(' || ch == ')');
+    let mut num_args = 0;
+    for substring in args {
+        // leading or trailing ,'s
+        let substring = substring.trim_matches(',');
+        if !substring.is_empty() {
+            num_args += substring.split(',').count();
+        }
     }
+    // subtract one because the function signature will be in
+    // one substring always
+    Ok(num_args - 1)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn derive_event_signature() {
+        use utils::bytes_to_hex_str;
+        let derived = derive_signature("HelloWorld(string)").unwrap();
+        assert_eq!(
+            bytes_to_hex_str(&derived),
+            "86066750c0fd4457fd16f79750914fbd72db952f2ff0a7b5c6a2a531bc15ce2c"
+        );
+        let derived = derive_signature("Transfer(address,address,uint256)").unwrap();
+        assert_eq!(
+            bytes_to_hex_str(&derived),
+            "ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+        );
+        let derived = derive_signature("Approval(address,address,uint256)").unwrap();
+        assert_eq!(
+            bytes_to_hex_str(&derived),
+            "8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925"
+        );
+    }
+
+    #[test]
+    fn derive_baz() {
+        use utils::bytes_to_hex_str;
+        assert_eq!(
+            bytes_to_hex_str(&derive_method_id("baz(uint32,bool)").unwrap()),
+            "cdcd77c0"
+        );
+    }
+
+    #[test]
+    fn derive_bar() {
+        use utils::bytes_to_hex_str;
+        assert_eq!(
+            bytes_to_hex_str(&derive_method_id("bar(bytes3[2])").unwrap()),
+            "fce353f6"
+        );
+    }
+
+    #[test]
+    fn derive_sam() {
+        use utils::bytes_to_hex_str;
+        assert_eq!(
+            bytes_to_hex_str(&derive_method_id("sam(bytes,bool,uint256[])").unwrap()),
+            "a5643bf2"
+        );
+    }
+
+    #[test]
+    fn derive_update_valset() {
+        use utils::bytes_to_hex_str;
+        assert_eq!(
+            bytes_to_hex_str(&derive_method_id("dummyUpdateValset(address[])").unwrap()),
+            "fd9b9103"
+        );
+        assert_eq!(
+            bytes_to_hex_str(&derive_method_id("dummyUpdateValset(address[],uint256[])").unwrap()),
+            "711ca6ac"
+        );
+    }
+
+    #[test]
+    fn derive_f() {
+        use utils::bytes_to_hex_str;
+        assert_eq!(
+            bytes_to_hex_str(&derive_method_id("f(uint256,uint32[],bytes10,bytes)").unwrap()),
+            "8be65246"
+        );
+    }
+
+    #[test]
+    fn derive_function_with_args() {
+        encode_call("f()", &[]).unwrap();
+        encode_call("f(uint256)", &["66u64".into()]).unwrap();
+        encode_call("f(uint256,uint256)", &["66u64".into(), "66u64".into()]).unwrap();
+        encode_call(
+            "f(uint256,uint256,uint256)",
+            &["66u64".into(), "66u64".into(), "66u64".into()],
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn attempt_to_derive_invalid_function_signatures() {
+        assert!(derive_method_id("dummyUpdateValset( address[])").is_err());
+        assert!(derive_method_id("dummyUpdateValsetaddress[],uint256[])").is_err());
+        assert!(encode_call("dummyUpdateValset(address[],uint256[])", &["66u64".into()]).is_err());
+    }
 
     #[test]
     fn encode_simple() {
@@ -681,5 +703,18 @@ mod tests {
         let encoded_method_id = "0x0c246c82";
         let res = derive_method_id(signature).unwrap();
         assert_eq!(encoded_method_id, format!("0x{}", bytes_to_hex_str(&res)));
+    }
+
+    #[test]
+    fn test_args_count() {
+        let test_signatures = [
+            ("testCall()", 0),
+            ("testCall(uint256,uint256,uint256)", 3),
+            ("updateValset((address[],uint256[],uint256,uint256,address),(address[],uint256[],uint256,uint256,address),uint8[],bytes32[],bytes32[])", 13),
+        ("submitLogicCall(address[],uint256[],uint256,uint8[],bytes32[],bytes32[],(uint256[],address[],uint256[],address[],address,bytes,uint256,bytes32,uint256))", 15),
+        ];
+        for (sig, count) in test_signatures.iter() {
+            assert_eq!(get_args_count(sig).unwrap(), *count);
+        }
     }
 }
