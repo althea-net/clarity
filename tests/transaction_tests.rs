@@ -301,7 +301,7 @@ fn test_fn(fixtures: &TestFixture, filler: &TestFiller, expect: Option<&TestFill
 }
 
 /// Takes a path to JSON file and returns a test
-fn make_test(path: &PathBuf) -> Vec<test::TestDescAndFn> {
+fn make_test(path: &Path) -> Vec<test::TestDescAndFn> {
     // For now all the test and filler data is parsed upfront,
     // to only create tests that contains data that we're able to parse.
     // This means only tests that have filler "transaction" values can be verified.
@@ -310,7 +310,7 @@ fn make_test(path: &PathBuf) -> Vec<test::TestDescAndFn> {
     // Test case is always an object with a single key
     // Grab name of the actual test together with its value
 
-    let fixtures = load_fixtures(path.as_path());
+    let fixtures = load_fixtures(path);
     assert_eq!(fixtures.len(), 1);
     let (_, fixtures) = fixtures.into_iter().next().unwrap();
     // Load filler data

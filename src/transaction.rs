@@ -284,7 +284,7 @@ impl Transaction {
 
     /// Creates a byte representation of this transaction
     pub fn to_bytes(&self) -> Result<Vec<u8>, Error> {
-        Ok(to_bytes(&self).map_err(|_| Error::SerializeRlp)?)
+        to_bytes(&self).map_err(|_| Error::SerializeRlp)
     }
 }
 
