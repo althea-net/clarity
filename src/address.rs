@@ -91,6 +91,22 @@ impl From<[u8; 32]> for Address {
     }
 }
 
+#[allow(clippy::clippy::from_over_into)]
+impl Into<[u8; 20]> for Address {
+    fn into(self) -> [u8; 20] {
+        self.0
+    }
+}
+
+#[allow(clippy::clippy::from_over_into)]
+impl Into<[u8; 32]> for Address {
+    fn into(self) -> [u8; 32] {
+        let mut data: [u8; 32] = Default::default();
+        data[12..].copy_from_slice(&self.as_bytes());
+        data
+    }
+}
+
 impl fmt::LowerHex for Address {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if f.alternate() {
