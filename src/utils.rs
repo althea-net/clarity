@@ -55,6 +55,9 @@ pub fn hex_str_to_bytes(s: &str) -> Result<Vec<u8>, Error> {
     Ok(bytes)
 }
 
+/// This function displays a uint256 as an Ethereum address
+/// which requires specific formatting, mostly useful for logging
+/// and to avoid trying convert the Uint256 into an address
 pub fn display_uint256_as_address(input: Uint256) -> String {
     format!("{:#066x}", input)
 }

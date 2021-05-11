@@ -1,11 +1,16 @@
+use crate::utils::display_uint256_as_address;
+use num256::Uint256;
 use serde::Deserialize;
 use serde::Deserializer;
 use serde::Serialize;
 use serde::Serializer;
 use sha3::{Digest, Keccak256};
-use std::fmt::{self, Display};
 use std::str;
 use std::str::FromStr;
+use std::{
+    convert::TryFrom,
+    fmt::{self, Display},
+};
 use utils::bytes_to_hex_str;
 use utils::hex_str_to_bytes;
 use Error;
@@ -229,6 +234,15 @@ impl Display for Address {
 impl fmt::Debug for Address {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "0x{}", eip_55_string(self.0))
+    }
+}
+
+impl TryFrom<Uint256> for Address {
+    type Error = Error;
+
+    fn try_from(value: Uint256) -> Result<Self, Self::Error> {
+        let string = display_uint256_as_address(value);
+        string.parse()
     }
 }
 
