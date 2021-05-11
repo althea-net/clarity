@@ -202,26 +202,19 @@ impl Transaction {
         if sig.r == Uint256::zero() && sig.s == Uint256::zero() {
             Ok(Address::from([0xffu8; 20]))
         } else {
-            let (vee, sighash) = if sig.v == 27u32.into() || sig.v == 28u32.into() {
-                // Valid V values are in {27, 28} according to Ethereum Yellow paper Appendix F (282).
-                let vee = sig.v.clone();
-                let sighash = Keccak256::digest(&self.to_unsigned_tx_params());
-                (vee, sighash)
+            let sighash = if sig.v == 27u32.into() || sig.v == 28u32.into() {
+                Keccak256::digest(&self.to_unsigned_tx_params())
             } else if sig.v >= 37u32.into() {
                 let network_id = sig.network_id().ok_or(Error::InvalidNetworkId)?;
-                // Otherwise we have to extract "v"...
-                let vee = sig.v.clone() - (network_id.clone() * 2u32.into()) - 8u32.into();
-                // ... so after all v will still match 27<=v<=28
-                assert!(vee == 27u32.into() || vee == 28u32.into());
                 // In this case hash of the transaction is usual RLP paremeters but "VRS" params
                 // are swapped for [network_id, '', '']. See Appendix F (285)
                 let rlp_data = self.to_unsigned_tx_params_for_network(&network_id);
-                let sighash = Keccak256::digest(&rlp_data);
-                (vee, sighash)
+                Keccak256::digest(&rlp_data)
             } else {
                 // All other V values would be errorneous for our calculations
                 return Err(Error::InvalidV);
             };
+            let vee = sig.get_v().unwrap();
 
             // Validate signates
             if sig.r >= *SECPK1N

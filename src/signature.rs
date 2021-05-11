@@ -38,20 +38,21 @@ impl Signature {
         Signature { v, r, s }
     }
 
+    /// Like is_valid() but returns a reason
+    pub fn error_check(&self) -> Result<(), Error> {
+        if self.r >= *SECPK1N || self.r == Uint256::zero() {
+            return Err(Error::InvalidR);
+        } else if self.s >= *SECPK1N || self.s == Uint256::zero() {
+            return Err(Error::InvalidS);
+        } else if let Err(e) = self.get_v() {
+            return Err(e);
+        }
+
+        Ok(())
+    }
+
     pub fn is_valid(&self) -> bool {
-        if self.s >= *SECPK1N {
-            return false;
-        }
-
-        if self.r >= *SECPK1N
-            || self.s >= *SECPK1N
-            || self.r == Uint256::zero()
-            || self.s == Uint256::zero()
-        {
-            return false;
-        }
-
-        true
+        self.error_check().is_ok()
     }
 
     pub fn network_id(&self) -> Option<Uint256> {
@@ -133,8 +134,8 @@ impl Signature {
         Ok(Signature::new(v.into(), r, s))
     }
 
-    /// Extract V parameter with regards to network ID.
-    fn vee(&self) -> Result<Uint256, Error> {
+    /// Extract V parameter with regards to network ID. Use this rather than V directly
+    pub fn get_v(&self) -> Result<Uint256, Error> {
         if self.v == 27u32.into() || self.v == 28u32.into() {
             // Valid V values are in {27, 28} according to Ethereum Yellow paper Appendix F (282).
             Ok(self.v.clone())
@@ -155,7 +156,7 @@ impl Signature {
     /// This can be called with any arbitrary signature, and a hashed message.
     pub fn recover(&self, hash: &[u8]) -> Result<Address, Error> {
         // Create recovery ID which is "v" minus 27. Without this it wouldn't be possible to extract recoverable signature.
-        let v = RecoveryId::from_i32(self.vee()?.to_i32().ok_or(Error::InvalidV)? - 27)
+        let v = RecoveryId::from_i32(self.get_v()?.to_i32().ok_or(Error::InvalidV)? - 27)
             .map_err(Error::DecodeRecoveryId)?;
         // A message to recover which is a hash of the transaction
         let msg = Message::from_slice(&hash).map_err(Error::ParseMessage)?;

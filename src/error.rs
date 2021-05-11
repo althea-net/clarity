@@ -10,6 +10,7 @@ use std::str::Utf8Error;
 pub enum Error {
     InvalidNetworkId,
     InvalidV,
+    InvalidR,
     InvalidS,
     InvalidSignatureValues,
     ZeroPrivKey,
@@ -33,6 +34,7 @@ impl fmt::Display for Error {
         match self {
             Error::InvalidNetworkId => write!(f, "Invalid network id"),
             Error::InvalidV => write!(f, "Invalid V value"),
+            Error::InvalidR => write!(f, "Invalid R value"),
             Error::InvalidS => write!(f, "Invalid S value"),
             Error::InvalidSignatureValues => write!(f, "Invalid signature values"),
             Error::ZeroPrivKey => write!(f, "Zero priv key cannot sign"),
