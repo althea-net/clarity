@@ -4,7 +4,7 @@
 [![Latest Version](https://img.shields.io/crates/v/clarity.svg)](https://crates.io/crates/clarity)
 [![Documentation](https://docs.rs/clarity/badge.svg)](https://docs.rs/clarity)
 
-A lightweight, cross-compile friendly Ethereum client written in Rust. Clarity is permissively licensed and the only Ethereum client to run natively on CPU architectures like MIPS (at the time of writing).
+A lightweight, cross-compile friendly Ethereum client written in Rust.
 
 The goal of Clarity is to be extremely simple and barebones in terms of implementation while maintaining the maximum amount of flexibility and capability.
 
