@@ -125,6 +125,14 @@ impl Transaction {
             return false;
         }
 
+        // invalid signature check
+        if let Some(sig) = self.signature.clone() {
+            if !sig.is_valid() {
+                return false;
+            }
+        }
+
+        // rudimentary gas limit check, needs opcode awareness
         if self.gas_limit < self.intrinsic_gas_used() {
             return false;
         }
