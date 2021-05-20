@@ -245,12 +245,9 @@ fn test_fn(fixtures: &TestFixture, filler: &TestFiller, expect: Option<&TestFill
 
     // Retrieving sender key is also validating parameters
     let sender = tx.sender().unwrap();
-    if expect.sender.is_some() {
+    if let Some(expected_sender) = expect.sender.clone() {
         // Compare only if we know we have sender provided
-        assert_eq!(
-            &bytes_to_hex_str(&sender.as_bytes()),
-            expect.sender.as_ref().unwrap()
-        );
+        assert_eq!(sender, expected_sender.parse().unwrap());
     }
 
     // Verify network id

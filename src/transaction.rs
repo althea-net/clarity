@@ -1,18 +1,12 @@
 use address::Address;
-use constants::SECPK1N;
 use constants::TT256;
-use context::SECP256K1;
 use error::Error;
 use num256::Uint256;
-use num_traits::ToPrimitive;
-use num_traits::Zero;
 use opcodes::GTXCOST;
 use opcodes::GTXDATANONZERO;
 use opcodes::GTXDATAZERO;
 use private_key::PrivateKey;
 use rlp::AddressDef;
-use secp256k1::recovery::{RecoverableSignature, RecoveryId};
-use secp256k1::Message;
 use serde::Serialize;
 use serde::Serializer;
 use serde_bytes::{ByteBuf, Bytes};
@@ -24,7 +18,6 @@ use std::fmt;
 use std::fmt::Display;
 use types::BigEndianInt;
 use utils::bytes_to_hex_str;
-use utils::zpad;
 
 /// Transaction as explained in the Ethereum Yellow paper section 4.2
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -131,6 +124,7 @@ impl Transaction {
                 return false;
             }
         }
+        // check that the signature is actually correct, not just valid
 
         // rudimentary gas limit check, needs opcode awareness
         if self.gas_limit < self.intrinsic_gas_used() {
@@ -199,17 +193,16 @@ impl Transaction {
         tx
     }
 
-    /// Get the sender's `Address`; derived from the `signature` field, null ETH address if the
-    /// field is `None`.
+    /// Get the sender's `Address`; derived from the `signature` field, does not keep with convention
+    /// returns error if the signature is invalid. Traditional return would be `constants::NULL_ADDRESS`
+    /// you may need to insert that yourself after matching on errors
     pub fn sender(&self) -> Result<Address, Error> {
         if self.signature.is_none() {
-            // Returns a "null" address
-            return Ok(Address::from([0xffu8; 20]));
+            return Err(Error::NoSignature);
         }
         let sig = self.signature.as_ref().unwrap();
-        // Zero RS also mean the resulting address is "null"
-        if sig.r == Uint256::zero() && sig.s == Uint256::zero() {
-            Ok(Address::from([0xffu8; 20]))
+        if !sig.is_valid() {
+            Err(Error::InvalidSignatureValues)
         } else {
             let sighash = if sig.v == 27u32.into() || sig.v == 28u32.into() {
                 Keccak256::digest(&self.to_unsigned_tx_params())
@@ -223,58 +216,13 @@ impl Transaction {
                 // All other V values would be errorneous for our calculations
                 return Err(Error::InvalidV);
             };
-            let vee = sig.get_v().unwrap();
 
-            // Validate signates
-            if sig.r >= *SECPK1N
-                || sig.s >= *SECPK1N
-                || sig.r == Uint256::zero()
-                || sig.s == Uint256::zero()
-            {
+            // Validate signatures
+            if !sig.is_valid() {
                 return Err(Error::InvalidSignatureValues);
             }
 
-            // Prepare compact signature that consists of (r, s) padded to 32 bytes to make 64 bytes data
-            let r = zpad(&sig.r.to_bytes_be(), 32);
-            debug_assert_eq!(r.len(), 32);
-            let s = zpad(&sig.s.to_bytes_be(), 32);
-            debug_assert_eq!(s.len(), 32);
-
-            // Join together rs into a compact signature
-            let mut compact_bytes: Vec<u8> = Vec::new();
-            compact_bytes.extend(r);
-            compact_bytes.extend(s);
-            debug_assert_eq!(compact_bytes.len(), 64);
-
-            // Create recovery ID which is "v" minus 27. Without this it wouldn't be possible to extract recoverable signature.
-            let v = RecoveryId::from_i32(vee.to_i32().expect("Unable to convert vee to i32") - 27)
-                .map_err(Error::DecodeRecoveryId)?;
-            // Get recoverable signature given rs, and v.
-
-            // A message to recover which is a hash of the transaction
-            let msg = Message::from_slice(&sighash).map_err(Error::ParseMessage)?;
-            // Get the compact form using bytes, and "v" parameter
-            let compact = RecoverableSignature::from_compact(&compact_bytes, v)
-                .map_err(Error::ParseRecoverableSignature)?;
-            // Acquire secp256k1 context from thread local storage
-            let pkey = SECP256K1.with(move |object| -> Result<_, Error> {
-                // Borrow once and reuse
-                let secp256k1 = object.borrow();
-                // Recover public key
-                let pkey = secp256k1
-                    .recover(&msg, &compact)
-                    .map_err(Error::RecoverSignature)?;
-                // Serialize the recovered public key in uncompressed format
-                Ok(pkey.serialize_uncompressed())
-            })?;
-            assert_eq!(pkey.len(), 65);
-            if pkey[1..].to_vec() == [0x00u8; 64].to_vec() {
-                return Err(Error::ZeroPrivKey);
-            }
-            // Finally an address is last 20 bytes of a hash of the public key.
-            let sender = Keccak256::digest(&pkey[1..]);
-            debug_assert_eq!(sender.len(), 32);
-            Address::from_slice(&sender[12..])
+            sig.recover(&sighash)
         }
     }
 

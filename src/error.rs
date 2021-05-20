@@ -28,6 +28,7 @@ pub enum Error {
     InvalidSignatureLength,
     SerializeRlp, // TODO: error in serde_rlp is not public, cannot include source ...
     DeserializeRlp,
+    NoSignature,
 }
 
 impl fmt::Display for Error {
@@ -63,6 +64,7 @@ impl fmt::Display for Error {
             Error::InvalidSignatureLength => write!(f, "Signature should be exactly 65 bytes long"),
             Error::SerializeRlp => write!(f, "failed to serialize using RLP-encoding"),
             Error::DeserializeRlp => write!(f, "failed to deserialize using RLP-encoding"),
+            Error::NoSignature => write!(f, "This transaction does not have a signature attached"),
         }
     }
 }
