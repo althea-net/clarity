@@ -15,7 +15,8 @@ use secp256k1::recovery::{RecoverableSignature, RecoveryId};
 use secp256k1::Message;
 use serde::Serialize;
 use serde::Serializer;
-use serde_bytes::ByteBuf;
+use serde_bytes::{ByteBuf, Bytes};
+use serde_rlp::de::from_bytes;
 use serde_rlp::ser::to_bytes;
 use sha3::{Digest, Keccak256};
 use signature::Signature;
@@ -278,6 +279,35 @@ impl Transaction {
     /// Creates a byte representation of this transaction
     pub fn to_bytes(&self) -> Result<Vec<u8>, Error> {
         to_bytes(&self).map_err(|_| Error::SerializeRlp)
+    }
+
+    /// Creates a transaction from raw RLP bytes, can not decode unsigned transactions
+    pub fn decode_from_rlp(raw_rlp_bytes: &[u8]) -> Result<Self, Error> {
+        // Try to decode the bytes into a Vec of Bytes which will enforce structure of a n-element vector with bytearrays.
+        let data: Vec<&Bytes> = match from_bytes(&raw_rlp_bytes) {
+            Ok(data) => data,
+            Err(_) => {
+                return Err(Error::DeserializeRlp);
+            }
+        };
+        // A valid decoded transaction has exactly 9 elements.
+        if data.len() != 9 {
+            return Err(Error::DeserializeRlp);
+        }
+
+        Ok(Transaction {
+            nonce: (**data[0]).into(),
+            gas_price: (**data[1]).into(),
+            gas_limit: (**data[2]).into(),
+            to: Address::from_slice(&*data[3]).unwrap_or_default(),
+            value: (**data[4]).into(),
+            data: (**data[5]).into(),
+            signature: Some(Signature::new(
+                (**data[6]).into(),
+                (**data[7]).into(),
+                (**data[8]).into(),
+            )),
+        })
     }
 }
 

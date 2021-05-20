@@ -27,6 +27,7 @@ pub enum Error {
     InvalidCallError(String),
     InvalidSignatureLength,
     SerializeRlp, // TODO: error in serde_rlp is not public, cannot include source ...
+    DeserializeRlp,
 }
 
 impl fmt::Display for Error {
@@ -61,6 +62,7 @@ impl fmt::Display for Error {
             Error::InvalidCallError(val) => write!(f, "Invalid function call {}", val),
             Error::InvalidSignatureLength => write!(f, "Signature should be exactly 65 bytes long"),
             Error::SerializeRlp => write!(f, "failed to serialize using RLP-encoding"),
+            Error::DeserializeRlp => write!(f, "failed to deserialize using RLP-encoding"),
         }
     }
 }

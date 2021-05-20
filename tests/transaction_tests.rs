@@ -8,12 +8,10 @@ extern crate serde_rlp;
 #[macro_use]
 extern crate serde_derive;
 use clarity::utils::{bytes_to_hex_str, hex_str_to_bytes};
-use clarity::{Address, Signature, Transaction};
+use clarity::{Signature, Transaction};
 use num256::Uint256;
 use num_traits::Zero;
-use serde_bytes::Bytes;
 use serde_json::Value;
-use serde_rlp::de::from_bytes;
 use serde_rlp::ser::to_bytes;
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -152,36 +150,12 @@ fn load_filler(fixture: &TestFixture) -> HashMap<String, TestFiller> {
 fn test_fn(fixtures: &TestFixture, filler: &TestFiller, expect: Option<&TestFillerExpect>) {
     let raw_rlp_bytes = hex_str_to_bytes(&fixtures.rlp)
         .unwrap_or_else(|e| panic!("Unable to decode {}: {}", fixtures.rlp, e));
-    // Try to decode the bytes into a Vec of Bytes which will enforce structure of a n-element vector with bytearrays.
-    let data: Vec<&Bytes> = match from_bytes(&raw_rlp_bytes) {
-        Ok(data) => {
-            if filler.transaction.is_none() {
-                assert_eq!(filler.expect.len(), 0);
-                panic!("Decoding of this RLP data should fail");
-            }
-
-            data
-        }
-        Err(e) => {
-            panic!("Decoding failed correctly with {:?}", e);
-        }
-    };
-    // A valid decoded transaction has exactly 9 elements.
-    assert_eq!(data.len(), 9);
-
-    let decoded_tx = Transaction {
-        nonce: (**data[0]).into(),
-        gas_price: (**data[1]).into(),
-        gas_limit: (**data[2]).into(),
-        to: Address::from_slice(&*data[3]).unwrap_or_default(),
-        value: (**data[4]).into(),
-        data: (**data[5]).into(),
-        signature: Some(Signature::new(
-            (**data[6]).into(),
-            (**data[7]).into(),
-            (**data[8]).into(),
-        )),
-    };
+    let decoded_tx =
+        Transaction::decode_from_rlp(&raw_rlp_bytes).expect("Decoding failed correctly with");
+    if filler.transaction.is_none() {
+        assert_eq!(filler.expect.len(), 0);
+        panic!("Decoding of this RLP data should fail");
+    }
 
     // We skipped all fillers without transaction data, so now this unwrap is safe.
     let raw_params = filler.transaction.as_ref().unwrap();
