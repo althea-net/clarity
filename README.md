@@ -16,7 +16,7 @@ See the docs for the API and some usage examples.
 
 # TODO
 
-Update tests/fixtures submodule to Ethereum v7.0.1 and fix the 19 failing conditions
+Update tests/fixtures submodule to Ethereum v8.0.5 and fix the 18 failing conditions
 
     TransactionTests/ttGasLimit/TransactionWithHighGas.json@>=Constantinople,EIP158,Byzantium,EIP150,Homestead@invalid
     TransactionTests/ttGasLimit/TransactionWithHihghGasLimit63m1.json@Byzantium,>=Constantinople,EIP158@valid
