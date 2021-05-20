@@ -264,7 +264,7 @@ fn test_fn(fixtures: &TestFixture, filler: &TestFiller, expect: Option<&TestFill
         assert!(network_id.is_some() || network_id.unwrap() == 1u32.into());
     } else {
         // Before Spurious Dragon
-        assert!(network_id.is_none());
+        assert!(network_id.is_none() || network_id.unwrap() == 1u32.into());
     }
 }
 
