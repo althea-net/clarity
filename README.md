@@ -18,7 +18,6 @@ See the docs for the API and some usage examples.
 
 Update tests/fixtures submodule to Ethereum v7.0.1 and fix the 19 failing conditions
 
-    TransactionTests/ttEIP2028/DataTestSufficientGas2028.json@>=Istanbul@valid
     TransactionTests/ttGasLimit/TransactionWithHighGas.json@>=Constantinople,EIP158,Byzantium,EIP150,Homestead@invalid
     TransactionTests/ttGasLimit/TransactionWithHihghGasLimit63m1.json@Byzantium,>=Constantinople,EIP158@valid
     TransactionTests/ttRSValue/TransactionWithSvalueHigh.json@>=Homestead@invalid

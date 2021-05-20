@@ -10,7 +10,7 @@ pub const GLOGBYTE: u32 = 8; // cost of a byte of logdata
 
 pub const GTXCOST: u32 = 21000; // TX BASE GAS COST
 pub const GTXDATAZERO: u32 = 4; // TX DATA ZERO BYTE GAS COST
-pub const GTXDATANONZERO: u32 = 68; // TX DATA NON ZERO BYTE GAS COST
+pub const GTXDATANONZERO: u32 = 16; // TX DATA NON ZERO BYTE GAS COST
 pub const GSHA3WORD: u32 = 6; // Cost of SHA3 per word
 pub const GSHA256BASE: u32 = 60; // Base c of SHA256
 pub const GSHA256WORD: u32 = 12; // Cost of SHA256 per word
