@@ -4,7 +4,7 @@
 [![Latest Version](https://img.shields.io/crates/v/clarity.svg)](https://crates.io/crates/clarity)
 [![Documentation](https://docs.rs/clarity/badge.svg)](https://docs.rs/clarity)
 
-A lightweight, cross-compile friendly Ethereum client written in Rust.
+A lightweight, cross-compile friendly non-consensus Ethereum client written in Rust. Clarity will assist with the encoding/decoding of transactions, contracts, functions, and arguments.
 
 The goal of Clarity is to be extremely simple and barebones in terms of implementation while maintaining the maximum amount of flexibility and capability.
 
@@ -14,25 +14,19 @@ Our implementation philosophy is that it is up to the developer to understand th
 
 See the docs for the API and some usage examples.
 
-# TODO
+# Ethereum test case status
 
-Update tests/fixtures submodule to Ethereum v8.0.5 and fix the 18 failing conditions
+Update fix Ethereum test fixtures v8.0.5 4/201 cases failing. There are many consensus test cases that this suite passes but not in a functional way since this isn't a consensus participating client.
+
+Requires improvements to our gas and op code parsing
 
     TransactionTests/ttGasLimit/TransactionWithHighGas.json@>=Constantinople,EIP158,Byzantium,EIP150,Homestead@invalid
-    TransactionTests/ttGasLimit/TransactionWithHihghGasLimit63m1.json@Byzantium,>=Constantinople,EIP158@valid
+
+The value in these tests is not exactly secp256k1n but is instead 2^255, double check tests are correct
+
     TransactionTests/ttRSValue/TransactionWithSvalueHigh.json@>=Homestead@invalid
     TransactionTests/ttRSValue/TransactionWithSvalueLargerThan_c_secp256k1n_x05.json@>=Homestead@invalid
-    TransactionTests/ttSignature/Vitalik_1.json@EIP158,Byzantium,>=Constantinople@valid
-    TransactionTests/ttSignature/Vitalik_10.json@>=Constantinople,Byzantium,EIP158@valid
-    TransactionTests/ttSignature/Vitalik_11.json@>=Constantinople,EIP158,Byzantium@valid
-    TransactionTests/ttSignature/Vitalik_2.json@EIP158,Byzantium,>=Constantinople@valid
-    TransactionTests/ttSignature/Vitalik_3.json@Byzantium,EIP158,>=Constantinople@valid
-    TransactionTests/ttSignature/Vitalik_4.json@Byzantium,EIP158,>=Constantinople@valid
-    TransactionTests/ttSignature/Vitalik_5.json@Byzantium,>=Constantinople,EIP158@valid
-    TransactionTests/ttSignature/Vitalik_6.json@Byzantium,EIP158,>=Constantinople@valid
-    TransactionTests/ttSignature/Vitalik_7.json@>=Constantinople,EIP158,Byzantium@valid
-    TransactionTests/ttSignature/Vitalik_8.json@Byzantium,EIP158,>=Constantinople@valid
-    TransactionTests/ttSignature/Vitalik_9.json@>=Constantinople,EIP158,Byzantium@valid
-    TransactionTests/ttVValue/V_equals37.json@EIP158,Byzantium,>=Constantinople@valid
-    TransactionTests/ttVValue/V_equals38.json@>=Constantinople,Byzantium,EIP158@valid
-    TransactionTests/ttVValue/V_overflow64bitSigned.json@EIP158,Homestead,EIP150,>=Constantinople,Byzantium@invalid
+
+The V value in this test seems to be a perfectly valid 28, parsing error on our end?
+
+    TransactionTests/ttVValue/V_overflow64bitSigned.json@EIP158,Byzantium,Homestead,EIP150,>=Constantinople@invalid
