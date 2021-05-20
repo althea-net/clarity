@@ -13,8 +13,8 @@ use num256::Uint256;
 use num_traits::Zero;
 use serde_json::Value;
 use serde_rlp::ser::to_bytes;
-use std::collections::HashMap;
 use std::collections::HashSet;
+use std::collections::{hash_map::RandomState, HashMap};
 use std::env;
 use std::fs::{self, DirEntry, File};
 use std::io;
@@ -124,6 +124,11 @@ fn get_fixtures_path() -> PathBuf {
     path
 }
 
+fn is_subset(set: Vec<&str>, network: &HashSet<String, RandomState>) -> bool {
+    HashSet::from_iter(set.into_iter().map(String::from).collect::<Vec<String>>())
+        .is_subset(network)
+}
+
 fn load_fixtures(path: &Path) -> HashMap<String, TestFixture> {
     // Read JSON in advance before running this particular test.
     // This way we can construct human readable test name based on the JSON contents, and
@@ -215,14 +220,7 @@ fn test_fn(fixtures: &TestFixture, filler: &TestFiller, expect: Option<&TestFill
     assert!(tx.signature.as_ref().unwrap().v <= "18446744073709551615".parse().unwrap());
 
     // Since Homestead we have to verify if 0<s<secpk1n/2
-    if HashSet::from_iter(
-        vec!["Homestead", "EIP150"]
-            .into_iter()
-            .map(String::from)
-            .collect::<Vec<String>>(),
-    )
-    .is_subset(&expect.network)
-    {
+    if is_subset(vec!["Homestead", "EIP150"], &expect.network) {
         let res = tx.signature.as_ref().unwrap().check_low_s_homestead();
         if expect.result == "invalid" {
             res.unwrap_err();
@@ -258,14 +256,10 @@ fn test_fn(fixtures: &TestFixture, filler: &TestFiller, expect: Option<&TestFill
     // Verify network id
     let network_id = tx.signature.as_ref().unwrap().network_id();
 
-    if HashSet::from_iter(
-        vec!["Byzantium", "Constantinople", "EIP158"]
-            .into_iter()
-            .map(String::from)
-            .collect::<Vec<String>>(),
-    )
-    .is_subset(&expect.network)
-    {
+    if is_subset(
+        vec!["Byzantium", "Constantinople", "EIP158"],
+        &expect.network,
+    ) {
         // Since Spurious Dragon
         assert!(network_id.is_some() || network_id.unwrap() == 1u32.into());
     } else {
