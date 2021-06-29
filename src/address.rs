@@ -96,14 +96,14 @@ impl From<[u8; 32]> for Address {
     }
 }
 
-#[allow(clippy::clippy::from_over_into)]
+#[allow(clippy::from_over_into)]
 impl Into<[u8; 20]> for Address {
     fn into(self) -> [u8; 20] {
         self.0
     }
 }
 
-#[allow(clippy::clippy::from_over_into)]
+#[allow(clippy::from_over_into)]
 impl Into<[u8; 32]> for Address {
     fn into(self) -> [u8; 32] {
         let mut data: [u8; 32] = Default::default();

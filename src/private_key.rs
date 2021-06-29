@@ -83,7 +83,7 @@ impl PrivateKey {
     }
 
     /// Get bytes back from a PrivateKey
-    pub fn to_bytes(&self) -> [u8; 32] {
+    pub fn to_bytes(self) -> [u8; 32] {
         self.0
     }
 
@@ -98,7 +98,7 @@ impl PrivateKey {
     /// let private_key : PrivateKey = "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f1e".parse().unwrap();
     /// let public_key = private_key.to_public_key().unwrap();
     /// ```
-    pub fn to_public_key(&self) -> Result<Address, Error> {
+    pub fn to_public_key(self) -> Result<Address, Error> {
         // Create a secret key instance first
         let sk = SecretKey::from_slice(&self.0).map_err(Error::DecodePrivKey)?;
         // Closure below has Result type with inferred T as we don't
@@ -291,17 +291,9 @@ impl<'de> Deserialize<'de> for PrivateKey {
 impl fmt::LowerHex for PrivateKey {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if f.alternate() {
-            write!(
-                f,
-                "0x{}",
-                bytes_to_hex_str(&self.clone().to_bytes()).to_lowercase()
-            )
+            write!(f, "0x{}", bytes_to_hex_str(&self.to_bytes()).to_lowercase())
         } else {
-            write!(
-                f,
-                "{}",
-                bytes_to_hex_str(&self.clone().to_bytes()).to_lowercase()
-            )
+            write!(f, "{}", bytes_to_hex_str(&self.to_bytes()).to_lowercase())
         }
     }
 }
@@ -309,17 +301,9 @@ impl fmt::LowerHex for PrivateKey {
 impl fmt::UpperHex for PrivateKey {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if f.alternate() {
-            write!(
-                f,
-                "0x{}",
-                bytes_to_hex_str(&self.clone().to_bytes()).to_uppercase()
-            )
+            write!(f, "0x{}", bytes_to_hex_str(&self.to_bytes()).to_uppercase())
         } else {
-            write!(
-                f,
-                "{}",
-                bytes_to_hex_str(&self.clone().to_bytes()).to_uppercase()
-            )
+            write!(f, "{}", bytes_to_hex_str(&self.to_bytes()).to_uppercase())
         }
     }
 }

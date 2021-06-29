@@ -108,6 +108,7 @@ impl Token {
                 wtr.extend(prefix.serialize().as_static_ref().unwrap());
                 // Pad on the right
                 wtr.extend(v);
+
                 let pad_right = (((v.len() - 1) / 32) + 1) * 32;
                 wtr.extend(vec![0x00u8; pad_right - v.len()]);
                 SerializedToken::Dynamic(wtr)
@@ -311,8 +312,6 @@ pub fn derive_method_id(signature: &str) -> Result<[u8; 4], Error> {
 
 /// This one is a very simplified ABI encoder that takes a bunch of tokens,
 /// and serializes them.
-///
-/// This version is greatly simplified and doesn't support nested arrays etc.
 ///
 /// Use with caution!
 pub fn encode_tokens(tokens: &[Token]) -> Vec<u8> {
