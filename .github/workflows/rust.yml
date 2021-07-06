@@ -1,0 +1,81 @@
+name: Rust
+
+on:
+  push:
+    branches: [ master, pranay_branch ]
+  pull_request:
+    branches: [ master ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Build
+      run: cargo build --all --verbose
+
+  unit-tests:
+    
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Unit Tests
+      run: cargo test --all --verbose 
+
+  clippy:
+    
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Clippy
+      run: rustup component add clippy && cargo clippy --all --all-targets --all-features -- -D warnings
+
+  rustfmt:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Rustfmt
+      run: rustup component add rustfmt && cargo fmt --all -- --check
+
+  cross-compile-mips:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: cross-compile-mips
+      run: cargo install cross && cross test --target mips-unknown-linux-gnu
+
+  cross-compile-mips64:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: cross-compile-mips64
+      run: cargo install cross && cross test --target mips64-unknown-linux-gnuabi64
+
+
+  cross-compile-arm64:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: cross-compile-arm64
+      run: cargo install cross && cross test --target aarch64-unknown-linux-gnu
+
+  
+
+  
+
