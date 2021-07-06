@@ -20,12 +20,14 @@ use Error;
 ///
 /// ```rust
 /// # use clarity::PrivateKey;
+/// use clarity::utils::get_ethereum_msg_hash;
 /// let private_key : PrivateKey = "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f1e".parse().unwrap();
 /// let signature = private_key.sign_ethereum_msg("Hello, world!".as_bytes());
 /// // on the other side verifying the signature
-/// let hash = get_ethereum_msg_hash("Hello, world!".as_bytes())
-/// assert_eq(signature.recover(&hash).unwrap(), private_key.to_public_key().unwrap())
+/// let hash = get_ethereum_msg_hash("Hello, world!".as_bytes());
+/// assert_eq!(signature.recover(&hash).unwrap(), private_key.to_public_key().unwrap());
 /// ```
+
 pub fn get_ethereum_msg_hash(data: &[u8]) -> Vec<u8> {
     let digest = Keccak256::digest(data);
     let salt_string = ETHEREUM_SALT.to_string();
