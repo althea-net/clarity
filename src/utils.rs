@@ -19,7 +19,7 @@ use Error;
 /// # Example
 ///
 /// ```rust
-/// # use clarity::PrivateKey;
+/// use clarity::PrivateKey;
 /// use clarity::utils::get_ethereum_msg_hash;
 /// let private_key : PrivateKey = "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f1e".parse().unwrap();
 /// let signature = private_key.sign_ethereum_msg("Hello, world!".as_bytes());

@@ -338,12 +338,19 @@ pub fn encode_tokens(tokens: &[Token]) -> Vec<u8> {
 
                 // Store next dynamic buffer *after* dynamic offset is calculated.
                 dynamic_data.push(data);
-                // Convert into token for easy serialization
-                let offset: Token = dynamic_offset.into();
-                // Write the offset of the dynamic data as a value of static size.
-                match offset.serialize() {
-                    SerializedToken::Static(bytes) => res.extend(&bytes),
-                    _ => panic!("Offset token is expected to be static"),
+
+                // our dynamic offset should never be less than 32, in the case that it is
+                // then we don't need it. If you're looking for a encoding issue, try
+                // commenting this if statement out, it's covering an observed edge case
+                // that I haven't tied back to the spec
+                if dynamic_offset > 32 {
+                    // Convert into token for easy serialization
+                    let offset: Token = dynamic_offset.into();
+                    // Write the offset of the dynamic data as a value of static size.
+                    match offset.serialize() {
+                        SerializedToken::Static(bytes) => res.extend(&bytes),
+                        _ => panic!("Offset token is expected to be static"),
+                    }
                 }
             }
         }
@@ -423,6 +430,24 @@ fn get_args_count(sig: &str) -> Result<usize, Error> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::utils::{bytes_to_hex_str, hex_str_to_bytes};
+
+    /// Function used for debug printing hex dumps
+    /// of ethereum events with each uint256 on a new
+    /// line
+    fn _debug_print_data(input: &[u8]) -> String {
+        let mut out = String::new();
+        let count = input.len() / 32;
+        out += "data hex dump\n";
+        for i in 0..count {
+            out += &format!(
+                "0x{}\n",
+                bytes_to_hex_str(&input[(i * 32)..((i * 32) + 32)])
+            )
+        }
+        out += "end hex dump\n";
+        out
+    }
 
     #[test]
     fn derive_event_signature() {
@@ -694,12 +719,52 @@ mod tests {
     }
 
     #[test]
+    fn encode_function_with_only_struct_arg() {
+        let correct = hex_str_to_bytes(
+            "0x414bf389000000000000000000000000c783df8a850f42e7f7e57013759c285caa701eb6000000000000000000000000c783df8a850f42e7f7e57013759c285caa701eb600000000000000000000000000000000000000000000000000000000000001f4000000000000000000000000c783df8a850f42e7f7e57013759c285caa701eb600000000000000000000000000000000000000000000000000000000000186a000000000000000000000000000000000000000000000000000000000000186a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+        )
+        .unwrap();
+
+        let address: Address = "0xc783df8a850f42e7F7e57013759C285caa701eB6"
+            .parse()
+            .unwrap();
+
+        let tokens: Vec<Token> = vec![
+            address.into(),
+            address.into(),
+            500u16.into(),
+            address.into(),
+            100_000u32.into(),
+            100_000u32.into(),
+            0u8.into(),
+            0u8.into(),
+        ];
+        let tokens = [Token::Struct(tokens)];
+        let sig =
+            "exactInputSingle((address,address,uint24,address,uint256,uint256,uint256,uint160))";
+        let payload = encode_call(sig, &tokens).unwrap();
+        assert_eq!(correct, payload);
+    }
+
+    #[test]
     /// This test encodes an abiV2 function call, specifically one
     /// with a nontrivial struct in the header
     fn encode_abiv2_function_header() {
         use crate::utils::bytes_to_hex_str;
         let signature = "submitLogicCall(address[],uint256[],uint256,uint8[],bytes32[],bytes32[],(uint256[],address[],uint256[],address[],address,bytes,uint256,bytes32,uint256))";
         let encoded_method_id = "0x0c246c82";
+        let res = derive_method_id(signature).unwrap();
+        assert_eq!(encoded_method_id, format!("0x{}", bytes_to_hex_str(&res)));
+    }
+
+    #[test]
+    /// This test encodes an abiV2 function call, specifically one
+    /// with a nontrivial struct in the header
+    fn encode_uniswap_header() {
+        use crate::utils::bytes_to_hex_str;
+        let signature =
+            "exactInputSingle((address,address,uint24,address,uint256,uint256,uint256,uint160))";
+        let encoded_method_id = "0x414bf389";
         let res = derive_method_id(signature).unwrap();
         assert_eq!(encoded_method_id, format!("0x{}", bytes_to_hex_str(&res)));
     }
