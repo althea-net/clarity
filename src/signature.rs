@@ -159,7 +159,7 @@ impl Signature {
         let v = RecoveryId::from_i32(self.get_v()?.to_i32().ok_or(Error::InvalidV)? - 27)
             .map_err(Error::DecodeRecoveryId)?;
         // A message to recover which is a hash of the transaction
-        let msg = Message::from_slice(&hash).map_err(Error::ParseMessage)?;
+        let msg = Message::from_slice(hash).map_err(Error::ParseMessage)?;
 
         // Get the compact form using bytes, and "v" parameter
         let compact = RecoverableSignature::from_compact(&self.to_bytes()[..64], v)
@@ -217,11 +217,11 @@ impl FromStr for Signature {
         // Strip optional prefix
         let s = match s.strip_prefix("0x") {
             Some(s) => s,
-            None => &s,
+            None => s,
         };
 
         // Parse hexadecimal form back to bytes
-        let bytes = hex_str_to_bytes(&s)?;
+        let bytes = hex_str_to_bytes(s)?;
         Signature::from_bytes(&bytes)
     }
 }

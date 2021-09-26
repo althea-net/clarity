@@ -40,7 +40,7 @@ impl Address {
         }
 
         let mut result: [u8; 20] = Default::default();
-        result.copy_from_slice(&data);
+        result.copy_from_slice(data);
         Ok(Address(result))
     }
 
@@ -76,7 +76,7 @@ impl<'de> Deserialize<'de> for Address {
             None => &s,
         };
 
-        hex_str_to_bytes(&s)
+        hex_str_to_bytes(s)
             .and_then(move |bytes| Address::from_slice(&bytes))
             .map_err(serde::de::Error::custom)
     }
@@ -107,7 +107,7 @@ impl Into<[u8; 20]> for Address {
 impl Into<[u8; 32]> for Address {
     fn into(self) -> [u8; 32] {
         let mut data: [u8; 32] = Default::default();
-        data[12..].copy_from_slice(&self.as_bytes());
+        data[12..].copy_from_slice(self.as_bytes());
         data
     }
 }
@@ -177,11 +177,11 @@ impl FromStr for Address {
         }
         let s = match s.strip_prefix("0x") {
             Some(s) => s,
-            None => &s,
+            None => s,
         };
 
         if s.len() == 40 {
-            Ok(Address::from_slice(&hex_str_to_bytes(&s)?)?)
+            Ok(Address::from_slice(&hex_str_to_bytes(s)?)?)
         } else {
             Err(Error::InvalidAddressLength {
                 got: s.len(),
@@ -194,7 +194,7 @@ impl FromStr for Address {
 /// Gets the EIP-55 encoded version of an address passed in as bytes
 fn eip_55_string(address_bytes: [u8; 20]) -> String {
     let hex_str = bytes_to_hex_str(&address_bytes);
-    let hash = Keccak256::digest(&hex_str.as_bytes());
+    let hash = Keccak256::digest(hex_str.as_bytes());
     let mut capitalized_hex_str: Vec<char> = Vec::new();
     for (counter, character) in hex_str.chars().enumerate() {
         match character {

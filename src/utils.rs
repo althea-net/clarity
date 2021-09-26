@@ -41,14 +41,14 @@ pub fn get_ethereum_msg_hash(data: &[u8]) -> Vec<u8> {
 pub fn hex_str_to_bytes(s: &str) -> Result<Vec<u8>, Error> {
     let s = match s.strip_prefix("0x") {
         Some(s) => s,
-        None => &s,
+        None => s,
     };
     let bytes = s
         .as_bytes()
         .chunks(2)
         .map::<Result<u8, Error>, _>(|ch| {
-            let str = str::from_utf8(&ch)?;
-            let byte = u8::from_str_radix(&str, 16)?;
+            let str = str::from_utf8(ch)?;
+            let byte = u8::from_str_radix(str, 16)?;
 
             Ok(byte)
         })

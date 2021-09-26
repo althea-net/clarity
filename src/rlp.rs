@@ -20,7 +20,7 @@ impl<'a> Serialize for AddressDef<'a> {
             serializer.serialize_bytes(&[])
         } else {
             // Here we serialize all bytes
-            serializer.serialize_bytes(&self.0.as_bytes())
+            serializer.serialize_bytes(self.0.as_bytes())
         }
     }
 }

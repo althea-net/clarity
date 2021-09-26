@@ -71,7 +71,7 @@ impl SerializedToken {
     /// Gets a reference to value held by Static
     fn as_static_ref(&self) -> Option<&[u8; 32]> {
         match *self {
-            SerializedToken::Static(ref data) => Some(&data),
+            SerializedToken::Static(ref data) => Some(data),
             _ => None,
         }
     }
@@ -147,7 +147,7 @@ impl Token {
                 // we treat it as separate case.
                 let mut wtr: [u8; 32] = Default::default();
                 let bytes = address.as_bytes();
-                wtr[32 - bytes.len()..].copy_from_slice(&bytes);
+                wtr[32 - bytes.len()..].copy_from_slice(bytes);
                 SerializedToken::Static(wtr)
             }
         }
@@ -600,7 +600,7 @@ mod tests {
         assert_eq!(
             result[..]
                 .chunks(32)
-                .map(|c| bytes_to_hex_str(&c))
+                .map(|c| bytes_to_hex_str(c))
                 .collect::<Vec<String>>(),
             vec![
                 "0000000000000000000000000000000000000000000000000000000000000123".to_owned(),
@@ -629,7 +629,7 @@ mod tests {
         assert_eq!(
             result[..]
                 .chunks(32)
-                .map(|c| bytes_to_hex_str(&c))
+                .map(|c| bytes_to_hex_str(c))
                 .collect::<Vec<String>>(),
             vec![
                 "0000000000000000000000000000000000000000000000000000000000000123".to_owned(),
@@ -656,7 +656,7 @@ mod tests {
         assert_eq!(
             result[..]
                 .chunks(32)
-                .map(|c| bytes_to_hex_str(&c))
+                .map(|c| bytes_to_hex_str(c))
                 .collect::<Vec<String>>(),
             vec!["00000000000000000000000000000000000000000000000000000000deadbeef".to_owned(),]
         );
@@ -670,7 +670,7 @@ mod tests {
         assert_eq!(
             result[..]
                 .chunks(32)
-                .map(|c| bytes_to_hex_str(&c))
+                .map(|c| bytes_to_hex_str(c))
                 .collect::<Vec<String>>(),
             vec![
                 "0000000000000000000000000000000000000000000000000000000000000040".to_owned(),

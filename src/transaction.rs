@@ -240,7 +240,7 @@ impl Transaction {
     /// Creates a transaction from raw RLP bytes, can not decode unsigned transactions
     pub fn decode_from_rlp(raw_rlp_bytes: &[u8]) -> Result<Self, Error> {
         // Try to decode the bytes into a Vec of Bytes which will enforce structure of a n-element vector with bytearrays.
-        let data: Vec<&Bytes> = match from_bytes(&raw_rlp_bytes) {
+        let data: Vec<&Bytes> = match from_bytes(raw_rlp_bytes) {
             Ok(data) => data,
             Err(_) => {
                 return Err(Error::DeserializeRlp);
@@ -299,7 +299,7 @@ fn test_vitaliks_eip_158_vitalik_12_json() {
     assert_eq!(lhs, rhs);
 
     assert_eq!(
-        bytes_to_hex_str(&tx.sender().unwrap().as_bytes()),
+        bytes_to_hex_str(tx.sender().unwrap().as_bytes()),
         "874b54a8bd152966d63f706bae1ffeb0411921e5"
     );
 }

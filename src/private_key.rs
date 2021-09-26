@@ -42,7 +42,7 @@ impl FromStr for PrivateKey {
         // Strip optional prefix if its there
         let s = match s.strip_prefix("0x") {
             Some(s) => s,
-            None => &s,
+            None => s,
         };
         if s.len() != 64 {
             return Err(Error::InvalidPrivKeyLength {
@@ -50,7 +50,7 @@ impl FromStr for PrivateKey {
                 expected: 64,
             });
         }
-        let bytes = hex_str_to_bytes(&s)?;
+        let bytes = hex_str_to_bytes(s)?;
         debug_assert_eq!(bytes.len(), 32);
         let mut res = [0x0u8; 32];
         res.copy_from_slice(&bytes[..]);
@@ -152,7 +152,7 @@ impl PrivateKey {
             let context = object.borrow();
             // Create a Secp256k1 message inside the scope without polluting
             // outside scope.
-            let msg = Message::from_slice(&data).unwrap();
+            let msg = Message::from_slice(data).unwrap();
             // Sign the raw hash of RLP encoded transaction data with a private key.
             let sig = context.sign_recoverable(&msg, &sk);
             // Serialize the signature into the "compact" form which means
@@ -282,7 +282,7 @@ impl<'de> Deserialize<'de> for PrivateKey {
             None => &s,
         };
 
-        hex_str_to_bytes(&s)
+        hex_str_to_bytes(s)
             .and_then(move |bytes| PrivateKey::from_slice(&bytes))
             .map_err(serde::de::Error::custom)
     }
@@ -340,7 +340,7 @@ fn parse_address_1() {
 
     // geth account import <(echo c85ef7d79691fe79573b1a7064c19c1a9819ebdbd1faaab1a8ec92344438aaf4)
     assert_eq!(
-        bytes_to_hex_str(&key.to_public_key().unwrap().as_bytes()),
+        bytes_to_hex_str(key.to_public_key().unwrap().as_bytes()),
         "cd2a3d9f938e13cd947ec05abc7fe734df8dd826"
     );
 }
@@ -363,7 +363,7 @@ fn parse_address_2() {
 
     // geth account import <(echo c87f65ff3f271bf5dc8643484f66b200109caffe4bf98c4cb393dc35740b28c0)
     assert_eq!(
-        bytes_to_hex_str(&key.to_public_key().unwrap().as_bytes()),
+        bytes_to_hex_str(key.to_public_key().unwrap().as_bytes()),
         "13978aee95f38490e9769c39b2773ed763d9cd5f"
     );
 }
