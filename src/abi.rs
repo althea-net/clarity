@@ -339,11 +339,9 @@ pub fn encode_tokens(tokens: &[Token]) -> Vec<u8> {
                 // Store next dynamic buffer *after* dynamic offset is calculated.
                 dynamic_data.push(data);
 
-                // our dynamic offset should never be less than 32, in the case that it is
-                // then we don't need it. If you're looking for a encoding issue, try
-                // commenting this if statement out, it's covering an observed edge case
-                // that I haven't tied back to the spec
-                if dynamic_offset > 32 {
+                // static structs do not require offsets as they aren't actually
+                // of dynamic length
+                if !is_static_struct_array(tokens) {
                     // Convert into token for easy serialization
                     let offset: Token = dynamic_offset.into();
                     // Write the offset of the dynamic data as a value of static size.
@@ -377,11 +375,11 @@ pub fn encode_call(sig: &str, tokens: &[Token]) -> Result<Vec<u8>, Error> {
     wtr.extend(&derive_method_id(sig)?);
 
     let args_count = get_args_count(sig)?;
-    if args_count != get_tokens_count(tokens) {
+    let token_count = get_tokens_count(tokens);
+    if args_count != token_count {
         return Err(Error::InvalidCallError(format!(
             "Function call contains {} arguments, but {} provided",
-            args_count,
-            tokens.len()
+            args_count, token_count
         )));
     }
 
@@ -397,10 +395,55 @@ fn get_tokens_count(tokens: &[Token]) -> usize {
     for token in tokens {
         match token {
             Token::Struct(v) => count += get_tokens_count(v),
+            // for the case of an array of structs we count that structs members
+            // that is what we'll see in the function header
+            Token::Dynamic(d) => {
+                if is_struct_array(d) && !d.is_empty() {
+                    count += get_tokens_count(&[d[0].clone()])
+                } else {
+                    count += 1
+                }
+            }
             _ => count += 1,
         }
     }
     count
+}
+
+/// Simple utility function to detect arrays of structs
+fn is_struct_array(input: &[Token]) -> bool {
+    // arguable null case, could go either way
+    if input.is_empty() {
+        return false;
+    }
+    for t in input {
+        match t {
+            Token::Struct(_) => {}
+            _ => return false,
+        }
+    }
+    true
+}
+
+/// Simple utility function to detect arrays of structs that are all static in size
+fn is_static_struct_array(input: &[Token]) -> bool {
+    // arguable null case, could go either way
+    if input.is_empty() {
+        return false;
+    }
+    for t in input {
+        match t {
+            Token::Struct(v) => {
+                for t in v {
+                    if let SerializedToken::Dynamic(_) = t.serialize() {
+                        return false;
+                    }
+                }
+            }
+            _ => return false,
+        }
+    }
+    true
 }
 
 /// Gets the number of arguments by parsing a function signature
@@ -416,8 +459,10 @@ fn get_args_count(sig: &str) -> Result<usize, Error> {
     let args = sig.split(|ch| ch == '(' || ch == ')');
     let mut num_args = 0;
     for substring in args {
-        // leading or trailing ,'s
+        // leading or trailing ,'s or []
+        let substring = substring.trim_matches(|c| c == ']' || c == '[');
         let substring = substring.trim_matches(',');
+        let substring = substring.trim();
         if !substring.is_empty() {
             num_args += substring.split(',').count();
         }
@@ -430,24 +475,7 @@ fn get_args_count(sig: &str) -> Result<usize, Error> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::utils::{bytes_to_hex_str, hex_str_to_bytes};
-
-    /// Function used for debug printing hex dumps
-    /// of ethereum events with each uint256 on a new
-    /// line
-    fn _debug_print_data(input: &[u8]) -> String {
-        let mut out = String::new();
-        let count = input.len() / 32;
-        out += "data hex dump\n";
-        for i in 0..count {
-            out += &format!(
-                "0x{}\n",
-                bytes_to_hex_str(&input[(i * 32)..((i * 32) + 32)])
-            )
-        }
-        out += "end hex dump\n";
-        out
-    }
+    use crate::utils::hex_str_to_bytes;
 
     #[test]
     fn derive_event_signature() {
@@ -497,7 +525,7 @@ mod tests {
     }
 
     #[test]
-    fn derive_update_valset() {
+    fn derive_complex_signatures() {
         use utils::bytes_to_hex_str;
         assert_eq!(
             bytes_to_hex_str(&derive_method_id("dummyUpdateValset(address[])").unwrap()),
@@ -507,6 +535,8 @@ mod tests {
             bytes_to_hex_str(&derive_method_id("dummyUpdateValset(address[],uint256[])").unwrap()),
             "711ca6ac"
         );
+        assert_eq!(bytes_to_hex_str(&derive_method_id("updateValset((address[],uint256[],uint256,uint256,address),(address[],uint256[],uint256,uint256,address),(uint8,bytes32,bytes32)[])").unwrap()), "aca6b1c1");
+        assert_eq!(bytes_to_hex_str(&derive_method_id("submitLogicCall((address[],uint256[],uint256,uint256,address),(uint8,bytes32,bytes32)[],(uint256[],address[],uint256[],address[],address,bytes,uint256,bytes32,uint256))").unwrap()), "6941db93");
     }
 
     #[test]
@@ -776,6 +806,9 @@ mod tests {
             ("testCall(uint256,uint256,uint256)", 3),
             ("updateValset((address[],uint256[],uint256,uint256,address),(address[],uint256[],uint256,uint256,address),uint8[],bytes32[],bytes32[])", 13),
         ("submitLogicCall(address[],uint256[],uint256,uint8[],bytes32[],bytes32[],(uint256[],address[],uint256[],address[],address,bytes,uint256,bytes32,uint256))", 15),
+        ("updateValset((address[],uint256[],uint256,uint256,address),(address[],uint256[],uint256,uint256,address),(uint8[],bytes32[],bytes32[]))", 13),
+        ("updateValset((address[],uint256[],uint256,uint256,address),(address[],uint256[],uint256,uint256,address),(uint8,bytes32,bytes32)[])", 13),
+        ("submitBatch((address[],uint256[],uint256,uint256,address),(uint8,bytes32,bytes32)[],uint256[],address[],uint256[],uint256,address,uint256)", 14)
         ];
         for (sig, count) in test_signatures.iter() {
             assert_eq!(get_args_count(sig).unwrap(), *count);

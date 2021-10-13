@@ -57,6 +57,23 @@ pub fn hex_str_to_bytes(s: &str) -> Result<Vec<u8>, Error> {
     Ok(bytes)
 }
 
+/// Function used for debug printing hex dumps
+/// of ethereum events with each uint256 on a new
+/// line
+pub fn debug_print_data(input: &[u8]) -> String {
+    let mut out = String::new();
+    let count = input.len() / 32;
+    out += "data hex dump\n";
+    for i in 0..count {
+        out += &format!(
+            "0x{}\n",
+            bytes_to_hex_str(&input[(i * 32)..((i * 32) + 32)])
+        )
+    }
+    out += "end hex dump\n";
+    out
+}
+
 /// This function displays a uint256 as an Ethereum address
 /// which requires specific formatting, mostly useful for logging
 /// and to avoid trying convert the Uint256 into an address
