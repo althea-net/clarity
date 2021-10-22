@@ -1,4 +1,7 @@
+use crate::utils::bytes_to_hex_str;
 use crate::utils::display_uint256_as_address;
+use crate::utils::hex_str_to_bytes;
+use crate::Error;
 use num256::Uint256;
 use serde::Deserialize;
 use serde::Deserializer;
@@ -11,9 +14,6 @@ use std::{
     convert::TryFrom,
     fmt::{self, Display},
 };
-use utils::bytes_to_hex_str;
-use utils::hex_str_to_bytes;
-use Error;
 
 /// Representation of an Ethereum address.
 ///
@@ -181,7 +181,8 @@ impl FromStr for Address {
         };
 
         if s.len() == 40 {
-            Ok(Address::from_slice(&hex_str_to_bytes(s)?)?)
+            let r = hex_str_to_bytes(s)?;
+            Ok(Address::from_slice(&r)?)
         } else {
             Err(Error::InvalidAddressLength {
                 got: s.len(),

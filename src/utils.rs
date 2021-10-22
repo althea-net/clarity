@@ -1,4 +1,5 @@
 use crate::private_key::ETHEREUM_SALT;
+use crate::Error;
 use num256::Uint256;
 use serde::{
     de::{Deserialize, Deserializer},
@@ -6,7 +7,6 @@ use serde::{
 };
 use sha3::{Digest, Keccak256};
 use std::str;
-use Error;
 
 /// Takes a signature payload of arbitrary size and creates a proper payload
 /// for an ethereum_msg signature.

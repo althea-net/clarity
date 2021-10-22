@@ -17,8 +17,8 @@
 //! Unfortunately if you need to support custom type that is not currently supported you are welcome to open an issue [on issues page](https://github.com/althea-net/clarity/issues/new),
 //! or do the serialization yourself by converting your custom type into a `[u8; 32]` array and creating a proper Token instance.
 
+use crate::address::Address;
 use crate::error::Error;
-use address::Address;
 use num256::Uint256;
 use sha3::{Digest, Keccak256};
 
@@ -479,7 +479,7 @@ mod tests {
 
     #[test]
     fn derive_event_signature() {
-        use utils::bytes_to_hex_str;
+        use crate::utils::bytes_to_hex_str;
         let derived = derive_signature("HelloWorld(string)").unwrap();
         assert_eq!(
             bytes_to_hex_str(&derived),
@@ -499,7 +499,7 @@ mod tests {
 
     #[test]
     fn derive_baz() {
-        use utils::bytes_to_hex_str;
+        use crate::utils::bytes_to_hex_str;
         assert_eq!(
             bytes_to_hex_str(&derive_method_id("baz(uint32,bool)").unwrap()),
             "cdcd77c0"
@@ -508,7 +508,7 @@ mod tests {
 
     #[test]
     fn derive_bar() {
-        use utils::bytes_to_hex_str;
+        use crate::utils::bytes_to_hex_str;
         assert_eq!(
             bytes_to_hex_str(&derive_method_id("bar(bytes3[2])").unwrap()),
             "fce353f6"
@@ -517,7 +517,7 @@ mod tests {
 
     #[test]
     fn derive_sam() {
-        use utils::bytes_to_hex_str;
+        use crate::utils::bytes_to_hex_str;
         assert_eq!(
             bytes_to_hex_str(&derive_method_id("sam(bytes,bool,uint256[])").unwrap()),
             "a5643bf2"
@@ -526,7 +526,7 @@ mod tests {
 
     #[test]
     fn derive_complex_signatures() {
-        use utils::bytes_to_hex_str;
+        use crate::utils::bytes_to_hex_str;
         assert_eq!(
             bytes_to_hex_str(&derive_method_id("dummyUpdateValset(address[])").unwrap()),
             "fd9b9103"
@@ -541,7 +541,7 @@ mod tests {
 
     #[test]
     fn derive_f() {
-        use utils::bytes_to_hex_str;
+        use crate::utils::bytes_to_hex_str;
         assert_eq!(
             bytes_to_hex_str(&derive_method_id("f(uint256,uint32[],bytes10,bytes)").unwrap()),
             "8be65246"
@@ -569,7 +569,7 @@ mod tests {
 
     #[test]
     fn encode_simple() {
-        use utils::bytes_to_hex_str;
+        use crate::utils::bytes_to_hex_str;
         let result = encode_tokens(&[69u32.into(), true.into()]);
         assert_eq!(
             bytes_to_hex_str(&result),
@@ -582,7 +582,7 @@ mod tests {
 
     #[test]
     fn encode_sam() {
-        use utils::bytes_to_hex_str;
+        use crate::utils::bytes_to_hex_str;
         let result = encode_tokens(&["dave".into(), true.into(), vec![1u32, 2u32, 3u32].into()]);
         assert!(result.len() % 8 == 0);
         assert_eq!(
@@ -619,7 +619,7 @@ mod tests {
 
     #[test]
     fn encode_f() {
-        use utils::bytes_to_hex_str;
+        use crate::utils::bytes_to_hex_str;
         let result = encode_tokens(&[
             0x123u32.into(),
             vec![0x456u32, 0x789u32].into(),
@@ -648,7 +648,7 @@ mod tests {
 
     #[test]
     fn encode_f_with_real_unbounded_bytes() {
-        use utils::bytes_to_hex_str;
+        use crate::utils::bytes_to_hex_str;
         let result = encode_tokens(&[
             0x123u32.into(),
             vec![0x456u32, 0x789u32].into(),
@@ -677,7 +677,7 @@ mod tests {
 
     #[test]
     fn encode_address() {
-        use utils::bytes_to_hex_str;
+        use crate::utils::bytes_to_hex_str;
         let result = encode_tokens(&["0x00000000000000000000000000000000deadbeef"
             .parse::<Address>()
             .expect("Unable to parse address")
@@ -694,7 +694,7 @@ mod tests {
 
     #[test]
     fn encode_dynamic_only() {
-        use utils::bytes_to_hex_str;
+        use crate::utils::bytes_to_hex_str;
         let result = encode_tokens(&["foo".into(), "bar".into()]);
         assert!(result.len() % 8 == 0);
         assert_eq!(

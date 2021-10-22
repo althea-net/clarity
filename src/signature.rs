@@ -1,7 +1,11 @@
-use address::Address;
-use constants::SECPK1N;
-use context::SECP256K1;
-use error::Error;
+use crate::address::Address;
+use crate::constants::SECPK1N;
+use crate::context::SECP256K1;
+use crate::error::Error;
+use crate::utils::{
+    big_endian_uint256_deserialize, big_endian_uint256_serialize, bytes_to_hex_str,
+    hex_str_to_bytes,
+};
 use num256::Uint256;
 use num_traits::{ToPrimitive, Zero};
 use secp256k1::recovery::{RecoverableSignature, RecoveryId};
@@ -9,10 +13,6 @@ use secp256k1::Message;
 use sha3::{Digest, Keccak256};
 use std::fmt::{self, Display};
 use std::str::FromStr;
-use utils::{
-    big_endian_uint256_deserialize, big_endian_uint256_serialize, bytes_to_hex_str,
-    hex_str_to_bytes,
-};
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
 pub struct Signature {

@@ -4,7 +4,7 @@
 //! of Clarity without any intention to be available outside.
 //!
 //! RLP encoder requires a binary data to be encoded in a well specified method.
-use address::Address;
+use crate::address::Address;
 use serde::Serialize;
 use serde::Serializer;
 

@@ -1,6 +1,6 @@
 [package]
 name = "clarity"
-version = "0.4.15"
+version = "0.4.16"
 authors = ["Michał Papierski <michal@papierski.net>, Justin Kilpatrick <justin@althea.net>"]
 autotests = true
 include = [
@@ -10,6 +10,7 @@ include = [
 description = "Lightweight Ethereum client"
 repository = "https://github.com/althea-net/clarity"
 license-file = "LICENSE"
+edition = "2021"
 
 [badges]
 travis-ci = { repository = "althea-net/clarity", branch = "master" }
