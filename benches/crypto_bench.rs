@@ -39,7 +39,7 @@ fn private_key_to_public(c: &mut Criterion) {
         .unwrap();
 
     c.bench_function("private key to public", move |b| {
-        b.iter(|| key.to_public_key().unwrap())
+        b.iter(|| key.to_address())
     });
 }
 

@@ -78,6 +78,7 @@ mod context;
 pub mod error;
 pub mod opcodes;
 pub mod private_key;
+mod raw_private_key;
 mod rlp;
 mod signature;
 pub mod transaction;

@@ -1,10 +1,11 @@
 use crate::address::Address;
 use crate::context::SECP256K1;
 use crate::error::Error;
+use crate::raw_private_key::RawPrivateKey;
 use crate::signature::Signature;
 use crate::utils::{bytes_to_hex_str, hex_str_to_bytes};
 use num256::Uint256;
-use secp256k1::{Message, PublicKey, SecretKey};
+use secp256k1::{Message, SecretKey};
 use serde::Deserialize;
 use serde::Deserializer;
 use serde::Serialize;
@@ -27,8 +28,11 @@ pub const ETHEREUM_SALT: &str = "\x19Ethereum Signed Message:\n32";
 /// With PrivateKey you are able to sign messages, derive
 /// public keys. Cryptography-related methods use
 /// SECP256K1 elliptic curves.
-#[derive(PartialEq, Eq, PartialOrd, Ord, Copy, Clone, Default)]
-pub struct PrivateKey([u8; 32]);
+#[derive(PartialEq, Eq, PartialOrd, Ord, Copy, Clone, Hash)]
+pub struct PrivateKey {
+    key: [u8; 32],
+    address: Address,
+}
 
 impl FromStr for PrivateKey {
     type Err = Error;
@@ -37,30 +41,30 @@ impl FromStr for PrivateKey {
     ///
     /// It has to be a string that represents 64 characters that are hexadecimal
     /// representation of 32 bytes. Optionally this string can be prefixed with `0x`
-    /// at the beggining.
+    /// at the start.
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        // Strip optional prefix if its there
-        let s = match s.strip_prefix("0x") {
-            Some(s) => s,
-            None => s,
-        };
-        if s.len() != 64 {
-            return Err(Error::InvalidPrivKeyLength {
-                got: s.len(),
-                expected: 64,
-            });
-        }
-        let bytes = hex_str_to_bytes(s)?;
-        debug_assert_eq!(bytes.len(), 32);
-        let mut res = [0x0u8; 32];
-        res.copy_from_slice(&bytes[..]);
-        Ok(PrivateKey(res))
+        // uses from_str for RawPrivateKey
+        let raw: RawPrivateKey = s.parse()?;
+        let public_key = raw.to_address()?;
+
+        Ok(PrivateKey {
+            key: raw.to_bytes(),
+            address: public_key,
+        })
     }
 }
 
-impl From<[u8; 32]> for PrivateKey {
-    fn from(val: [u8; 32]) -> PrivateKey {
-        PrivateKey(val)
+impl TryFrom<[u8; 32]> for PrivateKey {
+    type Error = Error;
+    fn try_from(val: [u8; 32]) -> Result<PrivateKey, Error> {
+        // uses from for RawPrivateKey
+        let raw: RawPrivateKey = val.into();
+        let public_key = raw.to_address()?;
+
+        Ok(PrivateKey {
+            key: raw.to_bytes(),
+            address: public_key,
+        })
     }
 }
 
@@ -79,15 +83,22 @@ impl PrivateKey {
         }
         let mut res = [0u8; 32];
         res.copy_from_slice(slice);
-        Ok(PrivateKey(res))
+        // uses from for RawPrivateKey
+        let raw: RawPrivateKey = res.into();
+        let public_key = raw.to_address()?;
+
+        Ok(PrivateKey {
+            key: raw.to_bytes(),
+            address: public_key,
+        })
     }
 
     /// Get bytes back from a PrivateKey
     pub fn to_bytes(self) -> [u8; 32] {
-        self.0
+        self.key
     }
 
-    /// Create a public key for a given private key.
+    /// Get the address key for a given private key.
     ///
     /// This is well explained in the Ethereum Yellow Paper Appendix F.
     ///
@@ -96,30 +107,12 @@ impl PrivateKey {
     /// ```rust
     /// use clarity::PrivateKey;
     /// let private_key : PrivateKey = "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f1e".parse().unwrap();
-    /// let public_key = private_key.to_public_key().unwrap();
+    /// let public_key = private_key.to_address();
     /// ```
-    pub fn to_public_key(self) -> Result<Address, Error> {
-        // Create a secret key instance first
-        let sk = SecretKey::from_slice(&self.0).map_err(Error::DecodePrivKey)?;
-        // Closure below has Result type with inferred T as we don't
-        // need to really assume type of the returned array from
-        // `serialize_uncompressed`.
-        let pkey = SECP256K1.with(move |object| -> Result<_, Error> {
-            let secp256k1 = object.borrow();
-            let pkey = PublicKey::from_secret_key(&secp256k1, &sk);
-            // Serialize the recovered public key in uncompressed format
-            Ok(pkey.serialize_uncompressed())
-        })?;
-        // TODO: This part is duplicated with sender code.
-        assert_eq!(pkey.len(), 65);
-        if pkey[1..] == [0x00u8; 64][..] {
-            return Err(Error::ZeroPrivKey);
-        }
-        // Finally an address is last 20 bytes of a hash of the public key.
-        let sender = Keccak256::digest(&pkey[1..]);
-        debug_assert_eq!(sender.len(), 32);
-        Address::from_slice(&sender[12..])
+    pub fn to_address(self) -> Address {
+        self.address
     }
+
     /// Signs a message that is represented by a hash contained in a binary form.
     ///
     /// Requires the data buffer to be exactly 32 bytes in length. You can prepare
@@ -172,32 +165,6 @@ impl PrivateKey {
         let s = Uint256::from_bytes_be(&compact[32..64]);
         // This will swap the signature of a transaction, and returns a new signed TX.
         Signature::new(v, r, s)
-    }
-    /// Signs any message represented by a slice of data.
-    ///
-    /// Internally it makes `Keccak256` hash out of your data, and then creates a
-    /// signature.
-    ///
-    /// This is more user friendly version of [sign_hash](#method.sign_hash) which means
-    /// it will use `Keccak256` function to hash your input data.
-    ///
-    /// This method is deprecated as insecure, since it does not prevent signed messages
-    /// from being possibly valid transactions by appending the standard \x19Ethereum Signed Message:\n32
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// # use clarity::PrivateKey;
-    /// let private_key : PrivateKey = "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f1e".parse().unwrap();
-    /// let signature = private_key.sign_msg("Hello, world!".as_bytes());
-    /// ```
-    #[deprecated(
-        since = "0.3.2",
-        note = "Please use sign_ethereum_msg or sign_insecure_msg instead"
-    )]
-    pub fn sign_msg(&self, data: &[u8]) -> Signature {
-        let digest = Keccak256::digest(data);
-        self.sign_hash(&digest)
     }
 
     /// Signs any message represented by a slice of data.
@@ -340,7 +307,7 @@ fn parse_address_1() {
 
     // geth account import <(echo c85ef7d79691fe79573b1a7064c19c1a9819ebdbd1faaab1a8ec92344438aaf4)
     assert_eq!(
-        bytes_to_hex_str(key.to_public_key().unwrap().as_bytes()),
+        bytes_to_hex_str(key.to_address().as_bytes()),
         "cd2a3d9f938e13cd947ec05abc7fe734df8dd826"
     );
 }
@@ -363,17 +330,9 @@ fn parse_address_2() {
 
     // geth account import <(echo c87f65ff3f271bf5dc8643484f66b200109caffe4bf98c4cb393dc35740b28c0)
     assert_eq!(
-        bytes_to_hex_str(key.to_public_key().unwrap().as_bytes()),
+        bytes_to_hex_str(key.to_address().as_bytes()),
         "13978aee95f38490e9769c39b2773ed763d9cd5f"
     );
-}
-
-#[test]
-#[should_panic]
-fn zero_address() {
-    // A key full of zeros is an invalid private key.
-    let key = PrivateKey::default();
-    key.to_public_key().unwrap();
 }
 
 #[test]
@@ -449,10 +408,7 @@ fn sign_message() {
     let recovered = sig
         .recover(&hash)
         .expect("Unable to recover address from a signature");
-    assert_eq!(
-        recovered,
-        key.to_public_key().expect("Unable to get address")
-    );
+    assert_eq!(recovered, key.to_address());
 }
 
 #[test]

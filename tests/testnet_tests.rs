@@ -16,8 +16,8 @@ fn make_random_key() -> PrivateKey {
     let mut data = [0u8; 32];
     rng.fill_bytes(&mut data);
 
-    let res = PrivateKey::from(data);
-    debug_assert_ne!(res, PrivateKey::default());
+    let res = PrivateKey::try_from(data).unwrap();
+    debug_assert_ne!(res.to_bytes(), [0; 32]);
     res
 }
 
@@ -106,7 +106,7 @@ fn testnet_alice_and_bob() {
     // Send 1 ETH to Alice from a first account from Ganache
     let tx_req = TransactionRequest {
         from: *seed,
-        to: Some(alice_priv_key.to_public_key().unwrap().as_bytes().into()),
+        to: Some(alice_priv_key.to_address().as_bytes().into()),
         gas: None,
         gas_price: Some(0x1.into()),
         value: Some(one_eth * 10u64),
@@ -118,10 +118,7 @@ fn testnet_alice_and_bob() {
     println!("Res {:?}", res);
     let res = web3
         .eth()
-        .balance(
-            alice_priv_key.to_public_key().unwrap().as_bytes().into(),
-            None,
-        )
+        .balance(alice_priv_key.to_address().as_bytes().into(), None)
         .wait()
         .unwrap();
 
@@ -135,17 +132,14 @@ fn testnet_alice_and_bob() {
             nonce: nonce.into(),
             gas_price: 1_000_000_000u64.into(),
             gas_limit: 21000u64.into(),
-            to: bob_priv_key.to_public_key().unwrap(),
+            to: bob_priv_key.to_address(),
             value: 1_000_000_000_000_000_000u64.into(), // 0.1ETH
             data: Vec::new(),
             signature: None,
         };
         let signed_tx = tx.sign(&alice_priv_key, Some(42));
         assert!(signed_tx.is_valid());
-        assert_eq!(
-            signed_tx.sender().unwrap(),
-            alice_priv_key.to_public_key().unwrap()
-        );
+        assert_eq!(signed_tx.sender().unwrap(), alice_priv_key.to_address());
         let res = web3
             .eth()
             .send_raw_transaction(Bytes::from(signed_tx.to_bytes().unwrap()))
@@ -160,20 +154,14 @@ fn testnet_alice_and_bob() {
     }
     let res = web3
         .eth()
-        .balance(
-            alice_priv_key.to_public_key().unwrap().as_bytes().into(),
-            None,
-        )
+        .balance(alice_priv_key.to_address().as_bytes().into(), None)
         .wait()
         .unwrap();
     println!("Alice balance {:?}", res);
     assert_eq!(res, (one_eth * 5u64) - 2100u64 * 5u64 * 10_000_000_000u64);
     let res = web3
         .eth()
-        .balance(
-            bob_priv_key.to_public_key().unwrap().as_bytes().into(),
-            None,
-        )
+        .balance(bob_priv_key.to_address().as_bytes().into(), None)
         .wait()
         .unwrap();
     println!("Bob balance {:?}", res);

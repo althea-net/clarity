@@ -124,7 +124,7 @@ impl Transaction {
                 return false;
             }
         }
-        // check that the signature is actually correct, not just valid
+        // TODO check that the signature is actually correct, not just valid
 
         // rudimentary gas limit check, needs opcode awareness
         if self.gas_limit < self.intrinsic_gas_used() {
