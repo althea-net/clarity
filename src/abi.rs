@@ -630,7 +630,7 @@ mod tests {
         assert_eq!(
             result[..]
                 .chunks(32)
-                .map(|c| bytes_to_hex_str(c))
+                .map(bytes_to_hex_str)
                 .collect::<Vec<String>>(),
             vec![
                 "0000000000000000000000000000000000000000000000000000000000000123".to_owned(),
@@ -659,7 +659,7 @@ mod tests {
         assert_eq!(
             result[..]
                 .chunks(32)
-                .map(|c| bytes_to_hex_str(c))
+                .map(bytes_to_hex_str)
                 .collect::<Vec<String>>(),
             vec![
                 "0000000000000000000000000000000000000000000000000000000000000123".to_owned(),
@@ -686,7 +686,7 @@ mod tests {
         assert_eq!(
             result[..]
                 .chunks(32)
-                .map(|c| bytes_to_hex_str(c))
+                .map(bytes_to_hex_str)
                 .collect::<Vec<String>>(),
             vec!["00000000000000000000000000000000000000000000000000000000deadbeef".to_owned(),]
         );
@@ -700,7 +700,7 @@ mod tests {
         assert_eq!(
             result[..]
                 .chunks(32)
-                .map(|c| bytes_to_hex_str(c))
+                .map(bytes_to_hex_str)
                 .collect::<Vec<String>>(),
             vec![
                 "0000000000000000000000000000000000000000000000000000000000000040".to_owned(),
