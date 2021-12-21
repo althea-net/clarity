@@ -32,7 +32,7 @@
 //!     nonce: 0u32.into(),
 //!     gas_price: 1_000_000_000u32.into(),
 //!     gas_limit: 21_000u32.into(),
-//!     to: bobs_key.to_public_key().unwrap(),
+//!     to: bobs_key.to_address(),
 //!     value: 100u32.into(),
 //!     data: Vec::new(),
 //!     signature: None, // Not signed. Yet.

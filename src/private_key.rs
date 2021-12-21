@@ -183,7 +183,7 @@ impl PrivateKey {
     /// ```rust
     /// # use clarity::PrivateKey;
     /// let private_key : PrivateKey = "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f1e".parse().unwrap();
-    /// let signature = private_key.sign_msg("Hello, world!".as_bytes());
+    /// let signature = private_key.sign_insecure_msg("Hello, world!".as_bytes());
     /// ```
     pub fn sign_insecure_msg(&self, data: &[u8]) -> Signature {
         let digest = Keccak256::digest(data);

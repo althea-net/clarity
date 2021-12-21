@@ -25,7 +25,7 @@ use std::str;
 /// let signature = private_key.sign_ethereum_msg("Hello, world!".as_bytes());
 /// // on the other side verifying the signature
 /// let hash = get_ethereum_msg_hash("Hello, world!".as_bytes());
-/// assert_eq!(signature.recover(&hash).unwrap(), private_key.to_public_key().unwrap());
+/// assert_eq!(signature.recover(&hash).unwrap(), private_key.to_address());
 /// ```
 
 pub fn get_ethereum_msg_hash(data: &[u8]) -> Vec<u8> {
