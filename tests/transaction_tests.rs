@@ -83,6 +83,7 @@ struct TestFiller {
 }
 
 #[derive(Deserialize, Debug, Clone)]
+#[allow(dead_code)]
 struct TestFixtureInfo {
     comment: String,
     filledwith: String,
@@ -93,12 +94,14 @@ struct TestFixtureInfo {
 }
 
 #[derive(Deserialize, Debug, Clone)]
+#[allow(dead_code)]
 struct TestFixtureNetwork {
     hash: Option<String>,
     sender: Option<String>,
 }
 
 #[derive(Deserialize, Debug, Clone)]
+#[allow(dead_code)]
 struct TestFixture {
     #[serde(rename = "Byzantium")]
     byzantium: TestFixtureNetwork,
