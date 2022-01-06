@@ -8,7 +8,7 @@ use crate::utils::{
 };
 use num256::Uint256;
 use num_traits::{ToPrimitive, Zero};
-use secp256k1::recovery::{RecoverableSignature, RecoveryId};
+use secp256k1::ecdsa::{RecoverableSignature, RecoveryId};
 use secp256k1::Message;
 use sha3::{Digest, Keccak256};
 use std::fmt::{self, Display};
@@ -170,7 +170,7 @@ impl Signature {
             let secp256k1 = object.borrow();
             // Recover public key
             let pkey = secp256k1
-                .recover(&msg, &compact)
+                .recover_ecdsa(&msg, &compact)
                 .map_err(Error::RecoverSignature)?;
             // Serialize the recovered public key in uncompressed format
             Ok(pkey.serialize_uncompressed())

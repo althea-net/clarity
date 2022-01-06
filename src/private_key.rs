@@ -147,7 +147,7 @@ impl PrivateKey {
             // outside scope.
             let msg = Message::from_slice(data).unwrap();
             // Sign the raw hash of RLP encoded transaction data with a private key.
-            let sig = context.sign_recoverable(&msg, &sk);
+            let sig = context.sign_ecdsa_recoverable(&msg, &sk);
             // Serialize the signature into the "compact" form which means
             // it will be exactly 64 bytes, and the "excess" information of
             // recovery id will be given to us.
