@@ -116,16 +116,12 @@ impl fmt::LowerHex for Address {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if f.alternate() {
             let res = write!(f, "0x");
-            if res.is_err() {
-                return res;
-            }
+            res?;
         }
 
         for hex_char in self.0.iter() {
             let res = write!(f, "{:x}", hex_char);
-            if res.is_err() {
-                return res;
-            }
+            res?;
         }
         Ok(())
     }
@@ -135,16 +131,12 @@ impl fmt::UpperHex for Address {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if f.alternate() {
             let res = write!(f, "0x");
-            if res.is_err() {
-                return res;
-            }
+            res?;
         }
 
         for hex_char in self.0.iter() {
             let res = write!(f, "{:X}", hex_char);
-            if res.is_err() {
-                return res;
-            }
+            res?;
         }
         Ok(())
     }

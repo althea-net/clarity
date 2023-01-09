@@ -134,7 +134,7 @@ fn is_subset(set: Vec<&str>, network: &HashSet<String, RandomState>) -> bool {
 fn load_fixtures(path: &Path) -> HashMap<String, TestFixture> {
     // Read JSON in advance before running this particular test.
     // This way we can construct human readable test name based on the JSON contents, and
-    let file = File::open(&path).unwrap_or_else(|_| panic!("Could not open file {:?}", path));
+    let file = File::open(path).unwrap_or_else(|_| panic!("Could not open file {:?}", path));
     let buffered_reader = BufReader::new(file);
     let json_data: Value =
         serde_json::from_reader(buffered_reader).expect("Unable to read JSON file");
@@ -322,8 +322,7 @@ fn make_test(path: &Path) -> Vec<test::TestDescAndFn> {
             "{}@{}@{}",
             path.strip_prefix(get_fixtures_path())
                 .unwrap()
-                .to_string_lossy()
-                .to_string(),
+                .to_string_lossy(),
             networks,
             expect.result
         )));

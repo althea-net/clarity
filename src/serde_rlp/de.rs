@@ -14,7 +14,7 @@ pub struct Deserializer<'de> {
 impl<'de> Deserializer<'de> {
     pub fn from_bytes(input: &'de [u8]) -> Self {
         Deserializer {
-            input: input,
+            input,
             stack: VecDeque::new(),
         }
     }
@@ -26,7 +26,7 @@ where
 {
     let mut deserializer = Deserializer::from_bytes(s);
     let t = T::deserialize(&mut deserializer)?;
-    if deserializer.input.len() == 0 {
+    if deserializer.input.is_empty() {
         Ok(t)
     } else {
         Err(Error::TrailingBytes)
@@ -55,7 +55,7 @@ impl<'de> Deserializer<'de> {
     }
 
     fn parse_string(&mut self) -> Result<&'de str> {
-        let res = crate::serde_rlp::rlp::decode_length(&self.input)?;
+        let res = crate::serde_rlp::rlp::decode_length(self.input)?;
         if res.expected_type == ExpectedType::StringType {
             let s = str::from_utf8(&self.input[res.offset..res.offset + res.length])
                 .map_err(|_| Error::InvalidString)?;
@@ -67,7 +67,7 @@ impl<'de> Deserializer<'de> {
     }
 
     fn parse_bytes(&mut self) -> Result<&'de [u8]> {
-        let res = crate::serde_rlp::rlp::decode_length(&self.input)?;
+        let res = crate::serde_rlp::rlp::decode_length(self.input)?;
         if res.expected_type == ExpectedType::StringType {
             let s = &self.input[res.offset..res.offset + res.length];
             self.input = &self.input[res.offset + res.length..];
@@ -240,12 +240,12 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        let res = crate::serde_rlp::rlp::decode_length(&self.input)?;
+        let res = crate::serde_rlp::rlp::decode_length(self.input)?;
         if res.expected_type == ExpectedType::ListType {
             let nested = &self.input[res.offset..res.offset + res.length];
-            self.stack.push_front(&self.input);
+            self.stack.push_front(self.input);
             self.input = nested;
-            let value = visitor.visit_seq(RlpListDecoder::new(&mut self))?;
+            let value = visitor.visit_seq(RlpListDecoder::new(self))?;
             self.input = self.stack.pop_front().unwrap();
             self.input = &self.input[res.offset + res.length..];
             Ok(value)
@@ -341,11 +341,11 @@ impl<'de, 'a> SeqAccess<'de> for RlpListDecoder<'a, 'de> {
     where
         T: DeserializeSeed<'de>,
     {
-        if self.de.input.len() == 0 {
+        if self.de.input.is_empty() {
             // No more elements
             return Ok(None);
         }
-        match crate::serde_rlp::rlp::decode_length(&self.de.input)?.expected_type {
+        match crate::serde_rlp::rlp::decode_length(self.de.input)?.expected_type {
             ExpectedType::StringType => {
                 let result = seed.deserialize(&mut *self.de);
                 result.map(Some)
@@ -429,9 +429,9 @@ fn get_bytes(b: &str) -> Option<Vec<u8>> {
     b.as_bytes()
         .chunks(2)
         .map(|ch| {
-            str::from_utf8(&ch)
+            str::from_utf8(ch)
                 .ok()
-                .and_then(|res| u8::from_str_radix(&res, 16).ok())
+                .and_then(|res| u8::from_str_radix(res, 16).ok())
         })
         .collect()
 }
@@ -448,7 +448,7 @@ fn invalid_complex() {
 
 #[test]
 fn lorem_ipsum() {
-    let data: String = from_bytes(&vec![
+    let data: String = from_bytes(&[
         0xb8, 0x38, 0x4c, 0x6f, 0x72, 0x65, 0x6d, 0x20, 0x69, 0x70, 0x73, 0x75, 0x6d, 0x20, 0x64,
         0x6f, 0x6c, 0x6f, 0x72, 0x20, 0x73, 0x69, 0x74, 0x20, 0x61, 0x6d, 0x65, 0x74, 0x2c, 0x20,
         0x63, 0x6f, 0x6e, 0x73, 0x65, 0x63, 0x74, 0x65, 0x74, 0x75, 0x72, 0x20, 0x61, 0x64, 0x69,

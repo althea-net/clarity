@@ -182,7 +182,7 @@ impl Transaction {
             None => self.to_unsigned_tx_params(),
         };
         // Prepare a raw hash of RLP encoded TX params
-        let rawhash = Keccak256::digest(&rlpdata);
+        let rawhash = Keccak256::digest(rlpdata);
         let mut sig = key.sign_hash(&rawhash);
         if let Some(network_id) = network_id {
             // Account v for the network_id value
@@ -205,13 +205,13 @@ impl Transaction {
             Err(Error::InvalidSignatureValues)
         } else {
             let sighash = if sig.v == 27u32.into() || sig.v == 28u32.into() {
-                Keccak256::digest(&self.to_unsigned_tx_params())
+                Keccak256::digest(self.to_unsigned_tx_params())
             } else if sig.v >= 37u32.into() {
                 let network_id = sig.network_id().ok_or(Error::InvalidNetworkId)?;
                 // In this case hash of the transaction is usual RLP paremeters but "VRS" params
                 // are swapped for [network_id, '', '']. See Appendix F (285)
                 let rlp_data = self.to_unsigned_tx_params_for_network(&network_id);
-                Keccak256::digest(&rlp_data)
+                Keccak256::digest(rlp_data)
             } else {
                 // All other V values would be errorneous for our calculations
                 return Err(Error::InvalidV);
@@ -229,7 +229,7 @@ impl Transaction {
     /// Creates a hash of a transaction given all TX attributes
     /// including signature (VRS) whether it is present, or not.
     pub fn hash(&self) -> Vec<u8> {
-        Keccak256::digest(&to_bytes(&self).unwrap()).to_vec()
+        Keccak256::digest(to_bytes(&self).unwrap()).to_vec()
     }
 
     /// Creates a byte representation of this transaction
@@ -255,7 +255,7 @@ impl Transaction {
             nonce: (**data[0]).into(),
             gas_price: (**data[1]).into(),
             gas_limit: (**data[2]).into(),
-            to: Address::from_slice(&*data[3]).unwrap_or_default(),
+            to: Address::from_slice(data[3]).unwrap_or_default(),
             value: (**data[4]).into(),
             data: (**data[5]).into(),
             signature: Some(Signature::new(

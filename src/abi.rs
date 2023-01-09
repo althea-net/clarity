@@ -323,7 +323,7 @@ pub fn encode_tokens(tokens: &[Token]) -> Vec<u8> {
 
     for token in tokens.iter() {
         match token.serialize() {
-            SerializedToken::Static(data) => res.extend(&data),
+            SerializedToken::Static(data) => res.extend(data),
             SerializedToken::Dynamic(data) => {
                 // This is the offset for dynamic data that is calculated
                 // based on the length of all dynamic data buffers stored,
@@ -346,7 +346,7 @@ pub fn encode_tokens(tokens: &[Token]) -> Vec<u8> {
                     let offset: Token = dynamic_offset.into();
                     // Write the offset of the dynamic data as a value of static size.
                     match offset.serialize() {
-                        SerializedToken::Static(bytes) => res.extend(&bytes),
+                        SerializedToken::Static(bytes) => res.extend(bytes),
                         _ => panic!("Offset token is expected to be static"),
                     }
                 }
@@ -372,7 +372,7 @@ pub fn get_hash(bytes: &[u8]) -> [u8; 32] {
 /// A helper function that encodes both signature and a list of tokens.
 pub fn encode_call(sig: &str, tokens: &[Token]) -> Result<Vec<u8>, Error> {
     let mut wtr = vec![];
-    wtr.extend(&derive_method_id(sig)?);
+    wtr.extend(derive_method_id(sig)?);
 
     let args_count = get_args_count(sig)?;
     let token_count = get_tokens_count(tokens);

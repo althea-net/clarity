@@ -212,7 +212,7 @@ impl PrivateKey {
         let digest = Keccak256::digest(data);
         let salt_string = ETHEREUM_SALT.to_string();
         let salt_bytes = salt_string.as_bytes();
-        let digest = Keccak256::digest(&[salt_bytes, &digest].concat());
+        let digest = Keccak256::digest([salt_bytes, &digest].concat());
         self.sign_hash(&digest)
     }
 }

@@ -88,7 +88,7 @@ fn test_encode_number() {
 }
 
 fn to_integer(b: &[u8]) -> Option<u64> {
-    if b.len() == 0 {
+    if b.is_empty() {
         None
     } else if b.len() == 1 {
         Some(b[0] as u64)
@@ -139,7 +139,7 @@ pub struct DecodeLengthResult {
 
 /// Decodes chunk of data and outputs offset, length of nested data and its expected type
 pub fn decode_length(input: &[u8]) -> Result<DecodeLengthResult, Error> {
-    if input.len() == 0 {
+    if input.is_empty() {
         return Err(Error::EmptyBuffer);
     }
     let prefix = input[0];

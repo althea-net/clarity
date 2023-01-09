@@ -87,11 +87,11 @@ fn testnet_alice_and_bob() {
         make_web3().expect("Unable to create a valid transport for Web3 protocol");
 
     let alice_priv_key = make_random_key();
-    println!("Alice private key: 0x{}", alice_priv_key.to_string());
+    println!("Alice private key: 0x{}", alice_priv_key);
     let bob_priv_key = make_random_key();
     assert_ne!(alice_priv_key, bob_priv_key);
 
-    println!("Bob private key: 0x{}", bob_priv_key.to_string());
+    println!("Bob private key: 0x{}", bob_priv_key);
 
     let accounts = web3
         .eth()
