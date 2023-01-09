@@ -4,7 +4,6 @@ extern crate num_traits;
 extern crate rustc_test as test;
 extern crate serde_bytes;
 extern crate serde_json;
-extern crate serde_rlp;
 #[macro_use]
 extern crate serde_derive;
 use clarity::utils::{bytes_to_hex_str, hex_str_to_bytes};
@@ -12,7 +11,7 @@ use clarity::{Signature, Transaction};
 use num256::Uint256;
 use num_traits::Zero;
 use serde_json::Value;
-use serde_rlp::ser::to_bytes;
+use clarity::rlp::ser::to_bytes;
 use std::collections::HashSet;
 use std::collections::{hash_map::RandomState, HashMap};
 use std::env;

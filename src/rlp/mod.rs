@@ -7,6 +7,17 @@
 use crate::address::Address;
 use serde::Serialize;
 use serde::Serializer;
+extern crate byteorder;
+extern crate num;
+extern crate serde;
+
+pub mod de;
+mod error;
+mod rlp;
+pub mod ser;
+
+#[cfg(test)]
+extern crate serde_bytes;
 
 pub(crate) struct AddressDef<'a>(pub(crate) &'a Address);
 
@@ -27,17 +38,18 @@ impl<'a> Serialize for AddressDef<'a> {
 
 #[test]
 fn serialize_null_address() {
-    use serde_rlp::ser::to_bytes;
+    use ser::to_bytes;
     let address = Address::default();
     assert_eq!(to_bytes(&AddressDef(&address)).unwrap(), [128]);
 }
 
 #[test]
 fn serialize_padded_address() {
-    use serde_rlp::ser::to_bytes;
+    use ser::to_bytes;
     let address: Address = "00000000000000000000000000000000000000c0".parse().unwrap();
     assert_eq!(
         to_bytes(&AddressDef(&address)).unwrap(),
         [148, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xc0]
     );
 }
+

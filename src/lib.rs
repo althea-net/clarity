@@ -63,7 +63,6 @@ extern crate num_traits;
 extern crate secp256k1;
 extern crate serde;
 extern crate serde_bytes;
-extern crate serde_rlp;
 extern crate sha3;
 #[macro_use]
 extern crate lazy_static;
@@ -79,7 +78,7 @@ pub mod error;
 pub mod opcodes;
 pub mod private_key;
 mod raw_private_key;
-mod rlp;
+pub mod rlp;
 mod signature;
 pub mod transaction;
 pub mod types;
