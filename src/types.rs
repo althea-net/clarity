@@ -16,7 +16,7 @@ pub struct BigEndianInt(
 
 #[test]
 fn serialize() {
-    use serde_rlp::ser::to_bytes;
+    use crate::serde_rlp::ser::to_bytes;
     let value: Uint256 =
         "115792089237316195423570985008687907853269984665640564039457584007913129639934"
             .parse()

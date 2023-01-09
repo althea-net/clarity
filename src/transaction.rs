@@ -5,7 +5,9 @@ use crate::opcodes::GTXCOST;
 use crate::opcodes::GTXDATANONZERO;
 use crate::opcodes::GTXDATAZERO;
 use crate::private_key::PrivateKey;
-use crate::rlp::AddressDef;
+use crate::serde_rlp::de::from_bytes;
+use crate::serde_rlp::ser::to_bytes;
+use crate::serde_rlp::AddressDef;
 use crate::signature::Signature;
 use crate::types::BigEndianInt;
 use crate::utils::bytes_to_hex_str;
@@ -13,8 +15,6 @@ use num256::Uint256;
 use serde::Serialize;
 use serde::Serializer;
 use serde_bytes::{ByteBuf, Bytes};
-use serde_rlp::de::from_bytes;
-use serde_rlp::ser::to_bytes;
 use sha3::{Digest, Keccak256};
 use std::fmt;
 use std::fmt::Display;
@@ -269,8 +269,8 @@ impl Transaction {
 
 #[test]
 fn test_vitaliks_eip_158_vitalik_12_json() {
+    use crate::serde_rlp::ser::to_bytes;
     use crate::utils::{bytes_to_hex_str, hex_str_to_bytes};
-    use serde_rlp::ser::to_bytes;
     // https://github.com/ethereum/tests/blob/69f55e8608126e6470c2888a5b344c93c1550f40/TransactionTests/ttEip155VitaliksEip158/Vitalik_12.json
     let tx = Transaction {
         nonce: Uint256::from_str_radix("0e", 16).unwrap(),
@@ -306,8 +306,8 @@ fn test_vitaliks_eip_158_vitalik_12_json() {
 
 #[test]
 fn test_vitaliks_eip_158_vitalik_1_json() {
+    use crate::serde_rlp::ser::to_bytes;
     use crate::utils::bytes_to_hex_str;
-    use serde_rlp::ser::to_bytes;
     // https://github.com/ethereum/tests/blob/69f55e8608126e6470c2888a5b344c93c1550f40/TransactionTests/ttEip155VitaliksEip158/Vitalik_12.json
     let tx = Transaction {
         nonce: Uint256::from_str_radix("00", 16).unwrap(),
@@ -338,8 +338,8 @@ fn test_vitaliks_eip_158_vitalik_1_json() {
 
 #[test]
 fn test_basictests_txtest_1() {
+    use crate::serde_rlp::ser::to_bytes;
     use crate::utils::bytes_to_hex_str;
-    use serde_rlp::ser::to_bytes;
     // https://github.com/ethereum/tests/blob/b44cea1cccf1e4b63a05d1ca9f70f2063f28da6d/BasicTests/txtest.json
     let tx = Transaction {
         nonce: Uint256::from_str_radix("00", 16).unwrap(),
@@ -373,8 +373,8 @@ fn test_basictests_txtest_1() {
 
 #[test]
 fn test_basictests_txtest_2() {
+    use crate::serde_rlp::ser::to_bytes;
     use crate::utils::{bytes_to_hex_str, hex_str_to_bytes};
-    use serde_rlp::ser::to_bytes;
     // https://github.com/ethereum/tests/blob/b44cea1cccf1e4b63a05d1ca9f70f2063f28da6d/BasicTests/txtest.json
     let tx = Transaction {
         nonce: "0".parse().unwrap(),
