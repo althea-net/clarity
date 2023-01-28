@@ -88,7 +88,11 @@ where
     if x == &0u32.into() {
         s.serialize_bytes(&[])
     } else {
-        let bytes = x.to_bytes_be();
+        let mut bytes = x.to_be_bytes().to_vec();
+        // remove unneeded leading zeros
+        while let Some(0) =  bytes.first() {
+            bytes.drain(0..1);
+        }
         s.serialize_bytes(&bytes)
     }
 }
@@ -97,7 +101,7 @@ pub fn big_endian_uint256_deserialize<'de, D>(d: D) -> Result<Uint256, D::Error>
 where
     D: Deserializer<'de>,
 {
-    Ok(Uint256::from_bytes_be(&Vec::<u8>::deserialize(d)?))
+    Ok(Uint256::from_be_bytes(&Vec::<u8>::deserialize(d)?))
 }
 
 #[test]

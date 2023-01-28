@@ -8,8 +8,7 @@
 
 use crate::serde_rlp::error::Error;
 use byteorder::{BigEndian, WriteBytesExt};
-use num::Num;
-use num::Unsigned;
+use num_traits::{Num, Unsigned};
 use std::mem::size_of;
 
 fn to_binary(x: u64) -> Vec<u8> {

@@ -8,7 +8,6 @@ use crate::address::Address;
 use serde::Serialize;
 use serde::Serializer;
 extern crate byteorder;
-extern crate num;
 extern crate serde;
 
 pub mod de;

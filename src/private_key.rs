@@ -161,8 +161,8 @@ impl PrivateKey {
         assert!(recovery_id >= 0);
         let recovery_id = recovery_id as u32;
         let v: Uint256 = (recovery_id + 27).into();
-        let r = Uint256::from_bytes_be(&compact[0..32]);
-        let s = Uint256::from_bytes_be(&compact[32..64]);
+        let r = Uint256::from_be_bytes(&compact[0..32]);
+        let s = Uint256::from_be_bytes(&compact[32..64]);
         // This will swap the signature of a transaction, and returns a new signed TX.
         Signature::new(v, r, s)
     }

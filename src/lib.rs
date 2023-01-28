@@ -58,7 +58,6 @@
 #![warn(clippy::all)]
 #![allow(clippy::pedantic)]
 
-extern crate num_bigint;
 extern crate num_traits;
 extern crate secp256k1;
 extern crate serde;

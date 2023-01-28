@@ -107,7 +107,7 @@ impl Signature {
         // Add s in the middle
         result[32..64].copy_from_slice(&s);
         // End up with v at the end
-        let v = self.v.to_bytes_be();
+        let v = self.v.to_be_bytes();
         result[64] = v[v.len() - 1];
         result
     }
@@ -406,7 +406,7 @@ fn parse_hex_signature() {
             .unwrap();
     let correct_v = vec![28u8];
 
-    assert_eq!(sig.r, Uint256::from_bytes_be(&correct_r));
-    assert_eq!(sig.s, Uint256::from_bytes_be(&correct_s));
-    assert_eq!(sig.v, Uint256::from_bytes_be(&correct_v));
+    assert_eq!(sig.r, Uint256::from_be_bytes(&correct_r));
+    assert_eq!(sig.s, Uint256::from_be_bytes(&correct_s));
+    assert_eq!(sig.v, Uint256::from_be_bytes(&correct_v));
 }

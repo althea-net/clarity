@@ -83,7 +83,7 @@ impl Token {
         match *self {
             Token::Uint(ref value) => {
                 assert!(value.bits() <= 256);
-                let bytes = value.to_bytes_be();
+                let bytes = value.to_be_bytes();
                 let mut res: [u8; 32] = Default::default();
                 res[32 - bytes.len()..].copy_from_slice(&bytes);
                 SerializedToken::Static(res)
