@@ -363,21 +363,21 @@ impl<'de, 'a> SeqAccess<'de> for RlpListDecoder<'a, 'de> {
 
 #[test]
 fn deserialize_short_string() {
-    let foo: String = from_bytes(&[0x61u8]).unwrap();
-    assert_eq!(foo, "a");
+    let res: String = from_bytes(&[0x61u8]).unwrap();
+    assert_eq!(res, "a");
 }
 
 #[test]
 fn deserialize_longer_string() {
-    let foo: String = from_bytes(&[0x83, 0x61, 0x62, 0x63]).unwrap();
-    assert_eq!(foo, "abc");
+    let res: String = from_bytes(&[0x83, 0x61, 0x62, 0x63]).unwrap();
+    assert_eq!(res, "abc");
 }
 
 #[test]
 fn deserialize_short_array() {
-    let foo: Vec<String> =
+    let res: Vec<String> =
         from_bytes(&[0xc8, 0x83, 0x61, 0x62, 0x63, 0x83, 0x64, 0x65, 0x66]).unwrap();
-    assert_eq!(foo, vec!["abc", "def"]);
+    assert_eq!(res, vec!["abc", "def"]);
 }
 
 #[test]
@@ -390,17 +390,16 @@ fn deserialize_short_array_into_tuple() {
 
 #[test]
 fn deserialize_nested_sequence_of_string_seq() {
-    let foo: Vec<Vec<String>> =
+    let res: Vec<Vec<String>> =
         from_bytes(&[0xc9, 0xc8, 0x83, 0x61, 0x62, 0x63, 0x83, 0x64, 0x65, 0x66]).unwrap();
-    assert_eq!(foo, vec![vec!["abc", "def"]]);
+    assert_eq!(res, vec![vec!["abc", "def"]]);
 }
 
 #[test]
 fn deserialize_set_representation_of_three() {
-    //
-    let foo = from_bytes(&[0xc7, 0xc0, 0xc1, 0xc0, 0xc3, 0xc0, 0xc1, 0xc0]);
+    let res = from_bytes(&[0xc7, 0xc0, 0xc1, 0xc0, 0xc3, 0xc0, 0xc1, 0xc0]);
     assert_eq!(
-        foo,
+        res,
         Ok(vec![
             vec![],
             vec![vec![]],
@@ -411,11 +410,11 @@ fn deserialize_set_representation_of_three() {
 
 #[test]
 fn deserialize_three_levels() {
-    let foo: Vec<Vec<Vec<String>>> = from_bytes(&[
+    let res: Vec<Vec<Vec<String>>> = from_bytes(&[
         0xca, 0xc9, 0xc8, 0x83, 0x61, 0x62, 0x63, 0x83, 0x64, 0x65, 0x66,
     ])
     .unwrap();
-    assert_eq!(foo, [[["abc", "def"]]]);
+    assert_eq!(res, [[["abc", "def"]]]);
 }
 
 #[test]

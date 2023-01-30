@@ -76,9 +76,9 @@ where
     // number of zeros so we trim all the leading zeros except
     // for the last zero to avoid returning an empty array in the case
     // that our number is actually zero
-    while let Some(0) =  wtr.first() {
+    while let Some(0) = wtr.first() {
         if wtr.len() == 1 {
-            break
+            break;
         }
         wtr.drain(0..1);
     }

@@ -90,7 +90,7 @@ where
     } else {
         let mut bytes = x.to_be_bytes().to_vec();
         // remove unneeded leading zeros
-        while let Some(0) =  bytes.first() {
+        while let Some(0) = bytes.first() {
             bytes.drain(0..1);
         }
         s.serialize_bytes(&bytes)

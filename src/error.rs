@@ -51,10 +51,9 @@ impl fmt::Display for Error {
                 write!(f, "Failed to parse recoverable signature")
             }
             Error::RecoverSignature(_) => write!(f, "Failed to recover signature"),
-            Error::InvalidAddressLength { got, expected } => write!(
-                f,
-                "Invalid address length, got {got}, expected {expected}"
-            ),
+            Error::InvalidAddressLength { got, expected } => {
+                write!(f, "Invalid address length, got {got}, expected {expected}")
+            }
             Error::InvalidUtf8(_) => write!(f, "Failed to parse bytes as utf8"),
             Error::InvalidHex(_) => write!(f, "Invalid hex character"),
             Error::InvalidEip55 => write!(f, "Invalid EIP-55 Address encoding"),

@@ -26,6 +26,7 @@ use sha3::{Digest, Keccak256};
 ///
 /// For each supported type there is separate entry that later is helpful to determine
 /// actual byte representation.
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone)]
 pub enum Token {
     /// Unsigned type with value already encoded.
