@@ -23,7 +23,7 @@ sha3 = "0.10"
 secp256k1 = { version = "0.26", features = ["recovery"] }
 lazy_static = "1.4"
 serde_derive = "1.0"
-num256 = "0.3"
+num256 = "0.4"
 byteorder = "1.2"
 
 [[test]]
@@ -48,6 +48,3 @@ opt-level = "z"
 lto = true
 codegen-units = 1
 incremental = false
-
-[patch.crates-io]
-num256 = { path = '/home/justin/repos/num256_rs' }
