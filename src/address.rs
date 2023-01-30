@@ -120,7 +120,7 @@ impl fmt::LowerHex for Address {
         }
 
         for hex_char in self.0.iter() {
-            let res = write!(f, "{:x}", hex_char);
+            let res = write!(f, "{hex_char:x}");
             res?;
         }
         Ok(())
@@ -135,7 +135,7 @@ impl fmt::UpperHex for Address {
         }
 
         for hex_char in self.0.iter() {
-            let res = write!(f, "{:X}", hex_char);
+            let res = write!(f, "{hex_char:X}");
             res?;
         }
         Ok(())
@@ -283,7 +283,7 @@ fn serialize_padded_address() {
     let address: Address = raw_address.parse().unwrap();
     assert_eq!(
         serde_json::to_string(&address).unwrap(),
-        format!(r#""0x{}""#, raw_address)
+        format!(r#""0x{raw_address}""#)
     );
 }
 
@@ -343,15 +343,15 @@ fn to_hex() {
         .unwrap();
 
     assert_eq!(
-        format!("{:x}", address),
+        format!("{address:x}"),
         "1234567890123456789abcdef678901234567890",
     );
     assert_eq!(
-        format!("{:#x}", address),
+        format!("{address:#x}"),
         "0x1234567890123456789abcdef678901234567890",
     );
     assert_eq!(
-        format!("{:#X}", address),
+        format!("{address:#X}"),
         "0x1234567890123456789ABCDEF678901234567890",
     );
 }
@@ -382,8 +382,7 @@ fn eip_55_validate() {
     for starting_address in eip_55_testcases.iter() {
         let unvalidated: Address = starting_address.parse().unwrap();
         let failure_message = format!(
-            "Failed to validate address theirs: {} ours: {} !",
-            starting_address, unvalidated
+            "Failed to validate address theirs: {starting_address} ours: {unvalidated} !"
         );
         let _address: Address =
             Address::parse_and_validate(starting_address).expect(&failure_message);
@@ -410,6 +409,6 @@ fn eip_55_display() {
         // this also checks that parse still functions properly with
         // eip invalid but otherwise correct addresses
         let unvalidated: Address = starting_address.parse().unwrap();
-        assert_eq!(format!("{}", unvalidated), **starting_address)
+        assert_eq!(format!("{unvalidated}"), **starting_address)
     }
 }

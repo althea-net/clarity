@@ -134,7 +134,7 @@ fn is_subset(set: Vec<&str>, network: &HashSet<String, RandomState>) -> bool {
 fn load_fixtures(path: &Path) -> HashMap<String, TestFixture> {
     // Read JSON in advance before running this particular test.
     // This way we can construct human readable test name based on the JSON contents, and
-    let file = File::open(path).unwrap_or_else(|_| panic!("Could not open file {:?}", path));
+    let file = File::open(path).unwrap_or_else(|_| panic!("Could not open file {path:?}"));
     let buffered_reader = BufReader::new(file);
     let json_data: Value =
         serde_json::from_reader(buffered_reader).expect("Unable to read JSON file");
@@ -147,11 +147,11 @@ fn load_filler(fixture: &TestFixture) -> HashMap<String, TestFiller> {
     let mut filler_path = get_fixtures_path();
     filler_path.push(&fixture.info.source);
     let file = File::open(&filler_path)
-        .unwrap_or_else(|_| panic!("Unable to open filler {:?}", filler_path));
+        .unwrap_or_else(|_| panic!("Unable to open filler {filler_path:?}"));
     let reader = BufReader::new(file);
     let json_data: Value = serde_json::from_reader(reader).unwrap();
     serde_json::from_value(json_data)
-        .unwrap_or_else(|e| panic!("Unable to deserialize filler at {:?}: {}", filler_path, e))
+        .unwrap_or_else(|e| panic!("Unable to deserialize filler at {filler_path:?}: {e}"))
 }
 
 fn test_fn(fixtures: &TestFixture, filler: &TestFiller, expect: Option<&TestFillerExpect>) {
@@ -197,7 +197,7 @@ fn test_fn(fixtures: &TestFixture, filler: &TestFiller, expect: Option<&TestFill
     // All rlp's Fixtures
     assert!(fixtures.rlp.starts_with("0x"));
 
-    assert!(tx.is_valid(), "{:?} {:?} {:?}", tx, raw_params, filler);
+    assert!(tx.is_valid(), "{tx:?} {raw_params:?} {filler:?}");
     assert!(
         tx.signature.as_ref().unwrap().is_valid(),
         "{:?} {:?} {:?}",
@@ -358,7 +358,7 @@ fn tests() -> Vec<TestDescAndFn> {
     testdir.push("TransactionTests");
     if !testdir.is_dir() {
         // this sometimes is a false positive
-        println!("Directory does not exist {:?}. Did you remember to execute \"git submodule update --init\"?", testdir);
+        println!("Directory does not exist {testdir:?}. Did you remember to execute \"git submodule update --init\"?");
     }
     visit_dirs(&testdir, &mut |entry| {
         let tests = make_test(&entry.path());

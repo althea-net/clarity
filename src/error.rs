@@ -42,8 +42,7 @@ impl fmt::Display for Error {
             Error::ZeroPrivKey => write!(f, "Zero priv key cannot sign"),
             Error::InvalidPrivKeyLength { got, expected } => write!(
                 f,
-                "Invalid private key length, got {} expected {}",
-                got, expected
+                "Invalid private key length, got {got} expected {expected}"
             ),
             Error::DecodePrivKey(_) => write!(f, "Failed to decode private key"),
             Error::DecodeRecoveryId(_) => write!(f, "Failed to decode recovery id"),
@@ -54,13 +53,12 @@ impl fmt::Display for Error {
             Error::RecoverSignature(_) => write!(f, "Failed to recover signature"),
             Error::InvalidAddressLength { got, expected } => write!(
                 f,
-                "Invalid address length, got {}, expected {}",
-                got, expected
+                "Invalid address length, got {got}, expected {expected}"
             ),
             Error::InvalidUtf8(_) => write!(f, "Failed to parse bytes as utf8"),
             Error::InvalidHex(_) => write!(f, "Invalid hex character"),
             Error::InvalidEip55 => write!(f, "Invalid EIP-55 Address encoding"),
-            Error::InvalidCallError(val) => write!(f, "Invalid function call {}", val),
+            Error::InvalidCallError(val) => write!(f, "Invalid function call {val}"),
             Error::InvalidSignatureLength => write!(f, "Signature should be exactly 65 bytes long"),
             Error::SerializeRlp => write!(f, "failed to serialize using RLP-encoding"),
             Error::DeserializeRlp => write!(f, "failed to deserialize using RLP-encoding"),

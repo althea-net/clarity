@@ -78,7 +78,7 @@ pub fn debug_print_data(input: &[u8]) -> String {
 /// which requires specific formatting, mostly useful for logging
 /// and to avoid trying convert the Uint256 into an address
 pub fn display_uint256_as_address(input: Uint256) -> String {
-    format!("{:#066x}", input)
+    format!("{input:#066x}")
 }
 
 pub fn big_endian_uint256_serialize<S>(x: &Uint256, s: S) -> Result<S::Ok, S::Error>
@@ -152,7 +152,7 @@ fn parse_prefixed_non_empty() {
 pub fn bytes_to_hex_str(bytes: &[u8]) -> String {
     bytes
         .iter()
-        .map(|b| format!("{:0>2x?}", b))
+        .map(|b| format!("{b:0>2x?}"))
         .fold(String::new(), |acc, x| acc + &x)
 }
 

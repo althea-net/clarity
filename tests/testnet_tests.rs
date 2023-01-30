@@ -27,25 +27,25 @@ fn make_web3() -> Option<(
     Web3<web3::transports::Http>,
 )> {
     let address = env::var("GANACHE_HOST").unwrap_or_else(|_| "http://localhost:8545".to_string());
-    eprintln!("Trying to create a Web3 connection to {:?}", address);
+    eprintln!("Trying to create a Web3 connection to {address:?}");
     for counter in 0..30 {
         match web3::transports::Http::new(&address) {
             Ok((evloop, transport)) => {
                 let web3 = Web3::new(transport);
                 match web3.eth().accounts().wait() {
                     Ok(accounts) => {
-                        println!("Got accounts {:?}", accounts);
+                        println!("Got accounts {accounts:?}");
                         return Some((evloop, web3));
                     }
                     Err(e) => {
-                        eprintln!("Unable to retrieve accounts ({}): {}", counter, e);
+                        eprintln!("Unable to retrieve accounts ({counter}): {e}");
                         thread::sleep(time::Duration::from_millis(500));
                         continue;
                     }
                 }
             }
             Err(e) => {
-                eprintln!("Unable to create transport ({}): {}", counter, e);
+                eprintln!("Unable to create transport ({counter}): {e}");
                 thread::sleep(time::Duration::from_millis(500));
                 continue;
             }
@@ -87,11 +87,11 @@ fn testnet_alice_and_bob() {
         make_web3().expect("Unable to create a valid transport for Web3 protocol");
 
     let alice_priv_key = make_random_key();
-    println!("Alice private key: 0x{}", alice_priv_key);
+    println!("Alice private key: 0x{alice_priv_key}");
     let bob_priv_key = make_random_key();
     assert_ne!(alice_priv_key, bob_priv_key);
 
-    println!("Bob private key: 0x{}", bob_priv_key);
+    println!("Bob private key: 0x{bob_priv_key}");
 
     let accounts = web3
         .eth()
@@ -102,7 +102,7 @@ fn testnet_alice_and_bob() {
     let one_eth: U256 = "de0b6b3a7640000".parse().unwrap();
 
     let seed = &accounts[0];
-    println!("Sending 10 ETH to Alice from {:?}", seed);
+    println!("Sending 10 ETH to Alice from {seed:?}");
     // Send 1 ETH to Alice from a first account from Ganache
     let tx_req = TransactionRequest {
         from: *seed,
@@ -115,7 +115,7 @@ fn testnet_alice_and_bob() {
         condition: None,
     };
     let res = web3.eth().send_transaction(tx_req).wait().unwrap();
-    println!("Res {:?}", res);
+    println!("Res {res:?}");
     let res = web3
         .eth()
         .balance(alice_priv_key.to_address().as_bytes().into(), None)
@@ -123,7 +123,7 @@ fn testnet_alice_and_bob() {
         .unwrap();
 
     // assert_eq!("")
-    println!("Alice balance {:?}", res);
+    println!("Alice balance {res:?}");
     assert_eq!(res, one_eth * 10u64);
 
     // Send 5 transactions using Clarity from Alice to Bob
@@ -157,13 +157,13 @@ fn testnet_alice_and_bob() {
         .balance(alice_priv_key.to_address().as_bytes().into(), None)
         .wait()
         .unwrap();
-    println!("Alice balance {:?}", res);
+    println!("Alice balance {res:?}");
     assert_eq!(res, (one_eth * 5u64) - 2100u64 * 5u64 * 10_000_000_000u64);
     let res = web3
         .eth()
         .balance(bob_priv_key.to_address().as_bytes().into(), None)
         .wait()
         .unwrap();
-    println!("Bob balance {:?}", res);
+    println!("Bob balance {res:?}");
     assert_eq!(res, one_eth * 5u64);
 }

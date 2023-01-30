@@ -264,7 +264,7 @@ impl From<Uint256> for Token {
 
 impl From<&Uint256> for Token {
     fn from(v: &Uint256) -> Token {
-        Token::Uint(v.clone())
+        Token::Uint(*v)
     }
 }
 
@@ -378,8 +378,7 @@ pub fn encode_call(sig: &str, tokens: &[Token]) -> Result<Vec<u8>, Error> {
     let token_count = get_tokens_count(tokens);
     if args_count != token_count {
         return Err(Error::InvalidCallError(format!(
-            "Function call contains {} arguments, but {} provided",
-            args_count, token_count
+            "Function call contains {args_count} arguments, but {token_count} provided"
         )));
     }
 

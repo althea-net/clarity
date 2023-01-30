@@ -39,7 +39,7 @@ impl de::Error for Error {
 impl Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
-            Error::Message(ref msg) => write!(f, "{}", msg),
+            Error::Message(ref msg) => write!(f, "{msg}"),
             Error::TrailingBytes => write!(f, "Trailing bytes found at the end of input"),
             Error::EmptyBuffer => write!(f, "Empty buffer detected"),
             Error::ListPrefixTooSmall => write!(f, "List prefix is bigger than the data"),

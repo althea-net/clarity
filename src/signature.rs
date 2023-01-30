@@ -57,23 +57,23 @@ impl Signature {
 
     pub fn network_id(&self) -> Option<Uint256> {
         if self.r == Uint256::zero() && self.s == Uint256::zero() {
-            Some(self.v.clone())
+            Some(self.v)
         } else if self.v == 27u32.into() || self.v == 28u32.into() {
             None
         } else {
-            Some(((self.v.clone() - 1u32.into()) / 2u32.into()) - 17u32.into())
+            Some(((self.v - 1u32.into()) / 2u32.into()) - 17u32.into())
         }
     }
 
     pub fn check_low_s_metropolis(&self) -> Result<(), Error> {
-        if self.s > (SECPK1N.clone() / Uint256::from(2u32)) {
+        if self.s > (*SECPK1N / Uint256::from(2u32)) {
             return Err(Error::InvalidS);
         }
         Ok(())
     }
 
     pub fn check_low_s_homestead(&self) -> Result<(), Error> {
-        if self.s > (SECPK1N.clone() / Uint256::from(2u32)) || self.s == Uint256::zero() {
+        if self.s > (*SECPK1N / Uint256::from(2u32)) || self.s == Uint256::zero() {
             return Err(Error::InvalidS);
         }
         Ok(())
@@ -99,8 +99,8 @@ impl Signature {
         // Usually `to_bytes` function in standard library returns a borrowed
         // value, but its impossible in our case since VRS are separate objects,
         // and its impossible to just cast a struct into a slice of bytes.
-        let r: [u8; 32] = self.r.clone().into();
-        let s: [u8; 32] = self.s.clone().into();
+        let r: [u8; 32] = self.r.into();
+        let s: [u8; 32] = self.s.into();
         let mut result = [0x00u8; 65];
         // Put r at the beginning
         result[0..32].copy_from_slice(&r);
@@ -138,11 +138,11 @@ impl Signature {
     pub fn get_v(&self) -> Result<Uint256, Error> {
         if self.v == 27u32.into() || self.v == 28u32.into() {
             // Valid V values are in {27, 28} according to Ethereum Yellow paper Appendix F (282).
-            Ok(self.v.clone())
+            Ok(self.v)
         } else if self.v >= 37u32.into() {
             let network_id = self.network_id().ok_or(Error::InvalidNetworkId)?;
             // // Otherwise we have to extract "v"...
-            let vee = self.v.clone() - (network_id * 2u32.into()) - 8u32.into();
+            let vee = self.v - (network_id * 2u32.into()) - 8u32.into();
             // // ... so after all v will still match 27<=v<=28
             assert!(vee == 27u32.into() || vee == 28u32.into());
             Ok(vee)
@@ -287,7 +287,7 @@ fn to_string() {
 #[test]
 fn to_upper_hex() {
     let sig = Signature::new(1u32.into(), 65450u32.into(), 32456u32.into());
-    let sig_string = format!("{:#X}", sig);
+    let sig_string = format!("{sig:#X}");
     assert_eq!(
         sig_string,
         concat!(
@@ -297,7 +297,7 @@ fn to_upper_hex() {
             "01"
         )
     );
-    let sig_string = format!("{:X}", sig);
+    let sig_string = format!("{sig:X}");
     assert_eq!(
         sig_string,
         concat!(
@@ -310,7 +310,7 @@ fn to_upper_hex() {
 #[test]
 fn to_lower_hex() {
     let sig = Signature::new(1u32.into(), 65450u32.into(), 32456u32.into());
-    let sig_string = format!("{:#x}", sig);
+    let sig_string = format!("{sig:#x}");
     assert_eq!(
         sig_string,
         concat!(
@@ -320,7 +320,7 @@ fn to_lower_hex() {
             "01"
         )
     );
-    let sig_string = format!("{:x}", sig);
+    let sig_string = format!("{sig:x}");
     assert_eq!(
         sig_string,
         concat!(

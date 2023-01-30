@@ -86,14 +86,14 @@ impl Serialize for Transaction {
         // the data assuming the "vrs" params are set to 0.
         let sig = self.signature.clone().unwrap_or_default();
         let data = (
-            &BigEndianInt(self.nonce.clone()),
-            &BigEndianInt(self.gas_price.clone()),
-            &BigEndianInt(self.gas_limit.clone()),
+            &BigEndianInt(self.nonce),
+            &BigEndianInt(self.gas_price),
+            &BigEndianInt(self.gas_limit),
             &AddressDef(&self.to),
-            &BigEndianInt(self.value.clone()),
+            &BigEndianInt(self.value),
             &ByteBuf::from(self.data.clone()),
-            &BigEndianInt(sig.v.clone()),
-            &BigEndianInt(sig.r.clone()),
+            &BigEndianInt(sig.v),
+            &BigEndianInt(sig.r),
             &BigEndianInt(sig.s),
         );
         data.serialize(serializer)
@@ -146,11 +146,11 @@ impl Transaction {
     fn to_unsigned_tx_params(&self) -> Vec<u8> {
         // TODO: Could be refactored in a better way somehow
         let data = (
-            &BigEndianInt(self.nonce.clone()),
-            &BigEndianInt(self.gas_price.clone()),
-            &BigEndianInt(self.gas_limit.clone()),
+            &BigEndianInt(self.nonce),
+            &BigEndianInt(self.gas_price),
+            &BigEndianInt(self.gas_limit),
             &AddressDef(&self.to),
-            &BigEndianInt(self.value.clone()),
+            &BigEndianInt(self.value),
             &ByteBuf::from(self.data.clone()),
         );
         to_bytes(&data).unwrap()
@@ -159,13 +159,13 @@ impl Transaction {
         // assert!(self.signature.is_none());
         // TODO: Could be refactored in a better way somehow
         let data = (
-            &BigEndianInt(self.nonce.clone()),
-            &BigEndianInt(self.gas_price.clone()),
-            &BigEndianInt(self.gas_limit.clone()),
+            &BigEndianInt(self.nonce),
+            &BigEndianInt(self.gas_price),
+            &BigEndianInt(self.gas_limit),
             &AddressDef(&self.to),
-            &BigEndianInt(self.value.clone()),
+            &BigEndianInt(self.value),
             &ByteBuf::from(self.data.clone()),
-            &BigEndianInt(network_id.clone()),
+            &BigEndianInt(*network_id),
             &ByteBuf::new(),
             &ByteBuf::new(),
         );
@@ -271,6 +271,7 @@ impl Transaction {
 fn test_vitaliks_eip_158_vitalik_12_json() {
     use crate::serde_rlp::ser::to_bytes;
     use crate::utils::{bytes_to_hex_str, hex_str_to_bytes};
+    use num_traits::Num;
     // https://github.com/ethereum/tests/blob/69f55e8608126e6470c2888a5b344c93c1550f40/TransactionTests/ttEip155VitaliksEip158/Vitalik_12.json
     let tx = Transaction {
         nonce: Uint256::from_str_radix("0e", 16).unwrap(),
@@ -308,6 +309,7 @@ fn test_vitaliks_eip_158_vitalik_12_json() {
 fn test_vitaliks_eip_158_vitalik_1_json() {
     use crate::serde_rlp::ser::to_bytes;
     use crate::utils::bytes_to_hex_str;
+    use num_traits::Num;
     // https://github.com/ethereum/tests/blob/69f55e8608126e6470c2888a5b344c93c1550f40/TransactionTests/ttEip155VitaliksEip158/Vitalik_12.json
     let tx = Transaction {
         nonce: Uint256::from_str_radix("00", 16).unwrap(),
@@ -340,6 +342,7 @@ fn test_vitaliks_eip_158_vitalik_1_json() {
 fn test_basictests_txtest_1() {
     use crate::serde_rlp::ser::to_bytes;
     use crate::utils::bytes_to_hex_str;
+    use num_traits::Num;
     // https://github.com/ethereum/tests/blob/b44cea1cccf1e4b63a05d1ca9f70f2063f28da6d/BasicTests/txtest.json
     let tx = Transaction {
         nonce: Uint256::from_str_radix("00", 16).unwrap(),

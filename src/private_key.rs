@@ -340,12 +340,12 @@ fn to_upper_hex() {
     let key: PrivateKey = "c87f65ff3f271bf5dc8643484f66b200109caffe4bf98c4cb393dc35740b28c0"
         .parse()
         .unwrap();
-    let key_string = format!("{:X}", key);
+    let key_string = format!("{key:X}");
     assert_eq!(
         key_string,
         "C87F65FF3F271BF5DC8643484F66B200109CAFFE4BF98C4CB393DC35740B28C0"
     );
-    let key_string = format!("{:#X}", key);
+    let key_string = format!("{key:#X}");
     assert_eq!(
         key_string,
         "0xC87F65FF3F271BF5DC8643484F66B200109CAFFE4BF98C4CB393DC35740B28C0"
@@ -356,12 +356,12 @@ fn to_lower_hex() {
     let key: PrivateKey = "c87f65ff3f271bf5dc8643484f66b200109caffe4bf98c4cb393dc35740b28c0"
         .parse()
         .unwrap();
-    let key_string = format!("{:x}", key);
+    let key_string = format!("{key:x}");
     assert_eq!(
         key_string,
         "c87f65ff3f271bf5dc8643484f66b200109caffe4bf98c4cb393dc35740b28c0"
     );
-    let key_string = format!("{:#x}", key);
+    let key_string = format!("{key:#x}");
     assert_eq!(
         key_string,
         "0xc87f65ff3f271bf5dc8643484f66b200109caffe4bf98c4cb393dc35740b28c0"
