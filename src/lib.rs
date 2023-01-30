@@ -61,10 +61,7 @@
 extern crate num_traits;
 extern crate secp256k1;
 extern crate serde;
-extern crate serde_bytes;
 extern crate sha3;
-#[macro_use]
-extern crate lazy_static;
 #[macro_use]
 extern crate serde_derive;
 extern crate num256;

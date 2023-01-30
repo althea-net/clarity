@@ -1,5 +1,5 @@
 use crate::address::Address;
-use crate::constants::TT256;
+use crate::constants::tt256;
 use crate::error::Error;
 use crate::opcodes::GTXCOST;
 use crate::opcodes::GTXDATANONZERO;
@@ -14,7 +14,8 @@ use crate::utils::bytes_to_hex_str;
 use num256::Uint256;
 use serde::Serialize;
 use serde::Serializer;
-use serde_bytes::{ByteBuf, Bytes};
+use serde_bytes::ByteBuf;
+use serde_bytes::Bytes;
 use sha3::{Digest, Keccak256};
 use std::fmt;
 use std::fmt::Display;
@@ -109,10 +110,10 @@ fn naive_count_32(haystack: &[u8], needle: u8) -> u32 {
 
 impl Transaction {
     pub fn is_valid(&self) -> bool {
-        if self.gas_price >= *TT256
-            || self.gas_limit >= *TT256
-            || self.value >= *TT256
-            || self.nonce >= *TT256
+        if self.gas_price >= tt256()
+            || self.gas_limit >= tt256()
+            || self.value >= tt256()
+            || self.nonce >= tt256()
         {
             // Way too high values
             return false;

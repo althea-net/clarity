@@ -1,5 +1,5 @@
 use crate::address::Address;
-use crate::constants::SECPK1N;
+use crate::constants::secpk1n;
 use crate::context::SECP256K1;
 use crate::error::Error;
 use crate::utils::{
@@ -40,9 +40,9 @@ impl Signature {
 
     /// Like is_valid() but returns a reason
     pub fn error_check(&self) -> Result<(), Error> {
-        if self.r >= *SECPK1N || self.r == Uint256::zero() {
+        if self.r >= secpk1n() || self.r == Uint256::zero() {
             return Err(Error::InvalidR);
-        } else if self.s >= *SECPK1N || self.s == Uint256::zero() {
+        } else if self.s >= secpk1n() || self.s == Uint256::zero() {
             return Err(Error::InvalidS);
         } else if let Err(e) = self.get_v() {
             return Err(e);
@@ -66,14 +66,14 @@ impl Signature {
     }
 
     pub fn check_low_s_metropolis(&self) -> Result<(), Error> {
-        if self.s > (*SECPK1N / Uint256::from(2u32)) {
+        if self.s > (secpk1n() / Uint256::from(2u32)) {
             return Err(Error::InvalidS);
         }
         Ok(())
     }
 
     pub fn check_low_s_homestead(&self) -> Result<(), Error> {
-        if self.s > (*SECPK1N / Uint256::from(2u32)) || self.s == Uint256::zero() {
+        if self.s > (secpk1n() / Uint256::from(2u32)) || self.s == Uint256::zero() {
             return Err(Error::InvalidS);
         }
         Ok(())

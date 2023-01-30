@@ -7,16 +7,12 @@
 use crate::address::Address;
 use serde::Serialize;
 use serde::Serializer;
-extern crate byteorder;
 extern crate serde;
 
 pub mod de;
 mod error;
 mod rlp;
 pub mod ser;
-
-#[cfg(test)]
-extern crate serde_bytes;
 
 pub(crate) struct AddressDef<'a>(pub(crate) &'a Address);
 

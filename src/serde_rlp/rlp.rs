@@ -7,9 +7,8 @@
 // except according to those terms.
 
 use crate::serde_rlp::error::Error;
-use byteorder::{BigEndian, WriteBytesExt};
 use num_traits::{Num, Unsigned};
-use std::mem::size_of;
+use std::io::Write;
 
 fn to_binary(x: u64) -> Vec<u8> {
     if x == 0 {
@@ -72,10 +71,18 @@ where
     T: Into<u64>,
 {
     let mut wtr = vec![];
-    wtr.write_uint::<BigEndian>(v.into(), size_of::<T>())
-        .unwrap();
-    let index = wtr.iter().position(|&r| r > 0u8).unwrap_or(0);
-    wtr.split_off(index)
+    wtr.write_all(&v.into().to_be_bytes()).unwrap();
+    // the goal is to represent any number with the minimum
+    // number of zeros so we trim all the leading zeros except
+    // for the last zero to avoid returning an empty array in the case
+    // that our number is actually zero
+    while let Some(0) =  wtr.first() {
+        if wtr.len() == 1 {
+            break
+        }
+        wtr.drain(0..1);
+    }
+    wtr
 }
 
 #[test]
