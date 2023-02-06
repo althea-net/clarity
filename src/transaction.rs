@@ -1,5 +1,4 @@
 use crate::address::Address;
-use crate::constants::tt256;
 use crate::error::Error;
 use crate::opcodes::GTXCOST;
 use crate::opcodes::GTXDATANONZERO;
@@ -110,15 +109,6 @@ fn naive_count_32(haystack: &[u8], needle: u8) -> u32 {
 
 impl Transaction {
     pub fn is_valid(&self) -> bool {
-        if self.gas_price >= tt256()
-            || self.gas_limit >= tt256()
-            || self.value >= tt256()
-            || self.nonce >= tt256()
-        {
-            // Way too high values
-            return false;
-        }
-
         // invalid signature check
         if let Some(sig) = self.signature.clone() {
             if !sig.is_valid() {

@@ -1,6 +1,6 @@
 [package]
 name = "clarity"
-version = "0.6.0"
+version = "0.7.0"
 authors = ["Michał Papierski <michal@papierski.net>, Justin Kilpatrick <justin@althea.net>"]
 autotests = true
 include = [
@@ -21,7 +21,7 @@ num-traits = "0.2"
 sha3 = "0.10"
 secp256k1 = { version = "0.26", features = ["recovery"] }
 serde_derive = "1.0"
-num256 = "0.4"
+num256 = "0.5"
 serde_bytes= "0.11"
 
 [[test]]
