@@ -42,13 +42,13 @@ impl Signature {
     pub fn error_check(&self) -> Result<(), Error> {
         if self.r >= secpk1n() || self.r == Uint256::zero() {
             return Err(Error::InvalidR);
-        } else if self.s >= secpk1n() || self.s == Uint256::zero() {
+        } else if self.s > secpk1n() / 2u8.into() || self.s == Uint256::zero() {
             return Err(Error::InvalidS);
-        } else if let Err(e) = self.get_v() {
-            return Err(e);
         }
-
-        Ok(())
+        match self.get_v() {
+            Ok(_) => Ok(()),
+            Err(e) => Err(e),
+        }
     }
 
     pub fn is_valid(&self) -> bool {

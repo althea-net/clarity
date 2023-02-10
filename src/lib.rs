@@ -11,13 +11,11 @@
 //! Here's an example lifetime of an Alice-to-Bob Ethereum transaction made with Clarity:
 //! ```rust,no_run
 //! extern crate clarity;
-//! extern crate futures;
-//! extern crate web3;
+//! use web30::client::Web3;
 //!
 //! use clarity::{Address, Signature, Transaction, PrivateKey};
+//! use std::time::Duration;
 //!
-//! use futures::Future;
-//! use web3::{transports, types::Bytes, Web3};
 //!
 //! // A helper for filling the keys
 //! let mut key_buf: [u8; 32] = rand::random();
@@ -46,13 +44,11 @@
 //!
 //! // Send the locally assembled raw transaction over web3 (no need to trust another
 //! // machine with your wallet or host a node locally).
-//! let (_loop, transport) = transports::Http::new("http://localhost:8545").unwrap();
-//! let web3 = Web3::new(transport);
+//! const TIMEOUT: Duration = Duration::from_secs(1);
+//! let web3 = Web3::new("http://localhost:8545", TIMEOUT);
 //! let res = web3
-//!     .eth()
-//!     .send_raw_transaction(Bytes::from(tx_signed.to_bytes().unwrap()))
-//!     .wait()
-//!     .unwrap();
+//!     .eth_send_raw_transaction(tx_signed.to_bytes().unwrap());
+//! // res.await.unwrap()
 //! ```
 
 #![warn(clippy::all)]

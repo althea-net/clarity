@@ -171,6 +171,16 @@ pub fn decode_length(input: &[u8]) -> Result<DecodeLengthResult, Error> {
     {
         let len_of_str_len = prefix as usize - 0xb7;
         let str_len = to_integer(&input[1..len_of_str_len + 1]).unwrap();
+
+        // in this case we are parsing the length of the length of the array
+        // because the length is longer than the 55 byte length that can be encoded in the
+        // previous case. If the first byte of this 'longer' length value is zero and not used
+        // to encode some value there's trickery afoot. The only reason to front-pad your length
+        // encoding with zeros is poententially malicious, so we should reject this
+        if input[1] == 0 {
+            return Err(Error::ListPrefixTooSmall);
+        }
+
         Ok(DecodeLengthResult {
             offset: 1 + len_of_str_len,
             length: str_len as usize,
@@ -192,7 +202,18 @@ pub fn decode_length(input: &[u8]) -> Result<DecodeLengthResult, Error> {
                     .ok_or(Error::ListPrefixTooSmall)?
     {
         let len_of_list_len = prefix as usize - 0xf7;
+
+        // in this case we are parsing the length of the length of the array
+        // because the length is longer than the 55 byte length that can be encoded in the
+        // previous case. If the first byte of this 'longer' length value is zero and not used
+        // to encode some value there's trickery afoot. The only reason to front-pad your length
+        // encoding with zeros is poententially malicious, so we should reject this
+        if input[1] == 0 {
+            return Err(Error::ListPrefixTooSmall);
+        }
+
         let list_len = to_integer(&input[1..len_of_list_len + 1]).unwrap();
+
         Ok(DecodeLengthResult {
             offset: 1 + len_of_list_len,
             length: list_len as usize,
@@ -234,4 +255,11 @@ fn decode_short_array() {
     assert_eq!(res.offset, 1);
     assert_eq!(res.length, 4);
     assert_eq!(res.expected_type, ExpectedType::ListType);
+}
+
+#[test]
+fn detect_invalid_rlp() {
+    use crate::utils::hex_str_to_bytes;
+    let bytes = hex_str_to_bytes("0xf9005f030182520894b94f5374fce5edbc8e2a8697c15331677e6ebf0b0a801ca098ff921201554726367d2be8c804a7ff89ccf285ebc57dff8ae4c44b9c19ac4aa08887321be575c8095f789dd4c743dfe42c1820f9231f98a962b210e3ac2452a3").unwrap();
+    assert!(decode_length(&bytes).is_err());
 }

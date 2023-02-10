@@ -114,11 +114,14 @@ impl Transaction {
             if !sig.is_valid() {
                 return false;
             }
+
+            if self.sender().is_err() {
+                return false;
+            }
         }
-        // TODO check that the signature is actually correct, not just valid
 
         // rudimentary gas limit check, needs opcode awareness
-        if self.gas_limit < self.intrinsic_gas_used() {
+        if self.gas_limit < self.intrinsic_gas_used() || self.gas_limit > u64::MAX.into() {
             return false;
         }
 
@@ -208,11 +211,6 @@ impl Transaction {
                 return Err(Error::InvalidV);
             };
 
-            // Validate signatures
-            if !sig.is_valid() {
-                return Err(Error::InvalidSignatureValues);
-            }
-
             sig.recover(&sighash)
         }
     }
@@ -242,11 +240,24 @@ impl Transaction {
             return Err(Error::DeserializeRlp);
         }
 
+        let address = match Address::from_slice(data[3]) {
+            Ok(v) => v,
+            Err(e) => {
+                // an empty address field means the zero address
+                // anything in between 0 bytes and 20 bytes is an error
+                if data[3].is_empty() {
+                    Address::default()
+                } else {
+                    return Err(e);
+                }
+            }
+        };
+
         Ok(Transaction {
             nonce: (**data[0]).into(),
             gas_price: (**data[1]).into(),
             gas_limit: (**data[2]).into(),
-            to: Address::from_slice(data[3]).unwrap_or_default(),
+            to: address,
             value: (**data[4]).into(),
             data: (**data[5]).into(),
             signature: Some(Signature::new(

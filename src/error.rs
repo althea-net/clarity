@@ -26,7 +26,7 @@ pub enum Error {
     InvalidEip55,
     InvalidCallError(String),
     InvalidSignatureLength,
-    SerializeRlp, // TODO: error in serde_rlp is not public, cannot include source ...
+    SerializeRlp,
     DeserializeRlp,
     NoSignature,
 }

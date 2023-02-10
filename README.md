@@ -9,6 +9,8 @@ The goal of Clarity is to be extremely simple and barebones in terms of implemen
 
 Our implementation philosophy is that it is up to the developer to understand the [Ethereum ABI](https://docs.soliditylang.org/en/develop/abi-spec.html) at a low level and produce the correct inputs. Clarity prevents foot-gun moments from actually occurring with panics but does not attempt to implement a full ABI parser or contract definition parsing. It's up to the user to provide the right snippets for their function calls and events themselves.
 
+This library is capable of decoding all transactions after Frontier and Homestead hardforks before that some transactions will not pass validation.
+
 # Getting Started
 
 See the docs for the API and some usage examples.
