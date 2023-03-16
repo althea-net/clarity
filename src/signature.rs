@@ -2,6 +2,7 @@ use crate::address::Address;
 use crate::constants::secpk1n;
 use crate::context::SECP256K1;
 use crate::error::Error;
+use crate::transaction::v_to_num;
 use crate::utils::{
     big_endian_uint256_deserialize, big_endian_uint256_serialize, bytes_to_hex_str,
     hex_str_to_bytes,
@@ -15,37 +16,82 @@ use std::fmt::{self, Display};
 use std::str::FromStr;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
-pub struct Signature {
-    #[serde(
-        serialize_with = "big_endian_uint256_serialize",
-        deserialize_with = "big_endian_uint256_deserialize"
-    )]
-    pub v: Uint256,
-    #[serde(
-        serialize_with = "big_endian_uint256_serialize",
-        deserialize_with = "big_endian_uint256_deserialize"
-    )]
-    pub r: Uint256,
-    #[serde(
-        serialize_with = "big_endian_uint256_serialize",
-        deserialize_with = "big_endian_uint256_deserialize"
-    )]
-    pub s: Uint256,
+pub enum Signature {
+    LegacySignature {
+        #[serde(
+            serialize_with = "big_endian_uint256_serialize",
+            deserialize_with = "big_endian_uint256_deserialize"
+        )]
+        v: Uint256,
+        #[serde(
+            serialize_with = "big_endian_uint256_serialize",
+            deserialize_with = "big_endian_uint256_deserialize"
+        )]
+        r: Uint256,
+        #[serde(
+            serialize_with = "big_endian_uint256_serialize",
+            deserialize_with = "big_endian_uint256_deserialize"
+        )]
+        s: Uint256,
+    },
+    ModernSignature {
+        /// todo fix serialization here
+        v: bool,
+        #[serde(
+            serialize_with = "big_endian_uint256_serialize",
+            deserialize_with = "big_endian_uint256_deserialize"
+        )]
+        r: Uint256,
+        #[serde(
+            serialize_with = "big_endian_uint256_serialize",
+            deserialize_with = "big_endian_uint256_deserialize"
+        )]
+        s: Uint256,
+    },
 }
 
 impl Signature {
-    pub fn new(v: Uint256, r: Uint256, s: Uint256) -> Signature {
-        Signature { v, r, s }
+    pub fn new(v: bool, r: Uint256, s: Uint256) -> Signature {
+        Signature::ModernSignature { r, s, v }
+    }
+
+    pub fn new_legacy(v: Uint256, r: Uint256, s: Uint256) -> Signature {
+        Signature::LegacySignature { v, r, s }
+    }
+
+    pub fn get_r(&self) -> Uint256 {
+        match self {
+            Signature::LegacySignature { r, .. } | Signature::ModernSignature { r, .. } => *r,
+        }
+    }
+
+    pub fn get_s(&self) -> Uint256 {
+        match self {
+            Signature::LegacySignature { s, .. } | Signature::ModernSignature { s, .. } => *s,
+        }
+    }
+
+    /// Gets the v value, potentially encoded with a chain id
+    pub fn get_v(&self) -> Uint256 {
+        match self {
+            Signature::LegacySignature { v, .. } => *v,
+            Signature::ModernSignature { v, .. } => v_to_num(*v),
+        }
     }
 
     /// Like is_valid() but returns a reason
     pub fn error_check(&self) -> Result<(), Error> {
-        if self.r >= secpk1n() || self.r == Uint256::zero() {
+        if self.get_r() >= secpk1n() || self.get_r() == Uint256::zero() {
             return Err(Error::InvalidR);
-        } else if self.s > secpk1n() / 2u8.into() || self.s == Uint256::zero() {
+        } else if self.get_s() > secpk1n() / 2u8.into() || self.get_s() == Uint256::zero() {
             return Err(Error::InvalidS);
         }
-        match self.get_v() {
+        // this is suppposedly invalid in the VRS value tests, there's no clear spec that gives
+        // this value though so it may be an implicit standard
+        if self.get_v() >= 61480u32.into() {
+            return Err(Error::InvalidV);
+        }
+        match self.get_signature_v() {
             Ok(_) => Ok(()),
             Err(e) => Err(e),
         }
@@ -55,28 +101,61 @@ impl Signature {
         self.error_check().is_ok()
     }
 
-    pub fn network_id(&self) -> Option<Uint256> {
-        if self.r == Uint256::zero() && self.s == Uint256::zero() {
-            Some(self.v)
-        } else if self.v == 27u32.into() || self.v == 28u32.into() {
-            None
-        } else {
-            Some(((self.v - 1u32.into()) / 2u32.into()) - 17u32.into())
+    /// Extracts the chain id from the legacy signature v value
+    /// will return none if the signature is either a legacy signature not protected from replay
+    /// or if the signature is a modern signature at which point the chain_id value is contained in the tx
+    pub fn legacy_network_id(&self) -> Option<Uint256> {
+        match self {
+            Signature::LegacySignature { v, .. } => {
+                // signature with no replay protection
+                if *v == 27u8.into() || *v == 28u8.into() {
+                    None
+                } else {
+                    // bit hacked network id value, decode here
+                    let network_id = ((*v - 1u8.into()) / 2u8.into()) - 17u8.into();
+                    // these cover depricated testnets and are now considered invalid
+                    if network_id == 3u8.into() || network_id == 2u8.into() {
+                        None
+                    } else {
+                        Some(network_id)
+                    }
+                }
+            }
+            Signature::ModernSignature { .. } => None,
         }
     }
 
-    pub fn check_low_s_metropolis(&self) -> Result<(), Error> {
-        if self.s > (secpk1n() / Uint256::from(2u32)) {
-            return Err(Error::InvalidS);
+    /// Get the actual signature component V value, only two possibilities 27 or 28
+    /// this is different from V encoded with a chain id for which you should use get_v()
+    pub fn get_signature_v(&self) -> Result<u8, Error> {
+        match self {
+            Signature::LegacySignature { v, .. } => {
+                // Valid V values are in {27, 28} according to Ethereum Yellow paper Appendix F (282).
+                if *v == 27u8.into() {
+                    Ok(27)
+                } else if *v == 28u8.into() {
+                    Ok(28)
+                } else if *v >= 37u8.into() {
+                    let network_id = self.legacy_network_id().ok_or(Error::InvalidNetworkId)?;
+                    // // Otherwise we have to extract "v"...
+                    let vee = *v - (network_id * 2u8.into()) - 8u8.into();
+                    let vee = vee.to_be_bytes()[31];
+                    // // ... so after all v will still match 27<=v<=28
+                    assert!(vee == 27 || vee == 28);
+                    Ok(vee)
+                } else {
+                    // All other V values would be errorneous for our calculations
+                    Err(Error::InvalidV)
+                }
+            }
+            Signature::ModernSignature { v, .. } => {
+                if *v {
+                    Ok(28)
+                } else {
+                    Ok(27)
+                }
+            }
         }
-        Ok(())
-    }
-
-    pub fn check_low_s_homestead(&self) -> Result<(), Error> {
-        if self.s > (secpk1n() / Uint256::from(2u32)) || self.s == Uint256::zero() {
-            return Err(Error::InvalidS);
-        }
-        Ok(())
     }
 
     /// Converts a signature into a bytes string.
@@ -94,21 +173,20 @@ impl Signature {
     ///
     /// This supersedes `into_bytes` as it does not consume the object itself.
     pub fn to_bytes(&self) -> [u8; 65] {
-        // This is new since 0.1.20 in a way that this just borrows self,
-        // and won't consume the object itself.
         // Usually `to_bytes` function in standard library returns a borrowed
         // value, but its impossible in our case since VRS are separate objects,
         // and its impossible to just cast a struct into a slice of bytes.
-        let r: [u8; 32] = self.r.into();
-        let s: [u8; 32] = self.s.into();
+        let r: [u8; 32] = self.get_r().into();
+        let s: [u8; 32] = self.get_s().into();
         let mut result = [0x00u8; 65];
         // Put r at the beginning
         result[0..32].copy_from_slice(&r);
         // Add s in the middle
         result[32..64].copy_from_slice(&s);
         // End up with v at the end
-        let v = self.v.to_be_bytes();
-        result[64] = v[v.len() - 1];
+        result[64] = self
+            .get_signature_v()
+            .expect("Into bytes on invalid signature");
         result
     }
     /// Constructs a signature from a bytes string
@@ -131,32 +209,21 @@ impl Signature {
             data.into()
         };
         let v = bytes[64];
-        Ok(Signature::new(v.into(), r, s))
-    }
-
-    /// Extract V parameter with regards to network ID. Use this rather than V directly
-    pub fn get_v(&self) -> Result<Uint256, Error> {
-        if self.v == 27u32.into() || self.v == 28u32.into() {
-            // Valid V values are in {27, 28} according to Ethereum Yellow paper Appendix F (282).
-            Ok(self.v)
-        } else if self.v >= 37u32.into() {
-            let network_id = self.network_id().ok_or(Error::InvalidNetworkId)?;
-            // // Otherwise we have to extract "v"...
-            let vee = self.v - (network_id * 2u32.into()) - 8u32.into();
-            // // ... so after all v will still match 27<=v<=28
-            assert!(vee == 27u32.into() || vee == 28u32.into());
-            Ok(vee)
+        if v == 27 || v == 28 {
+            // we actually can't tell in this case if we have a modern signature of an unprotected legacy
+            // sig, so we just return modern
+            Ok(Signature::ModernSignature { v: v == 28, r, s })
         } else {
-            // All other V values would be errorneous for our calculations
-            Err(Error::InvalidV)
+            Ok(Signature::LegacySignature { v: v.into(), r, s })
         }
     }
+
     /// Recover an address from a signature
     ///
     /// This can be called with any arbitrary signature, and a hashed message.
     pub fn recover(&self, hash: &[u8]) -> Result<Address, Error> {
         // Create recovery ID which is "v" minus 27. Without this it wouldn't be possible to extract recoverable signature.
-        let v = RecoveryId::from_i32(self.get_v()?.to_i32().ok_or(Error::InvalidV)? - 27)
+        let v = RecoveryId::from_i32(self.get_signature_v()?.to_i32().ok_or(Error::InvalidV)? - 27)
             .map_err(Error::DecodeRecoveryId)?;
         // A message to recover which is a hash of the transaction
         let msg = Message::from_slice(hash).map_err(Error::ParseMessage)?;
@@ -183,16 +250,6 @@ impl Signature {
         let sender = Keccak256::digest(&pkey[1..]);
         debug_assert_eq!(sender.len(), 32);
         Address::from_slice(&sender[12..])
-    }
-}
-
-impl Default for Signature {
-    fn default() -> Signature {
-        Signature {
-            r: Uint256::zero(),
-            v: Uint256::zero(),
-            s: Uint256::zero(),
-        }
     }
 }
 
@@ -256,15 +313,15 @@ impl fmt::UpperHex for Signature {
 
 #[test]
 fn new_signature() {
-    let sig = Signature::new(1u32.into(), 2u32.into(), 3u32.into());
-    assert_eq!(sig.v, 1u32.into());
-    assert_eq!(sig.r, 2u32.into());
-    assert_eq!(sig.s, 3u32.into());
+    let sig = Signature::new(false, 2u32.into(), 3u32.into());
+    assert_eq!(sig.get_signature_v().unwrap(), 27);
+    assert_eq!(sig.get_r(), 2u32.into());
+    assert_eq!(sig.get_s(), 3u32.into());
 }
 
 #[test]
 fn to_string() {
-    let sig = Signature::new(1u32.into(), 2u32.into(), 3u32.into());
+    let sig = Signature::new(true, 2u32.into(), 3u32.into());
     let sig_string = sig.to_string();
     assert_eq!(
         sig_string,
@@ -272,7 +329,7 @@ fn to_string() {
             "0x",
             "0000000000000000000000000000000000000000000000000000000000000002",
             "0000000000000000000000000000000000000000000000000000000000000003",
-            "01"
+            "1c"
         )
     );
     let new_sig = Signature::from_str(&sig_string).expect("Unable to parse signature");
@@ -286,7 +343,7 @@ fn to_string() {
 
 #[test]
 fn to_upper_hex() {
-    let sig = Signature::new(1u32.into(), 65450u32.into(), 32456u32.into());
+    let sig = Signature::new(true, 65450u32.into(), 32456u32.into());
     let sig_string = format!("{sig:#X}");
     assert_eq!(
         sig_string,
@@ -294,7 +351,7 @@ fn to_upper_hex() {
             "0x",
             "000000000000000000000000000000000000000000000000000000000000FFAA",
             "0000000000000000000000000000000000000000000000000000000000007EC8",
-            "01"
+            "1C"
         )
     );
     let sig_string = format!("{sig:X}");
@@ -303,13 +360,13 @@ fn to_upper_hex() {
         concat!(
             "000000000000000000000000000000000000000000000000000000000000FFAA",
             "0000000000000000000000000000000000000000000000000000000000007EC8",
-            "01"
+            "1C"
         )
     );
 }
 #[test]
 fn to_lower_hex() {
-    let sig = Signature::new(1u32.into(), 65450u32.into(), 32456u32.into());
+    let sig = Signature::new(true, 65450u32.into(), 32456u32.into());
     let sig_string = format!("{sig:#x}");
     assert_eq!(
         sig_string,
@@ -317,7 +374,7 @@ fn to_lower_hex() {
             "0x",
             "000000000000000000000000000000000000000000000000000000000000ffaa",
             "0000000000000000000000000000000000000000000000000000000000007ec8",
-            "01"
+            "1c"
         )
     );
     let sig_string = format!("{sig:x}");
@@ -326,14 +383,14 @@ fn to_lower_hex() {
         concat!(
             "000000000000000000000000000000000000000000000000000000000000ffaa",
             "0000000000000000000000000000000000000000000000000000000000007ec8",
-            "01"
+            "1c"
         )
     );
 }
 
 #[test]
 fn into_bytes() {
-    let sig = Signature::new(1u32.into(), 2u32.into(), 3u32.into());
+    let sig = Signature::new(true, 2u32.into(), 3u32.into());
 
     let sig_bytes = sig.to_bytes();
     assert_eq!(
@@ -341,29 +398,11 @@ fn into_bytes() {
         vec![
             /* r */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 2, /* s */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, /* v */ 1
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, /* v */ 28
         ],
     );
 
     let new_sig = Signature::from_bytes(&sig_bytes).expect("Unable to reconstruct signature");
-    assert_eq!(sig, new_sig);
-}
-
-#[test]
-fn to_string_with_zero_v() {
-    let sig = Signature::new(0u32.into(), 2u32.into(), 3u32.into());
-    let sig_str = sig.to_string();
-    assert_eq!(
-        sig_str,
-        concat!(
-            "0x",
-            "0000000000000000000000000000000000000000000000000000000000000002",
-            "0000000000000000000000000000000000000000000000000000000000000003",
-            "00"
-        )
-    );
-
-    let new_sig = Signature::from_str(&sig_str).expect("Unable to reconstruct signature");
     assert_eq!(sig, new_sig);
 }
 
@@ -404,9 +443,8 @@ fn parse_hex_signature() {
     let correct_s =
         hex_str_to_bytes("0x6b12e0bd44ef7b0634710d99c2d81087a2f39e075158212343a3b2948ecf33d0")
             .unwrap();
-    let correct_v = vec![28u8];
 
-    assert_eq!(sig.r, Uint256::from_be_bytes(&correct_r));
-    assert_eq!(sig.s, Uint256::from_be_bytes(&correct_s));
-    assert_eq!(sig.v, Uint256::from_be_bytes(&correct_v));
+    assert_eq!(sig.get_r(), Uint256::from_be_bytes(&correct_r));
+    assert_eq!(sig.get_s(), Uint256::from_be_bytes(&correct_s));
+    assert_eq!(sig.get_signature_v().unwrap(), 28);
 }

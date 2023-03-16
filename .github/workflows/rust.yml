@@ -17,6 +17,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+      with:
+        submodules: 'true'
     - name: Build
       run: cargo build --all --verbose
 
@@ -26,6 +28,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+      with:
+        submodules: 'true'
     - name: Unit Tests
       run: cargo test --all --verbose 
 
@@ -35,6 +39,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+      with:
+        submodules: 'true'
     - name: Clippy
       run: rustup component add clippy && cargo clippy --all --all-targets --all-features -- -D warnings
 
@@ -44,6 +50,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+      with:
+        submodules: 'true'
     - name: Rustfmt
       run: rustup component add rustfmt && cargo fmt --all -- --check
 
@@ -53,6 +61,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+      with:
+        submodules: 'true'
     - name: cross-compile-mips
       run: cargo install cross && cross test --target mips-unknown-linux-gnu
 
@@ -62,6 +72,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+      with:
+        submodules: 'true'
     - name: cross-compile-mips64
       run: cargo install cross && cross test --target mips64-unknown-linux-gnuabi64
 
@@ -72,6 +84,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+      with:
+        submodules: 'true'
     - name: cross-compile-arm64
       run: cargo install cross && cross test --target aarch64-unknown-linux-gnu
 

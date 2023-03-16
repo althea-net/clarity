@@ -1,3 +1,4 @@
+use crate::rlp::RlpToken;
 use crate::utils::bytes_to_hex_str;
 use crate::utils::display_uint256_as_address;
 use crate::utils::hex_str_to_bytes;
@@ -42,6 +43,24 @@ impl Address {
         let mut result: [u8; 20] = Default::default();
         result.copy_from_slice(data);
         Ok(Address(result))
+    }
+
+    /// Attempts to decode an address from RLP data, with special case
+    /// handling for the zero address case
+    pub fn from_rlp_data(data: RlpToken) -> Result<Address, Error> {
+        let address_data = &data.get_byte_content()?;
+        match Address::from_slice(address_data) {
+            Ok(v) => Ok(v),
+            Err(e) => {
+                // an empty address field means the zero address
+                // anything in between 0 bytes and 20 bytes is an error
+                if address_data.is_empty() {
+                    Ok(Address::default())
+                } else {
+                    Err(e)
+                }
+            }
+        }
     }
 
     // Parses and validates the address according to the EIP-55 standard

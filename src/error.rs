@@ -2,6 +2,8 @@ use std::fmt;
 use std::num::ParseIntError;
 use std::str::Utf8Error;
 
+use num256::Uint256;
+
 /// Custom error implementation that describes possible
 /// error states.
 ///
@@ -29,6 +31,7 @@ pub enum Error {
     SerializeRlp,
     DeserializeRlp,
     NoSignature,
+    UnknownTxType(Uint256),
 }
 
 impl fmt::Display for Error {
@@ -62,6 +65,7 @@ impl fmt::Display for Error {
             Error::SerializeRlp => write!(f, "failed to serialize using RLP-encoding"),
             Error::DeserializeRlp => write!(f, "failed to deserialize using RLP-encoding"),
             Error::NoSignature => write!(f, "This transaction does not have a signature attached"),
+            Error::UnknownTxType(t) => write!(f, "Unsupported Ethereum transaction type {}", t),
         }
     }
 }

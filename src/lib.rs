@@ -26,7 +26,7 @@
 //! let bobs_key = PrivateKey::from_slice(&key_buf).unwrap();
 //!
 //! // Create a new transaction
-//! let tx = Transaction {
+//! let tx = Transaction::Legacy {
 //!     nonce: 0u32.into(),
 //!     gas_price: 1_000_000_000u32.into(),
 //!     gas_limit: 21_000u32.into(),
@@ -47,7 +47,7 @@
 //! const TIMEOUT: Duration = Duration::from_secs(1);
 //! let web3 = Web3::new("http://localhost:8545", TIMEOUT);
 //! let res = web3
-//!     .eth_send_raw_transaction(tx_signed.to_bytes().unwrap());
+//!     .eth_send_raw_transaction(tx_signed.to_bytes());
 //! // res.await.unwrap()
 //! ```
 
@@ -70,7 +70,7 @@ pub mod error;
 pub mod opcodes;
 pub mod private_key;
 mod raw_private_key;
-pub mod serde_rlp;
+pub mod rlp;
 mod signature;
 pub mod transaction;
 pub mod types;

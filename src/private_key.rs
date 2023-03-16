@@ -161,9 +161,9 @@ impl PrivateKey {
         assert!(recovery_id >= 0);
         let recovery_id = recovery_id as u32;
         let v: Uint256 = (recovery_id + 27).into();
+        let v = v == 28u8.into();
         let r = Uint256::from_be_bytes(&compact[0..32]);
         let s = Uint256::from_be_bytes(&compact[32..64]);
-        // This will swap the signature of a transaction, and returns a new signed TX.
         Signature::new(v, r, s)
     }
 
@@ -387,15 +387,15 @@ fn sign_message() {
 
     // geth account import <(echo c87f65ff3f271bf5dc8643484f66b200109caffe4bf98c4cb393dc35740b28c0)
     let sig = key.sign_hash(&hash);
-    assert_eq!(sig.v, 27u32.into());
+    assert_eq!(sig.get_signature_v().unwrap(), 27);
     assert_eq!(
-        sig.r,
+        sig.get_r(),
         "60846573560682549108588594828362990367411621835316234394067988873897934296519"
             .parse()
             .unwrap()
     );
     assert_eq!(
-        sig.s,
+        sig.get_s(),
         "38796436849307511461301231459196686786518980571289303247679628937607287361713"
             .parse()
             .unwrap()

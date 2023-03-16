@@ -2,69 +2,222 @@ extern crate clarity;
 extern crate num256;
 extern crate num_traits;
 extern crate rustc_test as test;
-extern crate serde_bytes;
 extern crate serde_json;
 use std::{cmp::Ordering, collections::HashMap, fmt::Display, str::FromStr};
 
-use clarity::{utils::hex_str_to_bytes, Signature, Transaction, Uint256};
+use clarity::{utils::hex_str_to_bytes, Address, Signature, Transaction, Uint256};
 use num_traits::Zero;
 
 pub fn default_gas_limit() -> String {
-    "0".to_owned()
+    "21000".to_owned()
+}
+
+pub fn default_chain_id() -> String {
+    "1".to_owned()
 }
 
 #[derive(Deserialize, Debug, Clone)]
-pub struct TestFillerTransaction {
-    pub data: String,
-    #[serde(rename = "gasLimit", default = "default_gas_limit")]
-    pub gas_limit: String,
-    #[serde(rename = "gasPrice")]
-    pub gas_price: Option<String>,
-    pub nonce: String,
-    pub to: String,
-    #[serde(default = "String::new")]
-    pub value: String,
-    pub v: String,
-    pub r: String,
-    pub s: String,
+#[serde(untagged)]
+pub enum TestFillerTransaction {
+    EIP2930 {
+        #[serde(rename = "chainId", default = "default_chain_id")]
+        chain_id: String,
+        #[serde(rename = "accessList")]
+        access_list: Vec<ListEntry>,
+        data: String,
+        #[serde(rename = "gasLimit", default = "default_gas_limit")]
+        gas_limit: String,
+        #[serde(rename = "gasPrice")]
+        gas_price: String,
+        nonce: String,
+        to: String,
+        #[serde(default = "String::new")]
+        value: String,
+        v: String,
+        r: String,
+        s: String,
+    },
+    EIP1559 {
+        #[serde(rename = "chainId", default = "default_chain_id")]
+        chain_id: String,
+        #[serde(rename = "accessList")]
+        access_list: Vec<ListEntry>,
+        data: String,
+        #[serde(rename = "gasLimit", default = "default_gas_limit")]
+        gas_limit: String,
+        #[serde(rename = "maxFeePerGas")]
+        max_fee_per_gas: String,
+        #[serde(rename = "maxPriorityFeePerGas")]
+        max_priority_fee_per_gas: String,
+        nonce: String,
+        to: String,
+        #[serde(default = "String::new")]
+        value: String,
+        v: String,
+        r: String,
+        s: String,
+    },
+    // do not move this to the top, or all eip2930 tx will parse as legacytx
+    // because it will be tried first has all the same fields except the access list
+    Legacy {
+        data: String,
+        #[serde(rename = "gasLimit", default = "default_gas_limit")]
+        gas_limit: String,
+        #[serde(rename = "gasPrice")]
+        gas_price: String,
+        nonce: String,
+        to: String,
+        #[serde(default = "String::new")]
+        value: String,
+        v: String,
+        r: String,
+        s: String,
+    },
+}
+
+fn decode_v(v: String) -> bool {
+    let parsed: Result<u8, _> = v.parse();
+    match (hex_str_to_bytes(&v), parsed) {
+        (Ok(v), _) => v[0] == 1,
+        (_, Ok(v)) => v == 1,
+        (_, _) => panic!("Invalid v {}", v),
+    }
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct ListEntry {
+    address: String,
+    #[serde(rename = "storageKeys")]
+    storage_keys: Vec<String>,
+}
+pub fn parse_filler_num(value: String) -> Uint256 {
+    let value = match value.strip_prefix("0x:bigint ") {
+        Some(v) => v,
+        None => &value,
+    };
+    match (value.parse(), hex_str_to_bytes(value)) {
+        (Ok(v), _) => v,
+        (_, Ok(bytes)) => Uint256::from_be_bytes(&bytes),
+        (Err(_), Err(_)) => panic!("Invalid value for filler tx"),
+    }
+}
+pub fn parse_data(data: &str) -> Vec<u8> {
+    // data comes in the format "raw: 0xABCD"
+    hex_str_to_bytes(match data.strip_prefix(":raw ") {
+        Some(v) => v,
+        None => data,
+    })
+    .expect("Unable to parse data")
+}
+pub fn parse_access_list(list: Vec<ListEntry>) -> Vec<(Address, Vec<Uint256>)> {
+    let mut out = Vec::new();
+    for item in list {
+        let mut storage_addrs = Vec::new();
+        let address = item.address.parse().unwrap();
+        for i in item.storage_keys {
+            storage_addrs.push(i.parse().unwrap())
+        }
+        out.push((address, storage_addrs))
+    }
+    out
 }
 
 impl TryInto<Transaction> for TestFillerTransaction {
     type Error = clarity::Error;
 
     fn try_into(self) -> Result<Transaction, Self::Error> {
-        // data comes in the format "raw: 0xABCD"
-        let data = match self.data.strip_prefix(":raw ") {
-            Some(v) => v,
-            None => &self.data,
-        };
-        let value = match self.value.strip_prefix("0x:bigint ") {
-            Some(v) => v,
-            None => &self.value,
-        };
-        let value = match (value.parse(), hex_str_to_bytes(value)) {
-            (Ok(v), _) => v,
-            (_, Ok(bytes)) => Uint256::from_be_bytes(&bytes),
-            (Err(_), Err(_)) => panic!("Invalid value for filler tx"),
-        };
-        Ok(Transaction {
-            nonce: self.nonce.parse().unwrap_or_else(|_| Uint256::zero()),
-            gas_price: self
-                .gas_price
-                .clone()
-                .unwrap_or("0".to_string())
-                .parse()
-                .unwrap_or_else(|_| Uint256::zero()),
-            gas_limit: self.gas_limit.parse().expect("Unable to parse gas_limit"),
-            to: self.to.parse()?,
-            value,
-            data: hex_str_to_bytes(data).expect("Unable to parse data"),
-            signature: Some(Signature::new(
-                self.v.parse().unwrap(),
-                self.r.parse().unwrap(),
-                self.s.parse().unwrap(),
-            )),
-        })
+        match self {
+            TestFillerTransaction::Legacy {
+                data,
+                gas_limit,
+                gas_price,
+                nonce,
+                to,
+                value,
+                v,
+                r,
+                s,
+            } => Ok(Transaction::Legacy {
+                nonce: nonce.parse().unwrap_or_else(|_| Uint256::zero()),
+                gas_price: gas_price.parse().unwrap_or_else(|_| Uint256::zero()),
+                gas_limit: gas_limit.parse().expect("Unable to parse gas_limit"),
+                to: to.parse()?,
+                value: parse_filler_num(value),
+                data: parse_data(&data),
+                signature: Some(Signature::new_legacy(
+                    v.parse().unwrap(),
+                    r.parse().unwrap(),
+                    s.parse().unwrap(),
+                )),
+            }),
+            TestFillerTransaction::EIP2930 {
+                access_list,
+                chain_id,
+                data,
+                gas_limit,
+                gas_price,
+                nonce,
+                to,
+                value,
+                v,
+                r,
+                s,
+            } => Ok(Transaction::Eip2930 {
+                nonce: nonce.parse().unwrap_or_else(|_| Uint256::zero()),
+                gas_price: gas_price.parse().unwrap_or_else(|_| Uint256::zero()),
+                gas_limit: gas_limit.parse().expect("Unable to parse gas_limit"),
+                to: to.parse()?,
+                value: parse_filler_num(value),
+                data: parse_data(&data),
+                signature: Some(Signature::new(
+                    decode_v(v),
+                    r.parse().unwrap(),
+                    s.parse().unwrap(),
+                )),
+                access_list: parse_access_list(access_list),
+                chain_id: chain_id.parse().unwrap_or_else(|_| Uint256::zero()),
+            }),
+            TestFillerTransaction::EIP1559 {
+                chain_id,
+                access_list,
+                data,
+                gas_limit,
+                max_fee_per_gas,
+                max_priority_fee_per_gas,
+                nonce,
+                to,
+                value,
+                v,
+                r,
+                s,
+            } => Ok(Transaction::Eip1559 {
+                chain_id: chain_id.parse().unwrap_or_else(|_| Uint256::zero()),
+                nonce: nonce.parse().unwrap_or_else(|_| Uint256::zero()),
+                max_priority_fee_per_gas: parse_filler_num(max_priority_fee_per_gas),
+                max_fee_per_gas: parse_filler_num(max_fee_per_gas),
+                gas_limit: gas_limit.parse().expect("Unable to parse gas_limit"),
+                to: to.parse()?,
+                value: parse_filler_num(value),
+                data: parse_data(&data),
+                signature: Some(Signature::new(
+                    decode_v(v),
+                    r.parse().unwrap(),
+                    s.parse().unwrap(),
+                )),
+                access_list: parse_access_list(access_list),
+            }),
+        }
+    }
+}
+
+impl TestFillerTransaction {
+    // returns true if the tx is supported in the current Ethereum version, false otherwise
+    pub fn is_supported(&self, network: EthereumNetworkVersion) -> bool {
+        match self {
+            TestFillerTransaction::EIP2930 { .. } => network >= EthereumNetworkVersion::Berlin,
+            TestFillerTransaction::EIP1559 { .. } => network >= EthereumNetworkVersion::London,
+            TestFillerTransaction::Legacy { .. } => true,
+        }
     }
 }
 
@@ -114,13 +267,17 @@ impl TestFiller {
                         } else if ineqality.starts_with("<=") {
                             let compare_to: EthereumNetworkVersion =
                                 ineqality.strip_prefix("<=").unwrap().parse().unwrap();
-                            if compare_to <= version {
+                            // because this is at the front of the string the interpretation is reversed
+                            // for example <berlin implies you are checking that hte value is less than berlin
+                            if compare_to >= version {
                                 return Some(error.clone());
                             }
                         } else if ineqality.starts_with('<') {
                             let compare_to: EthereumNetworkVersion =
                                 ineqality.strip_prefix('<').unwrap().parse().unwrap();
-                            if compare_to < version {
+                            // because this is at the front of the string the interpretation is reversed
+                            // for example <berlin implies you are checking that hte value is less than berlin
+                            if compare_to > version {
                                 return Some(error.clone());
                             }
                         } else if ineqality.starts_with('>') {

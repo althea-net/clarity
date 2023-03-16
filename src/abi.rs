@@ -28,7 +28,7 @@ use sha3::{Digest, Keccak256};
 /// actual byte representation.
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone)]
-pub enum Token {
+pub enum AbiToken {
     /// Unsigned type with value already encoded.
     Uint(Uint256),
     /// Ethereum Address
@@ -44,9 +44,9 @@ pub enum Token {
     /// This is a dynamic array of bytes that reflects dynamic "bytes" type in Solidity
     UnboundedBytes(Vec<u8>),
     /// Dynamic array with supported values of supported types already converted
-    Dynamic(Vec<Token>),
+    Dynamic(Vec<AbiToken>),
     /// A struct to be encoded as a contract call argument
-    Struct(Vec<Token>),
+    Struct(Vec<AbiToken>),
 }
 
 /// Representation of a serialized token.
@@ -78,34 +78,34 @@ impl SerializedToken {
     }
 }
 
-impl Token {
+impl AbiToken {
     /// Serializes a token into a [SerializedToken]()
     pub fn serialize(&self) -> SerializedToken {
         match *self {
-            Token::Uint(ref value) => {
+            AbiToken::Uint(ref value) => {
                 assert!(value.bits() <= 256);
                 let bytes = value.to_be_bytes();
                 let mut res: [u8; 32] = Default::default();
                 res[32 - bytes.len()..].copy_from_slice(&bytes);
                 SerializedToken::Static(res)
             }
-            Token::Bool(value) => {
+            AbiToken::Bool(value) => {
                 let mut res: [u8; 32] = Default::default();
                 res[31] = value as u8;
                 SerializedToken::Static(res)
             }
-            Token::Dynamic(ref tokens) => {
+            AbiToken::Dynamic(ref tokens) => {
                 let mut wtr = vec![];
-                let prefix: Token = (tokens.len() as u64).into();
+                let prefix: AbiToken = (tokens.len() as u64).into();
                 wtr.extend(prefix.serialize().as_static_ref().unwrap());
                 wtr.extend(encode_tokens(tokens));
                 SerializedToken::Dynamic(wtr)
             }
-            Token::Struct(ref tokens) => SerializedToken::Dynamic(encode_tokens(tokens)),
-            Token::UnboundedBytes(ref v) => {
+            AbiToken::Struct(ref tokens) => SerializedToken::Dynamic(encode_tokens(tokens)),
+            AbiToken::UnboundedBytes(ref v) => {
                 let mut wtr = vec![];
                 // Encode prefix
-                let prefix: Token = (v.len() as u64).into();
+                let prefix: AbiToken = (v.len() as u64).into();
                 wtr.extend(prefix.serialize().as_static_ref().unwrap());
                 // Pad on the right
                 wtr.extend(v);
@@ -114,10 +114,10 @@ impl Token {
                 wtr.extend(vec![0x00u8; pad_right - v.len()]);
                 SerializedToken::Dynamic(wtr)
             }
-            Token::String(ref s) => {
+            AbiToken::String(ref s) => {
                 let mut wtr = vec![];
                 // Encode prefix
-                let prefix: Token = (s.len() as u64).into();
+                let prefix: AbiToken = (s.len() as u64).into();
                 wtr.extend(prefix.serialize().as_static_ref().unwrap());
                 // Pad on the right
                 wtr.extend(s.as_bytes());
@@ -126,7 +126,7 @@ impl Token {
                 wtr.extend(vec![0x00u8; pad_right - s.len()]);
                 SerializedToken::Dynamic(wtr)
             }
-            Token::FixedString(ref s) => {
+            AbiToken::FixedString(ref s) => {
                 // gets the utf8 encoded bytes of the string value
                 let value = s.to_string().as_bytes().to_vec();
                 // This value is padded at the end. It is limited to 32 bytes.
@@ -136,14 +136,14 @@ impl Token {
                 wtr[0..value.len()].copy_from_slice(&value[..]);
                 SerializedToken::Static(wtr)
             }
-            Token::Bytes(ref value) => {
+            AbiToken::Bytes(ref value) => {
                 // This value is padded at the end. It is limited to 32 bytes.
                 assert!(value.len() <= 32);
                 let mut wtr: [u8; 32] = Default::default();
                 wtr[0..value.len()].copy_from_slice(&value[..]);
                 SerializedToken::Static(wtr)
             }
-            Token::Address(ref address) => {
+            AbiToken::Address(ref address) => {
                 // Address is the same as above, but for extra syntax sugar
                 // we treat it as separate case.
                 let mut wtr: [u8; 32] = Default::default();
@@ -155,129 +155,129 @@ impl Token {
     }
 }
 
-impl From<u8> for Token {
-    fn from(v: u8) -> Token {
-        Token::Uint(Uint256::from(v))
+impl From<u8> for AbiToken {
+    fn from(v: u8) -> AbiToken {
+        AbiToken::Uint(Uint256::from(v))
     }
 }
 
-impl From<u16> for Token {
-    fn from(v: u16) -> Token {
-        Token::Uint(Uint256::from(v))
+impl From<u16> for AbiToken {
+    fn from(v: u16) -> AbiToken {
+        AbiToken::Uint(Uint256::from(v))
     }
 }
 
-impl From<u32> for Token {
-    fn from(v: u32) -> Token {
-        Token::Uint(Uint256::from(v))
+impl From<u32> for AbiToken {
+    fn from(v: u32) -> AbiToken {
+        AbiToken::Uint(Uint256::from(v))
     }
 }
 
-impl From<u64> for Token {
-    fn from(v: u64) -> Token {
-        Token::Uint(Uint256::from(v))
+impl From<u64> for AbiToken {
+    fn from(v: u64) -> AbiToken {
+        AbiToken::Uint(Uint256::from(v))
     }
 }
 
-impl From<u128> for Token {
-    fn from(v: u128) -> Token {
-        Token::Uint(Uint256::from(v))
+impl From<u128> for AbiToken {
+    fn from(v: u128) -> AbiToken {
+        AbiToken::Uint(Uint256::from(v))
     }
 }
 
-impl From<bool> for Token {
-    fn from(v: bool) -> Token {
-        Token::Bool(v)
+impl From<bool> for AbiToken {
+    fn from(v: bool) -> AbiToken {
+        AbiToken::Bool(v)
     }
 }
 
-impl From<Vec<u8>> for Token {
-    fn from(v: Vec<u8>) -> Token {
-        Token::UnboundedBytes(v)
+impl From<Vec<u8>> for AbiToken {
+    fn from(v: Vec<u8>) -> AbiToken {
+        AbiToken::UnboundedBytes(v)
     }
 }
 
-impl From<Vec<u16>> for Token {
-    fn from(v: Vec<u16>) -> Token {
-        Token::Dynamic(v.into_iter().map(Into::into).collect())
+impl From<Vec<u16>> for AbiToken {
+    fn from(v: Vec<u16>) -> AbiToken {
+        AbiToken::Dynamic(v.into_iter().map(Into::into).collect())
     }
 }
 
-impl From<Vec<u32>> for Token {
-    fn from(v: Vec<u32>) -> Token {
-        Token::Dynamic(v.into_iter().map(Into::into).collect())
+impl From<Vec<u32>> for AbiToken {
+    fn from(v: Vec<u32>) -> AbiToken {
+        AbiToken::Dynamic(v.into_iter().map(Into::into).collect())
     }
 }
 
-impl From<Vec<u64>> for Token {
-    fn from(v: Vec<u64>) -> Token {
-        Token::Dynamic(v.into_iter().map(Into::into).collect())
+impl From<Vec<u64>> for AbiToken {
+    fn from(v: Vec<u64>) -> AbiToken {
+        AbiToken::Dynamic(v.into_iter().map(Into::into).collect())
     }
 }
 
-impl From<Vec<u128>> for Token {
-    fn from(v: Vec<u128>) -> Token {
-        Token::Dynamic(v.into_iter().map(Into::into).collect())
+impl From<Vec<u128>> for AbiToken {
+    fn from(v: Vec<u128>) -> AbiToken {
+        AbiToken::Dynamic(v.into_iter().map(Into::into).collect())
     }
 }
 
-impl From<Address> for Token {
-    fn from(v: Address) -> Token {
-        Token::Address(v)
+impl From<Address> for AbiToken {
+    fn from(v: Address) -> AbiToken {
+        AbiToken::Address(v)
     }
 }
 
-impl From<&Address> for Token {
-    fn from(v: &Address) -> Token {
-        Token::Address(*v)
+impl From<&Address> for AbiToken {
+    fn from(v: &Address) -> AbiToken {
+        AbiToken::Address(*v)
     }
 }
 
-impl<'a> From<&'a str> for Token {
-    fn from(v: &'a str) -> Token {
-        Token::String(v.into())
+impl<'a> From<&'a str> for AbiToken {
+    fn from(v: &'a str) -> AbiToken {
+        AbiToken::String(v.into())
     }
 }
 
-impl From<Vec<Address>> for Token {
-    fn from(v: Vec<Address>) -> Token {
-        Token::Dynamic(v.into_iter().map(Into::into).collect())
+impl From<Vec<Address>> for AbiToken {
+    fn from(v: Vec<Address>) -> AbiToken {
+        AbiToken::Dynamic(v.into_iter().map(Into::into).collect())
     }
 }
 
-impl From<Vec<Token>> for Token {
-    fn from(v: Vec<Token>) -> Token {
-        Token::Dynamic(v.into_iter().map(Into::into).collect())
+impl From<Vec<AbiToken>> for AbiToken {
+    fn from(v: Vec<AbiToken>) -> AbiToken {
+        AbiToken::Dynamic(v.into_iter().map(Into::into).collect())
     }
 }
 
-impl From<&[Address]> for Token {
-    fn from(v: &[Address]) -> Token {
-        Token::Dynamic(v.iter().map(Into::into).collect())
+impl From<&[Address]> for AbiToken {
+    fn from(v: &[Address]) -> AbiToken {
+        AbiToken::Dynamic(v.iter().map(Into::into).collect())
     }
 }
 
-impl From<Uint256> for Token {
-    fn from(v: Uint256) -> Token {
-        Token::Uint(v)
+impl From<Uint256> for AbiToken {
+    fn from(v: Uint256) -> AbiToken {
+        AbiToken::Uint(v)
     }
 }
 
-impl From<&Uint256> for Token {
-    fn from(v: &Uint256) -> Token {
-        Token::Uint(*v)
+impl From<&Uint256> for AbiToken {
+    fn from(v: &Uint256) -> AbiToken {
+        AbiToken::Uint(*v)
     }
 }
 
-impl From<Vec<Uint256>> for Token {
-    fn from(v: Vec<Uint256>) -> Token {
-        Token::Dynamic(v.into_iter().map(Into::into).collect())
+impl From<Vec<Uint256>> for AbiToken {
+    fn from(v: Vec<Uint256>) -> AbiToken {
+        AbiToken::Dynamic(v.into_iter().map(Into::into).collect())
     }
 }
 
-impl From<&[Uint256]> for Token {
-    fn from(v: &[Uint256]) -> Token {
-        Token::Dynamic(v.iter().map(Into::into).collect())
+impl From<&[Uint256]> for AbiToken {
+    fn from(v: &[Uint256]) -> AbiToken {
+        AbiToken::Dynamic(v.iter().map(Into::into).collect())
     }
 }
 
@@ -315,7 +315,7 @@ pub fn derive_method_id(signature: &str) -> Result<[u8; 4], Error> {
 /// and serializes them.
 ///
 /// Use with caution!
-pub fn encode_tokens(tokens: &[Token]) -> Vec<u8> {
+pub fn encode_tokens(tokens: &[AbiToken]) -> Vec<u8> {
     // This is the result data buffer
     let mut res = Vec::new();
 
@@ -344,7 +344,7 @@ pub fn encode_tokens(tokens: &[Token]) -> Vec<u8> {
                 // of dynamic length
                 if !is_static_struct_array(tokens) {
                     // Convert into token for easy serialization
-                    let offset: Token = dynamic_offset.into();
+                    let offset: AbiToken = dynamic_offset.into();
                     // Write the offset of the dynamic data as a value of static size.
                     match offset.serialize() {
                         SerializedToken::Static(bytes) => res.extend(bytes),
@@ -371,7 +371,7 @@ pub fn get_hash(bytes: &[u8]) -> [u8; 32] {
 }
 
 /// A helper function that encodes both signature and a list of tokens.
-pub fn encode_call(sig: &str, tokens: &[Token]) -> Result<Vec<u8>, Error> {
+pub fn encode_call(sig: &str, tokens: &[AbiToken]) -> Result<Vec<u8>, Error> {
     let mut wtr = vec![];
     wtr.extend(derive_method_id(sig)?);
 
@@ -390,14 +390,14 @@ pub fn encode_call(sig: &str, tokens: &[Token]) -> Result<Vec<u8>, Error> {
 /// Counts the number of tokens in a token array, including nested tokens
 /// this will give you the number of tokens you need in a function call
 /// argument string
-fn get_tokens_count(tokens: &[Token]) -> usize {
+fn get_tokens_count(tokens: &[AbiToken]) -> usize {
     let mut count = 0;
     for token in tokens {
         match token {
-            Token::Struct(v) => count += get_tokens_count(v),
+            AbiToken::Struct(v) => count += get_tokens_count(v),
             // for the case of an array of structs we count that structs members
             // that is what we'll see in the function header
-            Token::Dynamic(d) => {
+            AbiToken::Dynamic(d) => {
                 if is_struct_array(d) && !d.is_empty() {
                     count += get_tokens_count(&[d[0].clone()])
                 } else {
@@ -411,14 +411,14 @@ fn get_tokens_count(tokens: &[Token]) -> usize {
 }
 
 /// Simple utility function to detect arrays of structs
-fn is_struct_array(input: &[Token]) -> bool {
+fn is_struct_array(input: &[AbiToken]) -> bool {
     // arguable null case, could go either way
     if input.is_empty() {
         return false;
     }
     for t in input {
         match t {
-            Token::Struct(_) => {}
+            AbiToken::Struct(_) => {}
             _ => return false,
         }
     }
@@ -426,14 +426,14 @@ fn is_struct_array(input: &[Token]) -> bool {
 }
 
 /// Simple utility function to detect arrays of structs that are all static in size
-fn is_static_struct_array(input: &[Token]) -> bool {
+fn is_static_struct_array(input: &[AbiToken]) -> bool {
     // arguable null case, could go either way
     if input.is_empty() {
         return false;
     }
     for t in input {
         match t {
-            Token::Struct(v) => {
+            AbiToken::Struct(v) => {
                 for t in v {
                     if let SerializedToken::Dynamic(_) = t.serialize() {
                         return false;
@@ -623,7 +623,7 @@ mod tests {
         let result = encode_tokens(&[
             0x123u32.into(),
             vec![0x456u32, 0x789u32].into(),
-            Token::Bytes(b"1234567890".to_vec()),
+            AbiToken::Bytes(b"1234567890".to_vec()),
             "Hello, world!".into(),
         ]);
         assert!(result.len() % 8 == 0);
@@ -652,7 +652,7 @@ mod tests {
         let result = encode_tokens(&[
             0x123u32.into(),
             vec![0x456u32, 0x789u32].into(),
-            Token::Bytes(b"1234567890".to_vec()),
+            AbiToken::Bytes(b"1234567890".to_vec()),
             b"Hello, world!".to_vec().into(),
         ]);
         assert!(result.len() % 8 == 0);
@@ -719,7 +719,7 @@ mod tests {
         // the valset nonce
         let nonce: Uint256 = 0u32.into();
         // the list of validator ethereum addresses represented by this
-        let validators: Token = vec![
+        let validators: AbiToken = vec![
             "0xc783df8a850f42e7F7e57013759C285caa701eB6"
                 .parse::<Address>()
                 .unwrap(),
@@ -732,13 +732,13 @@ mod tests {
         ]
         .into();
         // list of powers represented
-        let powers: Token = vec![3333u32, 3333, 3333].into();
+        let powers: AbiToken = vec![3333u32, 3333, 3333].into();
         let encoded = "666f6f0000000000000000000000000000000000000000000000000000000000636865636b706f696e7400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000001200000000000000000000000000000000000000000000000000000000000000003000000000000000000000000c783df8a850f42e7f7e57013759c285caa701eb6000000000000000000000000ead9c93b79ae7c1591b1fb5323bd777e86e150d4000000000000000000000000e5904695748fe4a84b40b3fc79de2277660bd1d300000000000000000000000000000000000000000000000000000000000000030000000000000000000000000000000000000000000000000000000000000d050000000000000000000000000000000000000000000000000000000000000d050000000000000000000000000000000000000000000000000000000000000d05";
         // the hash resulting from the encode call
         let encoded_hash = "88165860d955aee7dc3e83d9d1156a5864b708841965585d206dbef6e9e1a499";
         let result = encode_tokens(&[
-            Token::FixedString("foo".to_string()),
-            Token::FixedString("checkpoint".to_string()),
+            AbiToken::FixedString("foo".to_string()),
+            AbiToken::FixedString("checkpoint".to_string()),
             nonce.into(),
             validators,
             powers,
@@ -759,7 +759,7 @@ mod tests {
             .parse()
             .unwrap();
 
-        let tokens: Vec<Token> = vec![
+        let tokens: Vec<AbiToken> = vec![
             address.into(),
             address.into(),
             500u16.into(),
@@ -769,7 +769,7 @@ mod tests {
             0u8.into(),
             0u8.into(),
         ];
-        let tokens = [Token::Struct(tokens)];
+        let tokens = [AbiToken::Struct(tokens)];
         let sig =
             "exactInputSingle((address,address,uint24,address,uint256,uint256,uint256,uint160))";
         let payload = encode_call(sig, &tokens).unwrap();

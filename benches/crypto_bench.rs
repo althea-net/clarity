@@ -10,7 +10,7 @@ fn tx_sign_bench(c: &mut Criterion) {
     let key: PrivateKey = "c87f65ff3f271bf5dc8643484f66b200109caffe4bf98c4cb393dc35740b28c0"
         .parse()
         .unwrap();
-    let tx = Transaction {
+    let tx = Transaction::Legacy {
         nonce: 0u32.into(),
         gas_price: "1000000000000".parse().unwrap(),
         gas_limit: "10000".parse().unwrap(),

@@ -8,9 +8,12 @@ pub const GCONTRACTBYTE: u32 = 200; // one byte of code in contract creation
 pub const GCALLVALUETRANSFER: u32 = 9000; // non-zero-valued call
 pub const GLOGBYTE: u32 = 8; // cost of a byte of logdata
 
-pub const GTXCOST: u32 = 21000; // TX BASE GAS COST
+pub const GTXCOST: u32 = 21_000; // TX BASE GAS COST
 pub const GTXDATAZERO: u32 = 4; // TX DATA ZERO BYTE GAS COST
 pub const GTXDATANONZERO: u32 = 16; // TX DATA NON ZERO BYTE GAS COST
+pub const GTXCONTRACTCREATION: u32 = 32_000; // Cost of creating a contract
+pub const GTXACCESSLISTADDRESS: u32 = 2_400; // Cost of warming up an account for the access list
+pub const GTXACCESSLISTSTORAGE: u32 = 1_900; // Cost of warming up a storage slot for an access list
 pub const GSHA3WORD: u32 = 6; // Cost of SHA3 per word
 pub const GSHA256BASE: u32 = 60; // Base c of SHA256
 pub const GSHA256WORD: u32 = 12; // Cost of SHA256 per word

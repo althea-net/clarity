@@ -1,6 +1,7 @@
 use crate::private_key::ETHEREUM_SALT;
 use crate::Error;
 use num256::Uint256;
+use serde::de::Error as SerdeError;
 use serde::{
     de::{Deserialize, Deserializer},
     ser::Serializer,
@@ -97,11 +98,66 @@ where
     }
 }
 
+pub fn big_endian_u64_serialize<S>(x: &u64, s: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    let x = *x;
+    big_endian_uint256_serialize(&x.into(), s)
+}
+
 pub fn big_endian_uint256_deserialize<'de, D>(d: D) -> Result<Uint256, D::Error>
 where
     D: Deserializer<'de>,
 {
     Ok(Uint256::from_be_bytes(&Vec::<u8>::deserialize(d)?))
+}
+
+pub fn big_endian_u64_deserialize<'de, D>(d: D) -> Result<u64, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let bytes = &Vec::<u8>::deserialize(d)?;
+    let value = Uint256::from_be_bytes(bytes);
+    // detect and reject overflow
+    if value > u64::MAX.into() {
+        Err(SerdeError::invalid_value(
+            serde::de::Unexpected::Other("Value greater than u64::Max"),
+            &"Value less than u64::Max",
+        ))
+    } else {
+        // copy bytes in truncating unused ones, protected from overflow by above logic
+        let mut slice = [0; 8];
+        let mut c = 7;
+        for i in bytes.iter().rev() {
+            slice[c] = *i;
+            if c == 0 {
+                break;
+            }
+            c += 1;
+        }
+        Ok(u64::from_be_bytes(slice))
+    }
+}
+
+pub fn big_endian_u64_from_bytes(bytes: &[u8]) -> Option<u64> {
+    let value = Uint256::from_be_bytes(bytes);
+    // detect and reject overflow
+    if value > u64::MAX.into() {
+        None
+    } else {
+        // copy bytes in truncating unused ones, protected from overflow by above logic
+        let mut slice = [0; 8];
+        let mut c = 7;
+        for i in bytes.iter().rev() {
+            slice[c] = *i;
+            if c == 0 {
+                break;
+            }
+            c -= 1;
+        }
+        Some(u64::from_be_bytes(slice))
+    }
 }
 
 #[test]
@@ -189,4 +245,23 @@ fn verify_zpad_exact() {
 #[test]
 fn verify_zpad_less_than_size() {
     assert_eq!(zpad(&[1, 2, 3, 4], 2), [1, 2, 3, 4]);
+}
+
+#[cfg(test)]
+use rand::prelude::ThreadRng;
+#[cfg(test)]
+pub fn get_fuzz_bytes(rng: &mut ThreadRng) -> Vec<u8> {
+    use rand::distributions::Distribution;
+    use rand::distributions::Uniform;
+    use rand::Rng;
+
+    let range = Uniform::from(1..200_000);
+    let size: usize = range.sample(rng);
+    let event_bytes: Vec<u8> = (0..size)
+        .map(|_| {
+            let val: u8 = rng.gen();
+            val
+        })
+        .collect();
+    event_bytes
 }
