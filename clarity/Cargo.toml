@@ -9,7 +9,7 @@ include = [
 ]
 description = "Lightweight Ethereum client"
 repository = "https://github.com/althea-net/clarity"
-license-file = "LICENSE"
+license = "Apache-2.0"
 edition = "2021"
 
 [dependencies]
