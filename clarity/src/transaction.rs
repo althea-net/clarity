@@ -272,58 +272,90 @@ impl Transaction {
 
     pub fn get_signature(&self) -> Option<Signature> {
         match self {
-            Transaction::Legacy { signature, .. } => signature.clone(),
-            Transaction::Eip2930 { signature, .. } => signature.clone(),
-            Transaction::Eip1559 { signature, .. } => signature.clone(),
+            Transaction::Legacy { signature, .. }
+            | Transaction::Eip2930 { signature, .. }
+            | Transaction::Eip1559 { signature, .. } => signature.clone(),
         }
     }
     pub fn get_nonce(&self) -> Uint256 {
         match self {
-            Transaction::Legacy { nonce, .. } => *nonce,
-            Transaction::Eip2930 { nonce, .. } => *nonce,
-            Transaction::Eip1559 { nonce, .. } => *nonce,
+            Transaction::Legacy { nonce, .. }
+            | Transaction::Eip2930 { nonce, .. }
+            | Transaction::Eip1559 { nonce, .. } => *nonce,
         }
     }
     pub fn get_data(&self) -> Vec<u8> {
         match self {
-            Transaction::Legacy { data, .. } => data.clone(),
-            Transaction::Eip2930 { data, .. } => data.clone(),
-            Transaction::Eip1559 { data, .. } => data.clone(),
+            Transaction::Legacy { data, .. }
+            | Transaction::Eip2930 { data, .. }
+            | Transaction::Eip1559 { data, .. } => data.clone(),
         }
     }
     pub fn as_data(self) -> Vec<u8> {
         match self {
-            Transaction::Legacy { data, .. } => data,
-            Transaction::Eip2930 { data, .. } => data,
-            Transaction::Eip1559 { data, .. } => data,
+            Transaction::Legacy { data, .. }
+            | Transaction::Eip2930 { data, .. }
+            | Transaction::Eip1559 { data, .. } => data,
         }
     }
     pub fn data_ref(&self) -> &[u8] {
         match self {
-            Transaction::Legacy { data, .. } => data,
-            Transaction::Eip2930 { data, .. } => data,
-            Transaction::Eip1559 { data, .. } => data,
+            Transaction::Legacy { data, .. }
+            | Transaction::Eip2930 { data, .. }
+            | Transaction::Eip1559 { data, .. } => data,
         }
     }
     pub fn get_to(&self) -> Address {
         match self {
-            Transaction::Legacy { to, .. } => *to,
-            Transaction::Eip2930 { to, .. } => *to,
-            Transaction::Eip1559 { to, .. } => *to,
+            Transaction::Legacy { to, .. }
+            | Transaction::Eip2930 { to, .. }
+            | Transaction::Eip1559 { to, .. } => *to,
         }
     }
     pub fn get_value(&self) -> Uint256 {
         match self {
-            Transaction::Legacy { value, .. } => *value,
-            Transaction::Eip2930 { value, .. } => *value,
-            Transaction::Eip1559 { value, .. } => *value,
+            Transaction::Legacy { value, .. }
+            | Transaction::Eip2930 { value, .. }
+            | Transaction::Eip1559 { value, .. } => *value,
         }
     }
     pub fn get_gas_limit(&self) -> Uint256 {
         match self {
-            Transaction::Legacy { gas_limit, .. } => *gas_limit,
-            Transaction::Eip2930 { gas_limit, .. } => *gas_limit,
-            Transaction::Eip1559 { gas_limit, .. } => *gas_limit,
+            Transaction::Legacy { gas_limit, .. }
+            | Transaction::Eip2930 { gas_limit, .. }
+            | Transaction::Eip1559 { gas_limit, .. } => *gas_limit,
+        }
+    }
+    pub fn set_gas_limit(&mut self, limit: Uint256) {
+        match self {
+            Transaction::Legacy { gas_limit, .. }
+            | Transaction::Eip2930 { gas_limit, .. }
+            | Transaction::Eip1559 { gas_limit, .. } => *gas_limit = limit,
+        }
+    }
+    pub fn set_max_fee_per_gas(&mut self, max_fee: Uint256) {
+        match self {
+            Transaction::Legacy { .. } | Transaction::Eip2930 { .. } => {}
+            Transaction::Eip1559 {
+                max_fee_per_gas, ..
+            } => *max_fee_per_gas = max_fee,
+        }
+    }
+    pub fn set_max_priority_fee_per_gas(&mut self, max_fee: Uint256) {
+        match self {
+            Transaction::Legacy { .. } | Transaction::Eip2930 { .. } => {}
+            Transaction::Eip1559 {
+                max_priority_fee_per_gas,
+                ..
+            } => *max_priority_fee_per_gas = max_fee,
+        }
+    }
+    pub fn set_gas_price(&mut self, new_gas_price: Uint256) {
+        match self {
+            Transaction::Legacy { gas_price, .. } | Transaction::Eip2930 { gas_price, .. } => {
+                *gas_price = new_gas_price
+            }
+            Transaction::Eip1559 { .. } => {}
         }
     }
 

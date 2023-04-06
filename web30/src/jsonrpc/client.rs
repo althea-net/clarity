@@ -72,6 +72,7 @@ impl HttpClient {
         };
         //Response<R>
         trace!("got web3 response {:#?}", decoded);
+        println!("got web3 response {:#?}", decoded);
         let data = decoded.data.into_result();
         match data {
             Ok(r) => Ok(r),
