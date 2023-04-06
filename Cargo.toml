@@ -1,46 +1,14 @@
-[package]
-name = "clarity"
-version = "1.0.0"
-authors = ["Michał Papierski <michal@papierski.net>, Justin Kilpatrick <justin@althea.net>"]
-autotests = true
-include = [
-    "**/*.rs",
-    "Cargo.toml"
+[workspace]
+
+members = [
+    "clarity",
+    "web30"
 ]
-description = "Lightweight Ethereum client"
-repository = "https://github.com/althea-net/clarity"
-license-file = "LICENSE"
-edition = "2021"
-
-[dependencies]
-serde = "1.0"
-num-traits = "0.2"
-sha3 = "0.10"
-secp256k1 = { version = "0.27", features = ["recovery"] }
-serde_derive = "1.0"
-num256 = "0.5"
-
-[[test]]
-name = "transaction_tests"
-harness = false
-
-[dev-dependencies]
-rand = "0.8"
-rustc-test = "0.3.0"
-serde_json = "1.0"
-serde_yaml = "0.9"
-criterion = "0.4"
-openssl = {version = "0.10", features = ["vendored"]}
-web30 = "0.23"
 
 # used to resolve the recursive dep created by importing web30 as
 # a dev dependency
 [patch.crates-io]
-clarity = { path = '.' }
-
-[[bench]]
-name = "crypto_bench"
-harness = true
+clarity = { path = './clarity/' }
 
 [profile.release]
 opt-level = "z"

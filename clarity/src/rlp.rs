@@ -331,7 +331,7 @@ mod tests {
         #[cfg(all(unix, target_pointer_width = "32"))]
         assert!(downcast(max + 1u8.into()).is_err());
         #[cfg(all(unix, target_pointer_width = "64"))]
-        assert_eq!(downcast(max + 1u8.into()).unwrap(), (u32::MAX + 1) as usize);
+        assert_eq!(downcast(max + 1u8.into()).unwrap(), (u32::MAX as usize + 1));
     }
 
     #[test]

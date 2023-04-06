@@ -11,23 +11,19 @@ Our implementation philosophy is that it is up to the developer to understand th
 
 This library is capable of decoding all transactions after Frontier and Homestead hardforks before that some transactions will not pass validation.
 
+# Web30
+[![Latest Version](https://img.shields.io/crates/v/web30.svg)](https://crates.io/crates/web30)
+[![Documentation](https://docs.rs/clarity/web30.svg)](https://docs.rs/web30)
+
+Web30 is a equally lightweight rpc client for Ethereum to be paired with Clarity, the goal of this client is to be a minimalist async interface for sending transactions and querying chain state.
+
 # Getting Started
 
 See the docs for the API and some usage examples.
 
 # Ethereum test case status
 
-Update fix Ethereum test fixtures v8.0.5 4/201 cases failing. There are many consensus test cases that this suite passes but not in a functional way since this isn't a consensus participating client.
+Currently all Ethereum test cases pass with two exceptions.
 
-Requires improvements to our gas and op code parsing
-
-    TransactionTests/ttGasLimit/TransactionWithHighGas.json@>=Constantinople,EIP158,Byzantium,EIP150,Homestead@invalid
-
-The value in these tests is not exactly secp256k1n but is instead 2^255, double check tests are correct
-
-    TransactionTests/ttRSValue/TransactionWithSvalueHigh.json@>=Homestead@invalid
-    TransactionTests/ttRSValue/TransactionWithSvalueLargerThan_c_secp256k1n_x05.json@>=Homestead@invalid
-
-The V value in this test seems to be a perfectly valid 28, parsing error on our end?
-
-    TransactionTests/ttVValue/V_overflow64bitSigned.json@EIP158,Byzantium,Homestead,EIP150,>=Constantinople@invalid
+* Specs not currently implemented EIP2023 and EIP3860
+* tr201506052141PYTHON which is supposed to fail, but Geth accepts as valid
