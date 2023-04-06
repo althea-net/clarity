@@ -1,5 +1,5 @@
 use clarity::utils::{bytes_to_hex_str, hex_str_to_bytes};
-use clarity::Address;
+use clarity::{Address, Transaction};
 use num256::Uint256;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::str::FromStr;
@@ -85,40 +85,155 @@ impl From<Vec<u8>> for Data {
 /// As received by getTransactionByHash
 ///
 /// See more: https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_gettransactionbyhash
-#[derive(Serialize, Deserialize, Debug, Default, Clone, PartialEq, Eq, Hash)]
-pub struct TransactionResponse {
-    /// hash of the block where this transaction was in. null when its pending.
-    #[serde(rename = "blockHash")]
-    pub block_hash: Option<Data>,
-    /// block number where this transaction was in. null when its pending.
-    #[serde(rename = "blockNumber")]
-    pub block_number: Option<Uint256>,
-    /// address of the sender.
-    pub from: Address,
-    /// gas provided by the sender.
-    pub gas: Uint256,
-    /// gas price provided by the sender in Wei.
-    #[serde(rename = "gasPrice")]
-    pub gas_price: Uint256,
-    /// hash of the transaction
-    pub hash: Data,
-    /// the data send along with the transaction.
-    pub input: Data,
-    /// the number of transactions made by the sender prior to this one.
-    pub nonce: Uint256,
-    /// address of the receiver. null when its a contract creation transaction.
-    pub to: Option<Address>,
-    /// integer of the transaction's index position in the block. null when its pending.
-    #[serde(rename = "transactionIndex")]
-    pub transaction_index: Option<Uint256>,
-    /// value transferred in Wei.
-    pub value: Uint256,
-    /// ECDSA recovery id
-    pub v: Uint256,
-    /// ECDSA signature r
-    pub r: Uint256,
-    /// ECDSA signature s
-    pub s: Uint256,
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
+#[serde(untagged)]
+pub enum TransactionResponse {
+    Eip1559 {
+        /// hash of the block where this transaction was in. null when its pending.
+        #[serde(rename = "blockHash")]
+        block_hash: Option<Data>,
+        /// block number where this transaction was in. null when its pending.
+        #[serde(rename = "blockNumber")]
+        block_number: Option<Uint256>,
+        /// The chain id field of this transaction.
+        #[serde(rename = "chainId")]
+        chain_id: Uint256,
+        /// address of the sender.
+        from: Address,
+        /// gas provided by the sender.
+        gas: Uint256,
+        /// gas price actually paid in Wei.
+        #[serde(rename = "gasPrice")]
+        gas_price: Uint256,
+        /// gas price procided by the sender in Wei
+        #[serde(rename = "maxFeePerGas")]
+        max_fee_per_gas: Uint256,
+        /// gas price procided by the sender in Wei
+        #[serde(rename = "maxPriorityFeePerGas")]
+        max_priority_fee_per_gas: Uint256,
+        /// hash of the transaction
+        hash: Data,
+        /// the data send along with the transaction.
+        input: Data,
+        /// the number of transactions made by the sender prior to this one.
+        nonce: Uint256,
+        /// address of the receiver. null when its a contract creation transaction.
+        to: Option<Address>,
+        /// integer of the transaction's index position in the block. null when its pending.
+        #[serde(rename = "transactionIndex")]
+        transaction_index: Option<Uint256>,
+        /// value transferred in Wei.
+        value: Uint256,
+        /// ECDSA recovery id
+        v: Uint256,
+        /// ECDSA signature r
+        r: Uint256,
+        /// ECDSA signature s
+        s: Uint256,
+        /// The storage access list for this transaction
+        #[serde(rename = "accessList")]
+        access_list: Vec<(Uint256, Vec<Uint256>)>,
+    },
+    Eip2930 {
+        /// hash of the block where this transaction was in. null when its pending.
+        #[serde(rename = "blockHash")]
+        block_hash: Option<Data>,
+        /// block number where this transaction was in. null when its pending.
+        #[serde(rename = "blockNumber")]
+        block_number: Option<Uint256>,
+        /// The chain id field of this transaction.
+        #[serde(rename = "chainId")]
+        chain_id: Uint256,
+        /// address of the sender.
+        from: Address,
+        /// gas provided by the sender.
+        gas: Uint256,
+        /// gas price actually paid in Wei.
+        #[serde(rename = "gasPrice")]
+        gas_price: Uint256,
+        /// hash of the transaction
+        hash: Data,
+        /// the data send along with the transaction.
+        input: Data,
+        /// the number of transactions made by the sender prior to this one.
+        nonce: Uint256,
+        /// address of the receiver. null when its a contract creation transaction.
+        to: Option<Address>,
+        /// integer of the transaction's index position in the block. null when its pending.
+        #[serde(rename = "transactionIndex")]
+        transaction_index: Option<Uint256>,
+        /// value transferred in Wei.
+        value: Uint256,
+        /// ECDSA recovery id
+        v: Uint256,
+        /// ECDSA signature r
+        r: Uint256,
+        /// ECDSA signature s
+        s: Uint256,
+        /// The storage access list for this transaction
+        #[serde(rename = "accessList")]
+        access_list: Vec<(Uint256, Vec<Uint256>)>,
+    },
+    Legacy {
+        /// hash of the block where this transaction was in. null when its pending.
+        #[serde(rename = "blockHash")]
+        block_hash: Option<Data>,
+        /// block number where this transaction was in. null when its pending.
+        #[serde(rename = "blockNumber")]
+        block_number: Option<Uint256>,
+        /// address of the sender.
+        from: Address,
+        /// gas provided by the sender.
+        gas: Uint256,
+        /// gas price provided by the sender in Wei.
+        #[serde(rename = "gasPrice")]
+        gas_price: Uint256,
+        /// hash of the transaction
+        hash: Data,
+        /// the data send along with the transaction.
+        input: Data,
+        /// the number of transactions made by the sender prior to this one.
+        nonce: Uint256,
+        /// address of the receiver. null when its a contract creation transaction.
+        to: Option<Address>,
+        /// integer of the transaction's index position in the block. null when its pending.
+        #[serde(rename = "transactionIndex")]
+        transaction_index: Option<Uint256>,
+        /// value transferred in Wei.
+        value: Uint256,
+        /// ECDSA recovery id
+        v: Uint256,
+        /// ECDSA signature r
+        r: Uint256,
+        /// ECDSA signature s
+        s: Uint256,
+    },
+}
+
+impl TransactionResponse {
+    pub fn get_block_number(&self) -> Option<Uint256> {
+        match self {
+            TransactionResponse::Eip1559 { block_number, .. }
+            | TransactionResponse::Eip2930 { block_number, .. }
+            | TransactionResponse::Legacy { block_number, .. } => *block_number,
+        }
+    }
+    pub fn get_nonce(&self) -> Uint256 {
+        match self {
+            TransactionResponse::Eip1559 { nonce, .. }
+            | TransactionResponse::Eip2930 { nonce, .. }
+            | TransactionResponse::Legacy { nonce, .. } => *nonce,
+        }
+    }
+    pub fn get_block_hash(&self) -> Option<Vec<u8>> {
+        match self {
+            TransactionResponse::Eip1559 { block_hash, .. }
+            | TransactionResponse::Eip2930 { block_hash, .. }
+            | TransactionResponse::Legacy { block_hash, .. } => {
+                block_hash.as_ref().map(|hash| (**hash).clone())
+            }
+        }
+    }
 }
 
 impl Ord for TransactionResponse {
@@ -127,17 +242,17 @@ impl Ord for TransactionResponse {
     /// number transactions without a block are greater than transactions with one and
     /// are sorted by nonce when in the same block or without a block.
     fn cmp(&self, other: &Self) -> Ordering {
-        match (self.block_number, other.block_number) {
+        match (self.get_block_number(), other.get_block_number()) {
             (Some(self_block), Some(other_block)) => {
                 if self_block != other_block {
                     self_block.cmp(&other_block)
                 } else {
-                    self.nonce.cmp(&other.nonce)
+                    self.get_nonce().cmp(&other.get_nonce())
                 }
             }
             (Some(_), None) => Ordering::Less,
             (None, Some(_)) => Ordering::Greater,
-            (None, None) => self.nonce.cmp(&other.nonce),
+            (None, None) => self.get_nonce().cmp(&other.get_nonce()),
         }
     }
 }
@@ -160,28 +275,249 @@ pub struct NewFilter {
 }
 
 #[derive(Serialize, Clone, Eq, PartialEq, Debug)]
-pub struct TransactionRequest {
-    //The address the transaction is send from.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub from: Option<Address>,
-    // The address the transaction is directed to.
-    pub to: Address,
-    // Integer of the gas provided for the transaction execution. It will return unused gas.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub gas: Option<UnpaddedHex>,
-    // Integer of the gasPrice used for each paid gas
-    #[serde(rename = "gasPrice")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub gas_price: Option<UnpaddedHex>,
-    // Integer of the value sent with this transaction
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub value: Option<UnpaddedHex>,
-    // The compiled code of a contract OR the hash of the invoked method signature and encoded parameters. For details see Ethereum Contract ABI
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub data: Option<Data>,
-    //  This allows to overwrite your own pending transactions that use the same nonce.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub nonce: Option<UnpaddedHex>,
+#[serde(untagged)]
+pub enum TransactionRequest {
+    Eip1559 {
+        /// the chain id for this tx
+        #[serde(rename = "chainId")]
+        #[serde(skip_serializing_if = "Option::is_none")]
+        chain_id: Option<UnpaddedHex>,
+        //The address the transaction is send from.
+        from: Address,
+        // The address the transaction is directed to.
+        to: Address,
+        // Integer of the gas provided for the transaction execution. It will return unused gas.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        gas: Option<UnpaddedHex>,
+        // Integer of the gasPrice used for each paid gas
+        #[serde(rename = "maxPriorityFeePerGas")]
+        #[serde(skip_serializing_if = "Option::is_none")]
+        max_priority_fee_per_gas: Option<UnpaddedHex>,
+        #[serde(rename = "maxFeePerGas")]
+        #[serde(skip_serializing_if = "Option::is_none")]
+        max_fee_per_gas: Option<UnpaddedHex>,
+        // Integer of the value sent with this transaction
+        #[serde(skip_serializing_if = "Option::is_none")]
+        value: Option<UnpaddedHex>,
+        // The compiled code of a contract OR the hash of the invoked method signature and encoded parameters. For details see Ethereum Contract ABI
+        #[serde(skip_serializing_if = "Option::is_none")]
+        data: Option<Data>,
+        //  This allows to overwrite your own pending transactions that use the same nonce.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        nonce: Option<UnpaddedHex>,
+        // Access list specifying which storage locations this transaction accesses
+        #[serde(skip_serializing_if = "Option::is_none")]
+        access_list: Option<Vec<(Address, Vec<UnpaddedHex>)>>,
+    },
+    Eip2930 {
+        /// the chain id for this tx
+        #[serde(rename = "chainId")]
+        #[serde(skip_serializing_if = "Option::is_none")]
+        chain_id: Option<UnpaddedHex>,
+        //The address the transaction is send from.
+        from: Address,
+        // The address the transaction is directed to.
+        to: Address,
+        // Integer of the gas provided for the transaction execution. It will return unused gas.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        gas: Option<UnpaddedHex>,
+        // Integer of the gasPrice used for each paid gas
+        #[serde(rename = "gasPrice")]
+        #[serde(skip_serializing_if = "Option::is_none")]
+        gas_price: Option<UnpaddedHex>,
+        // Integer of the value sent with this transaction
+        #[serde(skip_serializing_if = "Option::is_none")]
+        value: Option<UnpaddedHex>,
+        // The compiled code of a contract OR the hash of the invoked method signature and encoded parameters. For details see Ethereum Contract ABI
+        #[serde(skip_serializing_if = "Option::is_none")]
+        data: Option<Data>,
+        //  This allows to overwrite your own pending transactions that use the same nonce.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        nonce: Option<UnpaddedHex>,
+        // Access list specifying which storage locations this transaction accesses
+        #[serde(skip_serializing_if = "Option::is_none")]
+        access_list: Option<Vec<(Address, Vec<UnpaddedHex>)>>,
+    },
+    Legacy {
+        //The address the transaction is send from.
+        from: Address,
+        // The address the transaction is directed to.
+        to: Address,
+        // Integer of the gas provided for the transaction execution. It will return unused gas.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        gas: Option<UnpaddedHex>,
+        // Integer of the gasPrice used for each paid gas
+        #[serde(rename = "gasPrice")]
+        #[serde(skip_serializing_if = "Option::is_none")]
+        gas_price: Option<UnpaddedHex>,
+        // Integer of the value sent with this transaction
+        #[serde(skip_serializing_if = "Option::is_none")]
+        value: Option<UnpaddedHex>,
+        // The compiled code of a contract OR the hash of the invoked method signature and encoded parameters. For details see Ethereum Contract ABI
+        #[serde(skip_serializing_if = "Option::is_none")]
+        data: Option<Data>,
+        //  This allows to overwrite your own pending transactions that use the same nonce.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        nonce: Option<UnpaddedHex>,
+    },
+}
+
+pub fn convert_access_list(
+    input: Vec<(Address, Vec<Uint256>)>,
+) -> Option<Vec<(Address, Vec<UnpaddedHex>)>> {
+    if input.is_empty() {
+        None
+    } else {
+        let mut out = Vec::new();
+        for (addr, r) in input {
+            let mut row = Vec::new();
+            for a in r {
+                row.push(a.into())
+            }
+            out.push((addr, row))
+        }
+        Some(out)
+    }
+}
+
+impl TransactionRequest {
+    pub fn get_from(&self) -> Address {
+        match self {
+            TransactionRequest::Eip1559 { from, .. }
+            | TransactionRequest::Eip2930 { from, .. }
+            | TransactionRequest::Legacy { from, .. } => *from,
+        }
+    }
+    pub fn set_nonce(&mut self, new_nonce: Uint256) {
+        match self {
+            TransactionRequest::Eip1559 { nonce, .. }
+            | TransactionRequest::Eip2930 { nonce, .. }
+            | TransactionRequest::Legacy { nonce, .. } => *nonce = Some(new_nonce.into()),
+        }
+    }
+    pub fn set_gas_limit(&mut self, gas_limit: Uint256) {
+        match self {
+            TransactionRequest::Eip1559 { gas, .. }
+            | TransactionRequest::Eip2930 { gas, .. }
+            | TransactionRequest::Legacy { gas, .. } => *gas = Some(gas_limit.into()),
+        }
+    }
+    /// A specialized gas price setter for simulations, EIP1559 gas is treated very differently on actual execution but
+    /// for hte purpose of simulation it makes sense to set the value super high and see what results we get.
+    pub fn set_gas_price(&mut self, new_gas_price: Uint256) {
+        match self {
+            TransactionRequest::Eip1559 {
+                max_fee_per_gas, ..
+            } => *max_fee_per_gas = Some(new_gas_price.into()),
+            TransactionRequest::Eip2930 { gas_price, .. }
+            | TransactionRequest::Legacy { gas_price, .. } => {
+                *gas_price = Some(new_gas_price.into())
+            }
+        }
+    }
+    pub fn is_eip1559(&self) -> bool {
+        matches!(*self, TransactionRequest::Eip1559 { .. })
+    }
+    /// Creates a transaction request with mostly blank parameters, useful for quick simluations
+    pub fn quick_tx(from: Address, to: Address, payload: Vec<u8>) -> TransactionRequest {
+        TransactionRequest::Eip1559 {
+            chain_id: None,
+            from,
+            to,
+            gas: None,
+            max_priority_fee_per_gas: None,
+            max_fee_per_gas: None,
+            value: None,
+            data: Some(payload.into()),
+            nonce: None,
+            access_list: None,
+        }
+    }
+    /// Creates a transaction request with mostly blank parameters, useful for quick simluations
+    pub fn quick_legacy_tx(from: Address, to: Address, payload: Vec<u8>) -> TransactionRequest {
+        TransactionRequest::Legacy {
+            from,
+            to,
+            gas: None,
+            gas_price: None,
+            value: None,
+            data: Some(payload.into()),
+            nonce: None,
+        }
+    }
+    pub fn from_transaction(input: &Transaction, from: Address) -> TransactionRequest {
+        match input {
+            Transaction::Legacy {
+                nonce,
+                gas_price,
+                gas_limit,
+                to,
+                value,
+                data,
+                signature: _,
+            } => TransactionRequest::Legacy {
+                from,
+                to: *to,
+                gas: Some((*gas_limit).into()),
+                gas_price: Some((*gas_price).into()),
+                value: Some((*value).into()),
+                data: Some(data.clone().into()),
+                nonce: Some((*nonce).into()),
+            },
+            Transaction::Eip2930 {
+                access_list,
+                chain_id,
+                signature: _,
+                nonce,
+                gas_price,
+                gas_limit,
+                to,
+                value,
+                data,
+            } => TransactionRequest::Eip2930 {
+                from,
+                chain_id: Some((*chain_id).into()),
+                to: *to,
+                gas: Some((*gas_limit).into()),
+                gas_price: Some((*gas_price).into()),
+                value: Some((*value).into()),
+                data: Some(data.clone().into()),
+                nonce: Some((*nonce).into()),
+                access_list: if access_list.is_empty() {
+                    None
+                } else {
+                    convert_access_list(access_list.clone())
+                },
+            },
+            Transaction::Eip1559 {
+                chain_id,
+                nonce,
+                max_priority_fee_per_gas,
+                max_fee_per_gas,
+                gas_limit,
+                to,
+                value,
+                data,
+                signature: _,
+                access_list,
+            } => TransactionRequest::Eip1559 {
+                from,
+                chain_id: Some((*chain_id).into()),
+                to: *to,
+                gas: Some((*gas_limit).into()),
+                max_fee_per_gas: Some((*max_fee_per_gas).into()),
+                max_priority_fee_per_gas: Some((*max_priority_fee_per_gas).into()),
+                value: Some((*value).into()),
+                data: Some(data.clone().into()),
+                nonce: Some((*nonce).into()),
+                access_list: if access_list.is_empty() {
+                    None
+                } else {
+                    convert_access_list(access_list.clone())
+                },
+            },
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, Clone, PartialEq, Eq)]
@@ -301,6 +637,9 @@ pub enum SendTxOption {
     GasLimit(Uint256),
     Nonce(Uint256),
     AccessList(Vec<(Address, Vec<Uint256>)>),
+    GasPrice(Uint256),
+    GasPriceMultiplier(f32),
+    NetworkId(u64),
 }
 
 fn parse_possibly_empty_hex_val<'de, D>(deserializer: D) -> Result<Uint256, D::Error>

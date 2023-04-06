@@ -1,5 +1,6 @@
 //! This module contains utility functions for interacting with ERC20 tokens and contracts
 use crate::jsonrpc::error::Web3Error;
+use crate::types::TransactionRequest;
 use crate::{client::Web3, types::SendTxOption};
 use clarity::{abi::encode_call, PrivateKey as EthPrivateKey};
 use clarity::{Address, Uint256};
@@ -26,7 +27,10 @@ impl Web3 {
             &[own_address.into(), target_contract.into()],
         )?;
         let allowance = self
-            .simulate_transaction(erc20, 0u8.into(), payload, own_address, None)
+            .simulate_transaction(
+                TransactionRequest::quick_tx(own_address, erc20, payload),
+                None,
+            )
             .await?;
 
         let allowance = Uint256::from_be_bytes(match allowance.get(0..32) {
@@ -188,7 +192,10 @@ impl Web3 {
         let requester_address = requester_address.unwrap_or(target_address);
         let payload = encode_call("balanceOf(address)", &[target_address.into()])?;
         let balance = self
-            .simulate_transaction(erc20, 0u8.into(), payload, requester_address, height)
+            .simulate_transaction(
+                TransactionRequest::quick_tx(requester_address, erc20, payload),
+                height,
+            )
             .await?;
 
         Ok(Uint256::from_be_bytes(match balance.get(0..32) {
@@ -208,7 +215,10 @@ impl Web3 {
     ) -> Result<String, Web3Error> {
         let payload = encode_call("name()", &[])?;
         let name = self
-            .simulate_transaction(erc20, 0u8.into(), payload, caller_address, None)
+            .simulate_transaction(
+                TransactionRequest::quick_tx(caller_address, erc20, payload),
+                None,
+            )
             .await?;
 
         match String::from_utf8(name) {
@@ -232,7 +242,10 @@ impl Web3 {
     ) -> Result<String, Web3Error> {
         let payload = encode_call("symbol()", &[])?;
         let symbol = self
-            .simulate_transaction(erc20, 0u8.into(), payload, caller_address, None)
+            .simulate_transaction(
+                TransactionRequest::quick_tx(caller_address, erc20, payload),
+                None,
+            )
             .await?;
 
         match String::from_utf8(symbol) {
@@ -256,7 +269,10 @@ impl Web3 {
     ) -> Result<Uint256, Web3Error> {
         let payload = encode_call("decimals()", &[])?;
         let decimals = self
-            .simulate_transaction(erc20, 0u8.into(), payload, caller_address, None)
+            .simulate_transaction(
+                TransactionRequest::quick_tx(caller_address, erc20, payload),
+                None,
+            )
             .await?;
 
         Ok(Uint256::from_be_bytes(match decimals.get(0..32) {
@@ -275,11 +291,14 @@ impl Web3 {
         caller_address: Address,
     ) -> Result<Uint256, Web3Error> {
         let payload = encode_call("totalSupply()", &[])?;
-        let decimals = self
-            .simulate_transaction(erc20, 0u8.into(), payload, caller_address, None)
+        let supply = self
+            .simulate_transaction(
+                TransactionRequest::quick_tx(caller_address, erc20, payload),
+                None,
+            )
             .await?;
 
-        Ok(Uint256::from_be_bytes(match decimals.get(0..32) {
+        Ok(Uint256::from_be_bytes(match supply.get(0..32) {
             Some(val) => val,
             None => {
                 return Err(Web3Error::ContractCallError(

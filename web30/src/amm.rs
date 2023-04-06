@@ -1,3 +1,4 @@
+use crate::types::TransactionRequest;
 // Performs interactions with AMMs (Automated Market Makers) on ethereum
 use crate::{client::Web3, jsonrpc::error::Web3Error, types::SendTxOption};
 use clarity::utils::display_uint256_as_address;
@@ -36,6 +37,9 @@ lazy_static! {
     /// The USDC contract address, on prod Ethereum
     pub static ref USDC_CONTRACT_ADDRESS: Address =
         Address::parse_and_validate("0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48").unwrap();
+    /// The USDT contract address, on prod Ethereum
+    pub static ref USDT_CONTRACT_ADDRESS: Address =
+        Address::parse_and_validate("0xdAC17F958D2ee523a2206206994597C13D831ec7").unwrap();
 
     // The suggested Uniswap v3 pool fee levels in order:
     // 0.3% (most pairs), 0.05% (for stable pairs), 0.01% (very stable pairs), 1% (exotic pairs)
@@ -88,7 +92,10 @@ impl Web3 {
         let payload = encode_call("getAmountsOut(uint256,address[])", &tokens)?;
         trace!("payload is {:02X?}", payload);
         let amounts_bytes = self
-            .simulate_transaction(router, 0u8.into(), payload, caller_address, None)
+            .simulate_transaction(
+                TransactionRequest::quick_tx(caller_address, router, payload),
+                None,
+            )
             .await?;
         trace!("getAmountsOut response is {:02X?}", amounts_bytes);
 
@@ -332,7 +339,10 @@ impl Web3 {
             &tokens,
         )?;
         let result = self
-            .simulate_transaction(quoter, 0u8.into(), payload, caller_address, None)
+            .simulate_transaction(
+                TransactionRequest::quick_tx(caller_address, quoter, payload),
+                None,
+            )
             .await?;
         trace!("result is {:?}", result);
 
@@ -847,7 +857,10 @@ impl Web3 {
         let payload = encode_call("getPool(address,address,uint24)", &tokens)?;
 
         let pool_result = self
-            .simulate_transaction(factory, 0u8.into(), payload, caller_address, None)
+            .simulate_transaction(
+                TransactionRequest::quick_tx(caller_address, factory, payload),
+                None,
+            )
             .await?;
         trace!("pool result is {:X?}", pool_result);
         let zero_result = vec![0; 32];
@@ -885,7 +898,10 @@ impl Web3 {
         let token_name = if get_token_0 { "token0" } else { "token1" };
         let payload = encode_call(&format!("{token_name}()"), &[]).unwrap();
         let token_result = self
-            .simulate_transaction(pool_addr, 0u8.into(), payload, caller_address, None)
+            .simulate_transaction(
+                TransactionRequest::quick_tx(caller_address, pool_addr, payload),
+                None,
+            )
             .await?;
         trace!("token_result: {:X?}", token_result);
         let result_len = token_result.len();
@@ -913,7 +929,10 @@ impl Web3 {
     ) -> Result<Vec<u8>, Web3Error> {
         let payload = encode_call("slot0()", &[]).unwrap();
         let slot0_result = self
-            .simulate_transaction(pool_addr, 0u8.into(), payload, caller_address, None)
+            .simulate_transaction(
+                TransactionRequest::quick_tx(caller_address, pool_addr, payload),
+                None,
+            )
             .await?;
         trace!("slot0_result: {:X?}", slot0_result);
 
@@ -1692,14 +1711,16 @@ fn example_weth_price_v2() {
     let runner = System::new();
     let web3 = Web3::new("https://eth.althea.net", Duration::from_secs(30));
     let caller_address =
-        Address::parse_and_validate("0x5A0b54D5dc17e0AadC383d2db43B0a0D3E029c4c").unwrap();
+        Address::parse_and_validate("0x810C91f0ca7248744393Ef5C6445146F795AB438").unwrap();
     let ten_e18: Uint256 = 1_000_000_000_000_000_000u64.into();
     let ten_e6: Uint256 = 1_000_000u64.into();
+    let ten_e9: Uint256 = 1_000_000_000u64.into();
 
     let weth = *WETH_CONTRACT_ADDRESS;
+    let ustd = *USDT_CONTRACT_ADDRESS;
     let pstake = Address::parse_and_validate("0xfB5c6815cA3AC72Ce9F5006869AE67f18bF77006").unwrap();
     let nym = Address::parse_and_validate("0x525A8F6F3Ba4752868cde25164382BfbaE3990e1").unwrap();
-
+    let cheq = Address::parse_and_validate("0x70EDF1c215D0ce69E7F16FD4E6276ba0d99d4de7").unwrap();
     runner.block_on(async move {
         let pstake_price = web3
             .get_uniswap_v2_price(caller_address, pstake, weth, ten_e18, None)
@@ -1717,5 +1738,39 @@ fn example_weth_price_v2() {
             .get_uniswap_v2_price(caller_address, weth, nym, ten_e18, None)
             .await;
         info!("WETH->NYM: {:?}", pstake_price);
+        let cheq_price = web3
+            .get_uniswap_v2_price(caller_address, ustd, cheq, ten_e9, None)
+            .await;
+        info!("USDT->CHEQ: {:?}", cheq_price);
+    });
+}
+
+#[test]
+#[ignore]
+fn example_weth_price_v3() {
+    use actix::System;
+    use clarity::Address;
+    use env_logger::{Builder, Env};
+    use std::time::Duration;
+    Builder::from_env(Env::default().default_filter_or("debug")).init(); // Change to debug for logs
+
+    let runner = System::new();
+    let web3 = Web3::new("https://eth.althea.net", Duration::from_secs(30));
+    let caller_address =
+        Address::parse_and_validate("0x810C91f0ca7248744393Ef5C6445146F795AB438").unwrap();
+    let ten_e10: Uint256 = 10_000_000_000u64.into();
+
+    let weth = *WETH_CONTRACT_ADDRESS;
+    let cheq = Address::parse_and_validate("0x70EDF1c215D0ce69E7F16FD4E6276ba0d99d4de7").unwrap();
+
+    runner.block_on(async move {
+        let cheq_price = web3
+            .get_uniswap_v3_price(caller_address, cheq, weth, None, ten_e10, None, None)
+            .await;
+        info!("CHEQ->WETH: {:?}", cheq_price.unwrap());
+        let cheq_price = web3
+            .get_uniswap_v3_price(caller_address, weth, cheq, None, ten_e10, None, None)
+            .await;
+        info!("WETH->CHEQ: {:?}", cheq_price.unwrap());
     });
 }
