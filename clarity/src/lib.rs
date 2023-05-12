@@ -20,10 +20,10 @@
 //! // A helper for filling the keys
 //! let mut key_buf: [u8; 32] = rand::random();
 //!
-//! let alices_key = PrivateKey::from_slice(&key_buf).unwrap();
+//! let alices_key = PrivateKey::from_bytes(key_buf).unwrap();
 //!
 //! key_buf = rand::random();
-//! let bobs_key = PrivateKey::from_slice(&key_buf).unwrap();
+//! let bobs_key = PrivateKey::from_bytes(key_buf).unwrap();
 //!
 //! // Create a new transaction
 //! let tx = Transaction::Legacy {

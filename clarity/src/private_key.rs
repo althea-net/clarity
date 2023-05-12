@@ -71,20 +71,12 @@ impl TryFrom<[u8; 32]> for PrivateKey {
 impl PrivateKey {
     /// Convert a given slice of bytes into a valid private key.
     ///
-    /// Input bytes are validated for a length only.
+    /// Input bytes are validated and an Error is returned if they are invalid
     ///
-    /// * `slice` - A slice of raw bytes with a length of 32.
-    pub fn from_slice(slice: &[u8]) -> Result<PrivateKey, Error> {
-        if slice.len() != 32 {
-            return Err(Error::InvalidPrivKeyLength {
-                got: slice.len(),
-                expected: 32,
-            });
-        }
-        let mut res = [0u8; 32];
-        res.copy_from_slice(slice);
+    /// * `bytes` - A static array of length 32
+    pub fn from_bytes(bytes: [u8; 32]) -> Result<PrivateKey, Error> {
         // uses from for RawPrivateKey
-        let raw: RawPrivateKey = res.into();
+        let raw: RawPrivateKey = bytes.into();
         let public_key = raw.to_address()?;
 
         Ok(PrivateKey {
@@ -249,9 +241,20 @@ impl<'de> Deserialize<'de> for PrivateKey {
             None => &s,
         };
 
-        hex_str_to_bytes(s)
-            .and_then(move |bytes| PrivateKey::from_slice(&bytes))
-            .map_err(serde::de::Error::custom)
+        let bytes = hex_str_to_bytes(s);
+
+        match bytes {
+            Ok(bytes) => {
+                let mut res = [0u8; 32];
+                res.copy_from_slice(&bytes);
+                let key = PrivateKey::from_bytes(res);
+                match key {
+                    Ok(key) => Ok(key),
+                    Err(e) => Err(serde::de::Error::custom(e)),
+                }
+            }
+            Err(e) => Err(serde::de::Error::custom(e)),
+        }
     }
 }
 
