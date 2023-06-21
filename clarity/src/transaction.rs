@@ -598,9 +598,9 @@ impl Transaction {
         // special handling for the v value which is encoded as a string
         // even though it's a single 0 or 1 (should be a single byte right?)
         let new_sig_v = if v == 28u8.into() {
-            RlpToken::String(vec![1u8])
+            RlpToken::SingleByte(1u8)
         } else {
-            RlpToken::String(vec![0u8])
+            RlpToken::SingleByte(0u8)
         };
 
         match self {
@@ -837,10 +837,10 @@ mod tests {
         let _tx = Transaction::decode_from_rlp(&bytes).unwrap();
     }
 
-    // unlike the below two tests, this is a random tx off of Etherscan since nonde of the eip1559 in the test fixutres are suppposed
+    // unlike the below two tests, this is a random tx off of Etherscan since none of the eip1559 in the test fixutres are suppposed
     // to be successfully decoded, hash is 0x605b05a65c4fff114ee1e0d64f4895c11966a0a89e37abfab50836e4a18d9410
     #[test]
-    fn test_deocde_eip_1559() {
+    fn test_decode_eip_1559() {
         let bytes = "0x02f877018304d0f384018432db850df0b722d183015f9094ab02ac6987384f556181d06adf866ebe810a64888801cf2ca4aca83ff080c080a0da85545426c43062c319391db96fea52d773fba2c943d4c256d02be0e6cd2386a068256eabd9875ca38bbb4525b968060e82b7f73bb49a9962f911c41ec71afb85";
         let bytes = hex_str_to_bytes(bytes).unwrap();
         let tx = Transaction::decode_from_rlp(&bytes).unwrap();
@@ -882,6 +882,44 @@ mod tests {
         } else {
             panic!("Wrong tx type")
         }
+    }
+
+    // since none of the eip1559 test fixtures are for successful transactions this tests the encoding
+    // of a specific example which I went and created in Geth
+    #[test]
+    fn test_encode_eip1559() {
+        // this same tx as encoded by geth
+        let correct_encoding = "0x02f8650180010882753094c43e57f7f30cb3ccb9988ec55947d2c5e38f10868307a12080c001a0112e8ecd220e01d1aba809a528325b9d264c5a6cdf070282af2d8483fb5fd94ba07b71bcd08584bb4832681362a925cdb90fc0707d2a25b70a0e5e5ac949fe91af";
+        let correct_encoding = hex_str_to_bytes(correct_encoding).unwrap();
+
+        let privkey: PrivateKey =
+            "0x672b9a1f1d55a6abe17fefc5a3cb2c0dd38bb3b5602e837ea47c2ac0df3aeb71"
+                .parse()
+                .unwrap();
+        let destination: Address = "0xC43E57F7f30cB3cCb9988EC55947D2C5E38f1086"
+            .parse()
+            .unwrap();
+
+        let tx = Transaction::Eip1559 {
+            chain_id: 1u8.into(),
+            nonce: 0u8.into(),
+            max_priority_fee_per_gas: 1u8.into(),
+            max_fee_per_gas: 8u8.into(),
+            gas_limit: 30_000u64.into(),
+            to: destination,
+            value: 500_000u64.into(),
+            data: Vec::new(),
+            signature: None,
+            access_list: Vec::new(),
+        };
+
+        let tx = tx.sign(&privkey, None);
+
+        //assert_eq!(tx.to_bytes(), correct_encoding);
+        assert_eq!(
+            bytes_to_hex_str(&tx.to_bytes()),
+            bytes_to_hex_str(&correct_encoding)
+        );
     }
 
     #[test]

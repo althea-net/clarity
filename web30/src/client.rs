@@ -555,7 +555,7 @@ impl Web3 {
         secret: PrivateKey,
         options: Vec<SendTxOption>,
     ) -> Result<Uint256, Web3Error> {
-        let mut max_priority_fee_per_gas = 0u8.into();
+        let mut max_priority_fee_per_gas = 1u8.into();
         let mut gas_limit_multiplier = 1f32;
         let mut gas_limit = None;
         let mut access_list = Vec::new();
@@ -679,6 +679,8 @@ impl Web3 {
         if !transaction.is_valid() {
             return Err(Web3Error::BadInput("About to send invalid tx".to_string()));
         }
+
+        let transaction = transaction.sign(&secret, None);
 
         self.eth_send_raw_transaction(transaction.to_bytes()).await
     }
