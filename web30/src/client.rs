@@ -872,7 +872,7 @@ fn test_chain_id() {
 fn test_net_version() {
     use actix::System;
     let runner = System::new();
-    let web3_xdai = Web3::new("https://dai.altheamesh.com", Duration::from_secs(30));
+    let web3_xdai = Web3::new("https://dai.althea.net", Duration::from_secs(30));
     let web3 = Web3::new("https://eth.althea.net", Duration::from_secs(30));
     runner.block_on(async move {
         assert_eq!(1u64, web3.net_version().await.unwrap());
