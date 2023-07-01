@@ -54,7 +54,7 @@ fn trim_leading_zero_bytes(bytes: Vec<u8>) -> Vec<u8> {
 
 impl From<Uint256> for RlpToken {
     fn from(value: Uint256) -> Self {
-        if value < 127u8.into() {
+        if value < 255u8.into() {
             RlpToken::SingleByte(value.to_le_bytes()[0])
         } else {
             let value = value.to_be_bytes().to_vec();
