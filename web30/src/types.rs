@@ -634,6 +634,7 @@ pub enum SendTxOption {
     GasMaxFee(Uint256),
     GasPriorityFee(Uint256),
     GasLimitMultiplier(f32),
+    GasMaxFeeMultiplier(f32),
     GasLimit(Uint256),
     Nonce(Uint256),
     AccessList(Vec<(Address, Vec<Uint256>)>),

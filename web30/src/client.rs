@@ -444,17 +444,10 @@ impl Web3 {
                 SendTxOption::GasLimit(gl) => gas_limit = Some(gl),
                 SendTxOption::NetworkId(ni) => network_id = Some(ni),
                 SendTxOption::Nonce(n) => nonce = n,
-                SendTxOption::GasMaxFee(_) => {
-                    return Err(Web3Error::BadInput(
-                        "Invalid option for Legacy tx".to_string(),
-                    ))
-                }
-                SendTxOption::GasPriorityFee(_) => {
-                    return Err(Web3Error::BadInput(
-                        "Invalid option for Legacy tx".to_string(),
-                    ))
-                }
-                SendTxOption::AccessList(_) => {
+                SendTxOption::GasMaxFee(_)
+                | SendTxOption::GasPriorityFee(_)
+                | SendTxOption::AccessList(_)
+                | SendTxOption::GasMaxFeeMultiplier(_) => {
                     return Err(Web3Error::BadInput(
                         "Invalid option for Legacy tx".to_string(),
                     ))
@@ -579,9 +572,10 @@ impl Web3 {
             None => return Err(Web3Error::PreLondon),
         };
 
-        // max_fee_per_gas is base gas multiplied by 10, this is a maximum the actual price we pay is determined
-        // by the block the transaction enters
-        let mut max_fee_per_gas = base_fee_per_gas * 10u8.into();
+        // max_fee_per_gas is base gas multiplied by 2, this is a maximum the actual price we pay is determined
+        // by the block the transaction enters, if we put the price exactly as the base fee the tx will fail if
+        // the price goes up at all in the next block. So some base level multiplier makes sense as a default
+        let mut max_fee_per_gas = base_fee_per_gas * 2u8.into();
 
         if our_balance.is_zero() || our_balance < ETHEREUM_INTRINSIC_GAS.into() {
             // We only know that the balance is insufficient, we don't know how much gas is needed
@@ -594,21 +588,23 @@ impl Web3 {
 
         for option in options {
             match option {
-                SendTxOption::GasMaxFee(gp) => max_fee_per_gas = gp,
+                SendTxOption::GasMaxFee(gp) | SendTxOption::GasPrice(gp) => max_fee_per_gas = gp,
                 SendTxOption::GasPriorityFee(gp) => max_priority_fee_per_gas = gp,
                 SendTxOption::GasLimitMultiplier(glm) => gas_limit_multiplier = glm,
                 SendTxOption::GasLimit(gl) => gas_limit = Some(gl),
                 SendTxOption::Nonce(n) => nonce = n,
                 SendTxOption::AccessList(list) => access_list = list,
-                SendTxOption::GasPrice(_) => {
-                    return Err(Web3Error::BadInput(
-                        "Invalid option for eip1559 tx".to_string(),
-                    ))
-                }
-                SendTxOption::GasPriceMultiplier(_) => {
-                    return Err(Web3Error::BadInput(
-                        "Invalid option for eip1559 tx".to_string(),
-                    ))
+                SendTxOption::GasPriceMultiplier(gm) | SendTxOption::GasMaxFeeMultiplier(gm) => {
+                    let f32_gas = base_fee_per_gas.to_u128();
+                    max_fee_per_gas = if let Some(v) = f32_gas {
+                        // convert to f32, multiply, then convert back, this
+                        // will be lossy but you want an exact price you can set it
+                        ((v as f32 * gm) as u128).into()
+                    } else {
+                        // gas price is insanely high, best effort rounding
+                        // perhaps we should panic here
+                        base_fee_per_gas * (gm.round() as u128).into()
+                    };
                 }
                 SendTxOption::NetworkId(_) => {
                     return Err(Web3Error::BadInput(

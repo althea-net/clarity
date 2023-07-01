@@ -252,8 +252,11 @@ impl Transaction {
                 gas_limit,
                 ..
             } => {
+                // While in theory transactions with zero max priority fee are valid they are rejected
+                // on every chain I can test.
                 if gas_limit.checked_mul(**max_fee_per_gas).is_none()
                     || max_priority_fee_per_gas > max_fee_per_gas
+                    || *max_priority_fee_per_gas == 0u8.into()
                 {
                     return false;
                 }
