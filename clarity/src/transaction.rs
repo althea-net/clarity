@@ -502,6 +502,7 @@ impl Transaction {
     }
 
     /// Signs the provided transaction, with a legacy format signature if a network_id is provided
+    /// WARNING: `network_id` MUST be provided for Legacy transactions, or else replay attacks are possible
     pub fn sign(&self, key: &PrivateKey, network_id: Option<u64>) -> Transaction {
         // This is a special matcher to prepare raw RLP data with correct network_id.
         let rlpdata = match network_id {
@@ -515,17 +516,18 @@ impl Transaction {
         let rawhash = Keccak256::digest(rlpdata);
         let sig = key.sign_hash(&rawhash);
         let mut tx = self.clone();
-        if let Some(network_id) = network_id {
-            // Account v for the network_id value, converting to legacy signature if a network_id is provided
-            let v = sig.get_signature_v().unwrap() as u64;
-            let v = v + 8 + network_id * 2;
-            tx.set_signature(Signature::LegacySignature {
-                v: v.into(),
-                r: sig.get_r(),
-                s: sig.get_s(),
-            })
-        } else {
-            tx.set_signature(sig)
+        match (network_id, self) {
+            (Some(network_id), Transaction::Legacy { .. }) => {
+                // Account v for the network_id value, converting to legacy signature if a network_id is provided
+                let v = sig.get_signature_v().unwrap() as u64;
+                let v = v + 8 + network_id * 2;
+                tx.set_signature(Signature::LegacySignature {
+                    v: v.into(),
+                    r: sig.get_r(),
+                    s: sig.get_s(),
+                })
+            },
+            (_, _) => tx.set_signature(sig)
         }
         tx
     }
