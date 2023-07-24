@@ -516,14 +516,19 @@ impl Transaction {
         let sig = key.sign_hash(&rawhash);
         let mut tx = self.clone();
         if let Some(network_id) = network_id {
-            // Account v for the network_id value, converting to legacy signature if a network_id is provided
-            let v = sig.get_signature_v().unwrap() as u64;
-            let v = v + 8 + network_id * 2;
-            tx.set_signature(Signature::LegacySignature {
-                v: v.into(),
-                r: sig.get_r(),
-                s: sig.get_s(),
-            })
+            // Ignore network id if not a legacy tx
+            if let Transaction::Legacy { .. } = tx {
+                // Account v for the network_id value, converting to legacy signature if a network_id is provided
+                let v = sig.get_signature_v().unwrap() as u64;
+                let v = v + 8 + network_id * 2;
+                tx.set_signature(Signature::LegacySignature {
+                    v: v.into(),
+                    r: sig.get_r(),
+                    s: sig.get_s(),
+                })
+            } else {
+                tx.set_signature(sig)
+            }
         } else {
             tx.set_signature(sig)
         }
