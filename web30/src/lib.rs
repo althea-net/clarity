@@ -9,6 +9,7 @@ extern crate log;
 #[macro_use]
 extern crate lazy_static;
 
+pub mod althea_db_utils;
 pub mod amm;
 pub mod client;
 mod erc20_utils;

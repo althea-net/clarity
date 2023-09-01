@@ -11,11 +11,15 @@ repository = "https://github.com/althea-net/web30"
 serde = "1.0"
 serde_derive = "1.0"
 serde_json = "1.0"
-clarity = {path = "../clarity", version = "1.2.2"}
+clarity = { path = "../clarity", version = "1.2.2" }
 num256 = "0.5"
 futures = "0.3"
-awc = {version = "3.1.1", default-features = false, features=["openssl", "compress-gzip", "compress-zstd"]}
-tokio = {version = "1.21", features=["macros", "time"]}
+awc = { version = "3.1.1", default-features = false, features = [
+    "openssl",
+    "compress-gzip",
+    "compress-zstd",
+] }
+tokio = { version = "1.21", features = ["macros", "time"] }
 lazy_static = "1.4"
 log = "0.4"
 num-traits = "0.2"
