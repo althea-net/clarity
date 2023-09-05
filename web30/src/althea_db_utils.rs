@@ -59,7 +59,7 @@ impl Web3 {
         let tx_hash = self
             .send_transaction(
                 contract,
-                encode_call("add_registered_user(string,string,address)", &[user.into()])?,
+                encode_call("add_registered_user((string,string,address))", &[user.into()])?,
                 0u32.into(),
                 sender_private_key,
                 options,
