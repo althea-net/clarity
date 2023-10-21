@@ -74,9 +74,10 @@ impl Web3 {
             &[target_contract.into(), AbiToken::Uint(token_id)],
         )?;
 
-        let txid = self
-            .send_transaction(erc721, payload, 0u32.into(), eth_private_key, options)
+        let tx = self
+            .prepare_transaction(erc721, payload, 0u32.into(), eth_private_key, options)
             .await?;
+        let txid = self.eth_send_raw_transaction(tx.to_bytes()).await?;
 
         // wait for transaction to enter the chain if the user has requested it
         if let Some(timeout) = timeout {
@@ -118,8 +119,8 @@ impl Web3 {
         if !has_gas_limit {
             options.push(SendTxOption::GasLimit(ERC721_GAS_LIMIT.into()));
         }
-        let tx_hash = self
-            .send_transaction(
+        let tx = self
+            .prepare_transaction(
                 erc721,
                 encode_call(
                     "transferFrom(address,address,uint256)",
@@ -134,6 +135,7 @@ impl Web3 {
                 options,
             )
             .await?;
+        let tx_hash = self.eth_send_raw_transaction(tx.to_bytes()).await?;
 
         if let Some(timeout) = wait_timeout {
             future_timeout(timeout, self.wait_for_transaction(tx_hash, timeout, None)).await??;

@@ -583,6 +583,13 @@ impl Transaction {
         Keccak256::digest(self.to_rlp_bytes()).to_vec()
     }
 
+    /// Generates the TXID of this transaction
+    pub fn txid(&self) -> Uint256 {
+        let hash = self.hash();
+        assert!(hash.len() == 32);
+        Uint256::from_be_bytes(&hash)
+    }
+
     /// Creates a byte representation of this transaction
     pub fn to_bytes(&self) -> Vec<u8> {
         self.to_rlp_bytes()

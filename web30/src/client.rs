@@ -363,6 +363,13 @@ impl Web3 {
         }
     }
 
+
+    /// Publishes a prepared transaction and returns the txhash on success. If you want to wait for the transaction
+    /// to actually execute on chain, you can use `web3.wait_for_transaction()`
+    pub async fn send_prepared_transaction(&self, transaction: Transaction) -> Result<Uint256, Web3Error> {
+        self.eth_send_raw_transaction(transaction.to_bytes()).await
+    }
+
     pub async fn eth_send_raw_transaction(&self, data: Vec<u8>) -> Result<Uint256, Web3Error> {
         self.jsonrpc_client
             .request_method(
@@ -411,7 +418,9 @@ impl Web3 {
     /// Sends a transaction which changes blockchain state
     /// this function is the same as send_transaction except it sends
     /// a legacy format transaction with higher gas costs.
-    pub async fn send_legacy_transaction(
+    /// The result can be immediately published using
+    /// `self.send_prepared_transaction(transaction).await`
+    pub async fn prepare_legacy_transaction(
         &self,
         to_address: Address,
         data: Vec<u8>,
@@ -419,7 +428,7 @@ impl Web3 {
         own_address: Address,
         secret: PrivateKey,
         options: Vec<SendTxOption>,
-    ) -> Result<Uint256, Web3Error> {
+    ) -> Result<Transaction, Web3Error> {
         let mut gas_price = None;
         let mut gas_price_multiplier = 1f32;
         let mut gas_limit_multiplier = 1f32;
@@ -531,23 +540,23 @@ impl Web3 {
             signature: None,
         };
 
-        let transaction = transaction.sign(&secret, Some(network_id));
-
-        self.eth_send_raw_transaction(transaction.to_bytes()).await
+        Ok(transaction.sign(&secret, Some(network_id)))
     }
 
-    /// Sends a transaction which changes blockchain state.
+    /// Generates but does not send a transaction which changes blockchain state.
     /// `options` takes a vector of `SendTxOption` for configuration
     /// unlike the lower level eth_send_transaction() this call builds
     /// the transaction abstracting away details like gas,
-    pub async fn send_transaction(
+    /// The result can be immediately published using
+    /// `self.send_prepared_transaction(transaction).await`
+    pub async fn prepare_transaction(
         &self,
         to_address: Address,
         data: Vec<u8>,
         value: Uint256,
         secret: PrivateKey,
         options: Vec<SendTxOption>,
-    ) -> Result<Uint256, Web3Error> {
+    ) -> Result<Transaction, Web3Error> {
         let mut max_priority_fee_per_gas = 1u8.into();
         let mut gas_limit_multiplier = 1f32;
         let mut gas_limit = None;
@@ -676,9 +685,8 @@ impl Web3 {
             return Err(Web3Error::BadInput("About to send invalid tx".to_string()));
         }
 
-        let transaction = transaction.sign(&secret, None);
-
-        self.eth_send_raw_transaction(transaction.to_bytes()).await
+        // signed transaction is now ready to publish
+        Ok(transaction.sign(&secret, None))
     }
 
     /// Simulates an Ethereum contract call by making a fake transaction and sending it to a special endpoint

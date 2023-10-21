@@ -137,7 +137,7 @@ impl PrivateKey {
             let context = object.borrow();
             // Create a Secp256k1 message inside the scope without polluting
             // outside scope.
-            let msg = Message::from_slice(data).unwrap();
+            let msg = Message::from_digest_slice(data).unwrap();
             // Sign the raw hash of RLP encoded transaction data with a private key.
             let sig = context.sign_ecdsa_recoverable(&msg, &sk);
             // Serialize the signature into the "compact" form which means

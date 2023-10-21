@@ -19,9 +19,10 @@ impl Web3 {
         let tokens = [];
         let payload = encode_call(sig, &tokens).unwrap();
         let weth_address = weth_address.unwrap_or(*WETH_CONTRACT_ADDRESS);
-        let txid = self
-            .send_transaction(weth_address, payload, amount, secret, vec![])
+        let tx = self
+            .prepare_transaction(weth_address, payload, amount, secret, vec![])
             .await?;
+        let txid = self.eth_send_raw_transaction(tx.to_bytes()).await?;
 
         if let Some(timeout) = wait_timeout {
             future_timeout(timeout, self.wait_for_transaction(txid, timeout, None)).await??;
@@ -40,9 +41,10 @@ impl Web3 {
         let tokens = [AbiToken::Uint(amount)];
         let payload = encode_call(sig, &tokens).unwrap();
         let weth_address = weth_address.unwrap_or(*WETH_CONTRACT_ADDRESS);
-        let txid = self
-            .send_transaction(weth_address, payload, 0u16.into(), secret, vec![])
+        let tx = self
+            .prepare_transaction(weth_address, payload, 0u16.into(), secret, vec![])
             .await?;
+        let txid = self.eth_send_raw_transaction(tx.to_bytes()).await?;
 
         if let Some(timeout) = wait_timeout {
             future_timeout(timeout, self.wait_for_transaction(txid, timeout, None)).await??;

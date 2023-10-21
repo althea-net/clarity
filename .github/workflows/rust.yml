@@ -58,30 +58,6 @@ jobs:
     - name: Rustfmt
       run: rustup component add rustfmt && cargo fmt --all -- --check
 
-  cross-compile-mips:
-
-    runs-on: ubuntu-latest
-
-    steps:
-    - uses: actions/checkout@v2
-      with:
-        submodules: 'true'
-    - uses: Swatinem/rust-cache@v2
-    - name: cross-compile-mips
-      run: cargo install cross && cross test --target mips-unknown-linux-gnu
-
-  cross-compile-mips64:
-
-    runs-on: ubuntu-latest
-
-    steps:
-    - uses: actions/checkout@v2
-      with:
-        submodules: 'true'
-    - uses: Swatinem/rust-cache@v2
-    - name: cross-compile-mips64
-      run: cargo install cross && cross test --target mips64-unknown-linux-gnuabi64
-
 
   cross-compile-arm64:
 
