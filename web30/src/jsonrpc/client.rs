@@ -10,6 +10,7 @@ use std::str;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+#[derive(Clone)]
 pub struct HttpClient {
     id_counter: Arc<Mutex<RefCell<u64>>>,
     url: String,

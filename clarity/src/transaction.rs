@@ -526,8 +526,8 @@ impl Transaction {
                     r: sig.get_r(),
                     s: sig.get_s(),
                 })
-            },
-            (_, _) => tx.set_signature(sig)
+            }
+            (_, _) => tx.set_signature(sig),
         }
         tx
     }

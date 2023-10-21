@@ -13,8 +13,8 @@ use clarity::{Address, PrivateKey, Transaction};
 use futures::future::join4;
 use num256::Uint256;
 use num_traits::{ToPrimitive, Zero};
+use std::time::Instant;
 use std::{cmp::min, time::Duration};
-use std::{sync::Arc, time::Instant};
 use tokio::time::sleep as delay_for;
 
 const ETHEREUM_INTRINSIC_GAS: u32 = 21000;
@@ -23,14 +23,14 @@ const ETHEREUM_INTRINSIC_GAS: u32 = 21000;
 #[derive(Clone)]
 pub struct Web3 {
     url: String,
-    jsonrpc_client: Arc<HttpClient>,
+    jsonrpc_client: HttpClient,
     timeout: Duration,
 }
 
 impl Web3 {
     pub fn new(url: &str, timeout: Duration) -> Self {
         Self {
-            jsonrpc_client: Arc::new(HttpClient::new(url)),
+            jsonrpc_client: HttpClient::new(url),
             timeout,
             url: url.to_string(),
         }
@@ -363,10 +363,12 @@ impl Web3 {
         }
     }
 
-
     /// Publishes a prepared transaction and returns the txhash on success. If you want to wait for the transaction
     /// to actually execute on chain, you can use `web3.wait_for_transaction()`
-    pub async fn send_prepared_transaction(&self, transaction: Transaction) -> Result<Uint256, Web3Error> {
+    pub async fn send_prepared_transaction(
+        &self,
+        transaction: Transaction,
+    ) -> Result<Uint256, Web3Error> {
         self.eth_send_raw_transaction(transaction.to_bytes()).await
     }
 

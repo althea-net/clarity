@@ -183,8 +183,8 @@ impl Web3 {
                 fee,
                 swap_res
             );
-            if swap_res.is_ok() {
-                return Ok(swap_res.unwrap());
+            if let Ok(swap_res) = swap_res {
+                return Ok(swap_res);
             }
         }
 
@@ -1007,8 +1007,7 @@ impl Web3 {
         fee: Uint256, // the fee value of the Uniswap pool, in hundredths of basis points (e.g. 0.05% -> 500)
     ) -> Result<Uint256, Web3Error> {
         // Compute a sensible default from sqrt price limit
-        if sqrt_price_limit.is_some() {
-            let sqrt_price_limit = sqrt_price_limit.unwrap();
+        if let Some(sqrt_price_limit) = sqrt_price_limit {
             if sqrt_price_limit == 0u8.into() {
                 return Ok(0u8.into());
             }
