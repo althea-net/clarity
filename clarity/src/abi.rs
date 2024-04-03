@@ -19,7 +19,7 @@
 
 use crate::address::Address;
 use crate::error::Error;
-use num256::Uint256;
+use num256::{Int256, Uint256};
 use sha3::{Digest, Keccak256};
 
 /// A token represents a value of parameter of the contract call.
@@ -31,6 +31,8 @@ use sha3::{Digest, Keccak256};
 pub enum AbiToken {
     /// Unsigned type with value already encoded.
     Uint(Uint256),
+    /// Signed type with value already encoded.
+    Int(Int256),
     /// Ethereum Address
     Address(Address),
     /// A boolean logic
@@ -87,6 +89,13 @@ impl AbiToken {
                 let bytes = value.to_be_bytes();
                 let mut res: [u8; 32] = Default::default();
                 res[32 - bytes.len()..].copy_from_slice(&bytes);
+                SerializedToken::Static(res)
+            }
+            AbiToken::Int(ref value) => {
+                let bytes = value.to_be_bytes();
+                // Copy the full 32 bytes of the value to preserve 2's compliment encoding
+                let mut res: [u8; 32] = Default::default();
+                res.copy_from_slice(&bytes);
                 SerializedToken::Static(res)
             }
             AbiToken::Bool(value) => {
@@ -184,6 +193,35 @@ impl From<u128> for AbiToken {
         AbiToken::Uint(Uint256::from(v))
     }
 }
+impl From<i8> for AbiToken {
+    fn from(v: i8) -> AbiToken {
+        AbiToken::Int(Int256::from(v))
+    }
+}
+
+impl From<i16> for AbiToken {
+    fn from(v: i16) -> AbiToken {
+        AbiToken::Int(Int256::from(v))
+    }
+}
+
+impl From<i32> for AbiToken {
+    fn from(v: i32) -> AbiToken {
+        AbiToken::Int(Int256::from(v))
+    }
+}
+
+impl From<i64> for AbiToken {
+    fn from(v: i64) -> AbiToken {
+        AbiToken::Int(Int256::from(v))
+    }
+}
+
+impl From<i128> for AbiToken {
+    fn from(v: i128) -> AbiToken {
+        AbiToken::Int(Int256::from(v))
+    }
+}
 
 impl From<bool> for AbiToken {
     fn from(v: bool) -> AbiToken {
@@ -217,6 +255,36 @@ impl From<Vec<u64>> for AbiToken {
 
 impl From<Vec<u128>> for AbiToken {
     fn from(v: Vec<u128>) -> AbiToken {
+        AbiToken::Dynamic(v.into_iter().map(Into::into).collect())
+    }
+}
+
+impl From<Vec<i8>> for AbiToken {
+    fn from(v: Vec<i8>) -> AbiToken {
+        AbiToken::Dynamic(v.into_iter().map(Into::into).collect())
+    }
+}
+
+impl From<Vec<i16>> for AbiToken {
+    fn from(v: Vec<i16>) -> AbiToken {
+        AbiToken::Dynamic(v.into_iter().map(Into::into).collect())
+    }
+}
+
+impl From<Vec<i32>> for AbiToken {
+    fn from(v: Vec<i32>) -> AbiToken {
+        AbiToken::Dynamic(v.into_iter().map(Into::into).collect())
+    }
+}
+
+impl From<Vec<i64>> for AbiToken {
+    fn from(v: Vec<i64>) -> AbiToken {
+        AbiToken::Dynamic(v.into_iter().map(Into::into).collect())
+    }
+}
+
+impl From<Vec<i128>> for AbiToken {
+    fn from(v: Vec<i128>) -> AbiToken {
         AbiToken::Dynamic(v.into_iter().map(Into::into).collect())
     }
 }
@@ -281,6 +349,29 @@ impl From<&[Uint256]> for AbiToken {
     }
 }
 
+impl From<Int256> for AbiToken {
+    fn from(v: Int256) -> AbiToken {
+        AbiToken::Int(v)
+    }
+}
+
+impl From<&Int256> for AbiToken {
+    fn from(v: &Int256) -> AbiToken {
+        AbiToken::Int(*v)
+    }
+}
+
+impl From<Vec<Int256>> for AbiToken {
+    fn from(v: Vec<Int256>) -> AbiToken {
+        AbiToken::Dynamic(v.into_iter().map(Into::into).collect())
+    }
+}
+
+impl From<&[Int256]> for AbiToken {
+    fn from(v: &[Int256]) -> AbiToken {
+        AbiToken::Dynamic(v.iter().map(Into::into).collect())
+    }
+}
 /// Raw derive for a Keccak256 digest from a string
 ///
 /// This function should be used when trying to filter out interesting
@@ -474,6 +565,8 @@ fn get_args_count(sig: &str) -> Result<usize, Error> {
 
 #[cfg(test)]
 mod tests {
+    use num_traits::Bounded;
+
     use super::*;
     use crate::utils::hex_str_to_bytes;
 
@@ -812,6 +905,48 @@ mod tests {
         ];
         for (sig, count) in test_signatures.iter() {
             assert_eq!(get_args_count(sig).unwrap(), *count);
+        }
+    }
+
+    #[test]
+    fn test_encode_int_uint() {
+        use crate::utils::hex_str_to_bytes;
+        use std::ops::Neg;
+        let test_cases: Vec<(String, Vec<AbiToken>)> = vec![
+            (
+                "0x0000000000000000000000000000000000000000000000000000000000000000".to_string(),
+                vec![Uint256::default().into()],
+            ),
+            (
+                "0x0000000000000000000000000000000000000000000000000000000000000000".to_string(),
+                vec![Int256::default().into()],
+            ),
+            (
+                "0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF".to_string(),
+                vec![Int256::from(-1i8).into()],
+            ),
+            (
+                "0x000000000000000000000000000000000000000000000000FFFFFFFFFFFFFFFF".to_string(),
+                vec![Uint256::from(std::u64::MAX).into()],
+            ),
+            (
+                "0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0000000000000001".to_string(),
+                vec![Int256::from(std::u64::MAX).neg().into()],
+            ),
+            (
+                "0x8000000000000000000000000000000000000000000000000000000000000000".to_string(),
+                vec![Int256::min_value().into()],
+            ),
+            (
+                "0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF".to_string(),
+                vec![Int256::max_value().into()],
+            ),
+        ];
+
+        for (byte_string, tokens) in test_cases {
+            let encoded = hex_str_to_bytes(&byte_string).unwrap();
+            let result = encode_tokens(&tokens);
+            assert_eq!(encoded, result);
         }
     }
 }
