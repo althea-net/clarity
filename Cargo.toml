@@ -6,6 +6,9 @@ members = [
     "web30"
 ]
 
+[workspace.dependencies]
+num256 = "0.5"
+
 # used to resolve the recursive dep created by importing web30 as
 # a dev dependency
 [patch.crates-io]
