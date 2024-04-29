@@ -50,11 +50,10 @@ impl Web3 {
     }
 
     /// Executes EIP-721 approve(address,uint256)
-    /// Approves a given contract to transfer ERC721 tokens from the given address from the erc721 contract provided.
-    /// What exactly this does can be hard to grok, essentially when you want contract A to be able to spend
-    /// your erc721 contract tokens you need to call 'approve' on the ERC721 contract with your own address and A's
-    /// address so that in the future when you call contract A it can manipulate your ERC721 ownership.
-    /// This function performs that action and waits for it to complete for up to Timeout duration
+    /// Approves `spender` to transfer the `erc721` token with id `token_id` held by `owner`.
+    /// Allowances are used by protocols to manage tokens on the user's behalf, users first approve a contract
+    /// to spend their tokens and then call the desired contract function.
+    /// This function performs that action and waits for it to complete for up to `timeout` duration
     /// `options` takes a vector of `SendTxOption` for configuration
     /// unlike the lower level eth_send_transaction() this call builds
     /// the transaction abstracting away details like chain id, gas,
@@ -62,8 +61,8 @@ impl Web3 {
     pub async fn approve_erc721_transfers(
         &self,
         erc721: Address,
-        eth_private_key: EthPrivateKey,
-        target_contract: Address,
+        owner_key: EthPrivateKey,
+        spender: Address,
         token_id: Uint256,
         timeout: Option<Duration>,
         options: Vec<SendTxOption>,
@@ -71,11 +70,11 @@ impl Web3 {
         // function approve(address _approved, uint256 _tokenId)
         let payload = encode_call(
             "approve(address,uint256)",
-            &[target_contract.into(), AbiToken::Uint(token_id)],
+            &[spender.into(), AbiToken::Uint(token_id)],
         )?;
 
         let tx = self
-            .prepare_transaction(erc721, payload, 0u32.into(), eth_private_key, options)
+            .prepare_transaction(erc721, payload, 0u32.into(), owner_key, options)
             .await?;
         let txid = self.eth_send_raw_transaction(tx.to_bytes()).await?;
 
@@ -87,6 +86,39 @@ impl Web3 {
         Ok(txid)
     }
 
+    /// Approves `to_approve` to transfer any tokens owned by `approver` on the `erc721_address` contract
+    /// Allowances are used by protocols to manage tokens on the user's behalf, users first approve a contract
+    /// to spend their tokens and then call the desired contract function.
+    /// This function performs that action for all held tokens and waits for it to complete for up to `timeout` duration
+    /// `options` takes a vector of `SendTxOption` for configuration
+    /// unlike the lower level eth_send_transaction() this call builds
+    /// the transaction abstracting away details like chain id, gas,
+    /// and network id.
+    pub async fn approve_erc721_for_all(
+        &self,
+        erc721_address: EthAddress,
+        approver: EthPrivateKey,
+        to_approve: EthAddress,
+        timeout: Option<Duration>,
+    ) -> Result<Uint256, Web3Error> {
+        // ABI: setApprovalForAll(address operator, bool _approved) external
+        let payload = clarity::abi::encode_call(
+            "setApprovalForAll(address,bool)",
+            &[to_approve.into(), true.into()],
+        )?;
+
+        let tx = self
+            .prepare_transaction(erc721_address, payload, 0u8.into(), approver, vec![])
+            .await?;
+        let txid = self.eth_send_raw_transaction(tx.to_bytes()).await?;
+
+        // wait for transaction to enter the chain if the user has requested it
+        if let Some(timeout) = timeout {
+            future_timeout(timeout, self.wait_for_transaction(txid, timeout, None)).await??;
+        }
+
+        Ok(txid)
+    }
     /// Executes EIP-721 transferFrom(address _from, address _to, uint256 _tokenId)
     /// Send an erc721 token to the target address, optionally wait until it enters the blockchain
     /// `options` takes a vector of `SendTxOption` for configuration
