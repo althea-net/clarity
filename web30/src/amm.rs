@@ -593,7 +593,7 @@ impl Web3 {
             // of the following swap to queue properly
             let nonce = self.eth_get_transaction_count(eth_address).await?;
             let _token_in_approval = self
-                .approve_erc20_transfers(
+                .approve_erc20_max(
                     token_in,
                     eth_private_key,
                     router,

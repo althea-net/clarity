@@ -11,26 +11,21 @@ use tokio::time::timeout as future_timeout;
 pub static ERC20_GAS_LIMIT: u128 = 100_000;
 
 impl Web3 {
-    /// Checks if any given contract is approved to spend money from any given erc20 contract
-    /// using any given address. What exactly this does can be hard to grok, essentially when
-    /// you want contract A to be able to spend your erc20 contract funds you need to call 'approve'
-    /// on the ERC20 contract with your own address and A's address so that in the future when you call
-    /// contract A it can manipulate your ERC20 balances. This function checks if that has already been done.
-    pub async fn check_erc20_approved(
+    /// Returns the allowance of `erc20` tokens held by `owner` granted to `spender`
+    /// Allowances are commonly used by protocols to manage erc20s on behalf of users,
+    /// users simply approve a contract and then call the contract to perform actions
+    pub async fn get_erc20_allowance(
         &self,
         erc20: Address,
-        own_address: Address,
-        target_contract: Address,
-    ) -> Result<bool, Web3Error> {
+        owner: Address,
+        spender: Address,
+    ) -> Result<Uint256, Web3Error> {
         let payload = encode_call(
             "allowance(address,address)",
-            &[own_address.into(), target_contract.into()],
+            &[owner.into(), spender.into()],
         )?;
         let allowance = self
-            .simulate_transaction(
-                TransactionRequest::quick_tx(own_address, erc20, payload),
-                None,
-            )
+            .simulate_transaction(TransactionRequest::quick_tx(owner, erc20, payload), None)
             .await?;
 
         let allowance = Uint256::from_be_bytes(match allowance.get(0..32) {
@@ -44,33 +39,41 @@ impl Web3 {
 
         // Check if the allowance remaining is greater than half of a Uint256- it's as good
         // a test as any.
+        Ok(allowance)
+    }
+
+    /// Checks if `spender` is approved to spend a large amount of `erc20` tokens held by `owner`
+    /// Allowances are commonly used by protocols to manage tokens on behalf of users,
+    /// users simply approve a contract and then call the contract to perform actions
+    pub async fn check_erc20_approved(
+        &self,
+        erc20: Address,
+        owner: Address,
+        spender: Address,
+    ) -> Result<bool, Web3Error> {
+        let allowance = self.get_erc20_allowance(erc20, owner, spender).await?;
+        // Check if the allowance remaining is greater than half of a Uint256- it's as good
+        // a test as any.
         Ok(allowance > (Uint256::max_value() / 2u32.into()))
     }
 
-    /// Approves a given contract to spend erc20 funds from the given address from the erc20 contract provided.
-    /// What exactly this does can be hard to grok, essentially when you want contract A to be able to spend
-    /// your erc20 contract funds you need to call 'approve' on the ERC20 contract with your own address and A's
-    /// address so that in the future when you call contract A it can manipulate your ERC20 balances.
+    /// Approves `spender` to spend `amount` of `erc20` tokens held by `owner`
+    /// Allowances are commonly used by protocols to manage tokens on behalf of users,
+    /// users simply approve a contract and then call the contract to perform actions
     /// This function performs that action and waits for it to complete for up to Timeout duration
-    /// `options` takes a vector of `SendTxOption` for configuration
-    /// unlike the lower level eth_send_transaction() this call builds
-    /// the transaction abstracting away details like chain id, gas,
-    /// and network id.
-    pub async fn approve_erc20_transfers(
+    pub async fn erc20_approve(
         &self,
         erc20: Address,
-        eth_private_key: EthPrivateKey,
-        target_contract: Address,
+        amount: Uint256,
+        owner_key: EthPrivateKey,
+        spender: Address,
         timeout: Option<Duration>,
         options: Vec<SendTxOption>,
     ) -> Result<Uint256, Web3Error> {
-        let payload = encode_call(
-            "approve(address,uint256)",
-            &[target_contract.into(), Uint256::max_value().into()],
-        )?;
+        let payload = encode_call("approve(address,uint256)", &[spender.into(), amount.into()])?;
 
         let tx = self
-            .prepare_transaction(erc20, payload, 0u32.into(), eth_private_key, options)
+            .prepare_transaction(erc20, payload, 0u32.into(), owner_key, options)
             .await?;
         let txid = self.eth_send_raw_transaction(tx.to_bytes()).await?;
 
@@ -80,6 +83,33 @@ impl Web3 {
         }
 
         Ok(txid)
+    }
+
+    /// Approves `spender` to spend all `erc20` held by `owner_key`
+    /// Allowances are commonly used by protocols to manage tokens on behalf of users,
+    /// users simply approve a contract and then call the contract to perform actions
+    /// This function performs that action and waits for it to complete for up to Timeout duration
+    /// `options` takes a vector of `SendTxOption` for configuration
+    /// unlike the lower level eth_send_transaction() this call builds
+    /// the transaction abstracting away details like chain id, gas,
+    /// and network id.
+    pub async fn approve_erc20_max(
+        &self,
+        erc20: Address,
+        owner_key: EthPrivateKey,
+        spender: Address,
+        timeout: Option<Duration>,
+        options: Vec<SendTxOption>,
+    ) -> Result<Uint256, Web3Error> {
+        self.erc20_approve(
+            erc20,
+            Uint256::max_value(),
+            owner_key,
+            spender,
+            timeout,
+            options,
+        )
+        .await
     }
 
     /// Send an erc20 token to the target address, optionally wait until it enters the blockchain
