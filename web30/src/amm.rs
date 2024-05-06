@@ -584,17 +584,18 @@ impl Web3 {
             options.push(SendTxOption::GasLimitMultiplier(glm));
         }
 
-        let approved = self
-            .check_erc20_approved(token_in, eth_address, router)
+        let allowance = self
+            .get_erc20_allowance(token_in, eth_address, router)
             .await?;
-        if !approved {
+        if allowance < amount {
             debug!("token_in being approved");
             // the nonce we will be using, if there's no timeout we must hack the nonce
             // of the following swap to queue properly
             let nonce = self.eth_get_transaction_count(eth_address).await?;
             let _token_in_approval = self
-                .approve_erc20_max(
+                .erc20_approve(
                     token_in,
+                    amount,
                     eth_private_key,
                     router,
                     wait_timeout,

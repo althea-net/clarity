@@ -45,6 +45,10 @@ impl Web3 {
     /// Checks if `spender` is approved to spend a large amount of `erc20` tokens held by `owner`
     /// Allowances are commonly used by protocols to manage tokens on behalf of users,
     /// users simply approve a contract and then call the contract to perform actions
+    ///
+    /// Warning: Using this function is bad practice as it encourages excessive allowances. Excess allowances persist after spending
+    /// so all uses should be phased out.
+    #[deprecated]
     pub async fn check_erc20_approved(
         &self,
         erc20: Address,
@@ -93,6 +97,10 @@ impl Web3 {
     /// unlike the lower level eth_send_transaction() this call builds
     /// the transaction abstracting away details like chain id, gas,
     /// and network id.
+    ///
+    /// Warning: Using this function is bad practice as it encourages excessive allowances. Excess allowances persist after spending
+    /// so all uses should be phased out.
+    #[deprecated]
     pub async fn approve_erc20_max(
         &self,
         erc20: Address,

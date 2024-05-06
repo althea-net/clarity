@@ -91,9 +91,6 @@ impl Web3 {
     /// to spend their tokens and then call the desired contract function.
     /// This function performs that action for all held tokens and waits for it to complete for up to `timeout` duration
     /// `options` takes a vector of `SendTxOption` for configuration
-    /// unlike the lower level eth_send_transaction() this call builds
-    /// the transaction abstracting away details like chain id, gas,
-    /// and network id.
     pub async fn approve_erc721_for_all(
         &self,
         erc721_address: EthAddress,

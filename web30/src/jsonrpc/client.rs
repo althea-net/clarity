@@ -34,14 +34,16 @@ impl HttpClient {
         *value
     }
 
-    pub async fn request_method<T: Serialize, R: 'static>(
+    pub async fn request_method<T, R>(
         &self,
         method: &str,
         params: T,
         timeout: Duration,
     ) -> Result<R, Web3Error>
     where
+        R: 'static,
         for<'de> R: Deserialize<'de>,
+        T: Serialize,
         T: std::fmt::Debug,
         R: std::fmt::Debug,
     {
