@@ -7,7 +7,7 @@ members = [
 ]
 
 [workspace.dependencies]
-num256 = "0.5"
+num256 = "0.6"
 
 # used to resolve the recursive dep created by importing web30 as
 # a dev dependency
