@@ -223,8 +223,14 @@ impl Signature {
     /// This can be called with any arbitrary signature, and a hashed message.
     pub fn recover(&self, hash: &[u8]) -> Result<Address, Error> {
         // Create recovery ID which is "v" minus 27. Without this it wouldn't be possible to extract recoverable signature.
-        let v = RecoveryId::from_i32(self.get_signature_v()?.to_i32().ok_or(Error::InvalidV)? - 27)
-            .map_err(Error::DecodeRecoveryId)?;
+        let v_num = self.get_signature_v()?.to_i32().ok_or(Error::InvalidV)? - 27;
+        let v = match v_num {
+            0 => RecoveryId::Zero,
+            1 => RecoveryId::One,
+            2 => RecoveryId::Two,
+            3 => RecoveryId::Three,
+            _ => return Err(Error::InvalidV),
+        };
         // A message to recover which is a hash of the transaction
         let msg = Message::from_digest_slice(hash).map_err(Error::ParseMessage)?;
 

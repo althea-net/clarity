@@ -547,7 +547,7 @@ fn get_args_count(sig: &str) -> Result<usize, Error> {
         ));
     }
     // split on either an opening or closing bracket, substrings are now all batches of arguments
-    let args = sig.split(|ch| ch == '(' || ch == ')');
+    let args = sig.split(['(', ')']);
     let mut num_args = 0;
     for substring in args {
         // leading or trailing ,'s or []
@@ -927,11 +927,11 @@ mod tests {
             ),
             (
                 "0x000000000000000000000000000000000000000000000000FFFFFFFFFFFFFFFF".to_string(),
-                vec![Uint256::from(std::u64::MAX).into()],
+                vec![Uint256::from(u64::MAX).into()],
             ),
             (
                 "0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0000000000000001".to_string(),
-                vec![Int256::from(std::u64::MAX).neg().into()],
+                vec![Int256::from(u64::MAX).neg().into()],
             ),
             (
                 "0x8000000000000000000000000000000000000000000000000000000000000000".to_string(),

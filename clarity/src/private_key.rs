@@ -149,7 +149,12 @@ impl PrivateKey {
         // I assume recovery ID is always greater than 0 to simplify
         // the conversion from i32 to Uint256. On a side note,
         // I believe "v" could be an u64 value (TODO).
-        let recovery_id = recovery_id.to_i32();
+        let recovery_id = match recovery_id {
+            secp256k1::ecdsa::RecoveryId::Zero => 0,
+            secp256k1::ecdsa::RecoveryId::One => 1,
+            secp256k1::ecdsa::RecoveryId::Two => 2,
+            secp256k1::ecdsa::RecoveryId::Three => 3,
+        };
         assert!(recovery_id >= 0);
         let recovery_id = recovery_id as u32;
         let v: Uint256 = (recovery_id + 27).into();

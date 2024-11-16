@@ -192,14 +192,14 @@ fn test_fn(fixtures: &TestFixture, filler: &TestFiller, network: EthereumNetwork
             match result.clone().get_fixture(network) {
                 TestFixtureNetwork::Success {
                     hash,
-                    intrinsic_gas: _,
+                    _intrinsic_gas: _,
                     sender,
                 } => {
                     assert_eq!(decoded_tx.hash(), hex_str_to_bytes(&hash).unwrap());
                     assert_eq!(decoded_tx.sender().unwrap(), sender.parse().unwrap());
                 }
                 TestFixtureNetwork::Failure {
-                    intrinsic_gas: _,
+                    _intrinsic_gas: _,
                     exception: _,
                 } => {
                     if decoded_tx.is_valid() {

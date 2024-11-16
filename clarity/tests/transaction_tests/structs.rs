@@ -322,17 +322,19 @@ impl TestFiller {
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct TestFixtureInfo {
-    pub comment: String,
+    #[serde(rename = "comment")]
+    pub _comment: String,
     #[serde(rename = "filling-rpc-server")]
-    pub filling_rpc_server: String,
+    pub _filling_rpc_server: String,
     #[serde(rename = "filling-tool-version")]
-    pub filling_tool_version: String,
+    pub _filling_tool_version: String,
     #[serde(rename = "generatedTestHash")]
-    pub generated_test_hash: String,
-    pub lllcversion: String,
+    pub _generated_test_hash: String,
+    #[serde(rename = "lllcversion")]
+    pub _lllcversion: String,
     pub source: String,
     #[serde(rename = "sourceHash")]
-    pub source_hash: String,
+    pub _source_hash: String,
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -341,11 +343,11 @@ pub enum TestFixtureNetwork {
     Success {
         hash: String,
         #[serde(rename = "intrinsicGas")]
-        intrinsic_gas: Option<String>,
+        _intrinsic_gas: Option<String>,
         sender: String,
     },
     Failure {
-        intrinsic_gas: Option<String>,
+        _intrinsic_gas: Option<String>,
         exception: String,
     },
 }
@@ -355,7 +357,7 @@ impl TestFixtureNetwork {
         match self {
             TestFixtureNetwork::Success { .. } => None,
             TestFixtureNetwork::Failure {
-                intrinsic_gas: _,
+                _intrinsic_gas: _,
                 exception,
             } => Some(exception.clone()),
         }
@@ -521,6 +523,7 @@ impl EthereumNetworkVersion {
 pub struct TestFixture {
     #[serde(rename = "_info")]
     pub info: TestFixtureInfo,
-    pub result: TestFixtureResult,
+    #[serde(rename = "result")]
+    pub _result: TestFixtureResult,
     pub txbytes: String,
 }
