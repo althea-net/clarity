@@ -819,9 +819,9 @@ fn decode_v(input: &RlpToken) -> Result<bool, Error> {
     }
 }
 
-/// Function used for debug printing hex dumps
-/// of ethereum events with each uint256 on a new
-/// line
+// Function used for debug printing hex dumps
+// of ethereum events with each uint256 on a new
+// line
 // fn debug_print_data(input: &[u8]) {
 //     let count = input.len() / 32;
 //     println!("data hex dump");

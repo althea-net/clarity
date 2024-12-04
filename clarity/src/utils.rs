@@ -28,7 +28,6 @@ use std::str;
 /// let hash = get_ethereum_msg_hash("Hello, world!".as_bytes());
 /// assert_eq!(signature.recover(&hash).unwrap(), private_key.to_address());
 /// ```
-
 pub fn get_ethereum_msg_hash(data: &[u8]) -> Vec<u8> {
     let digest = Keccak256::digest(data);
     let salt_string = ETHEREUM_SALT.to_string();
