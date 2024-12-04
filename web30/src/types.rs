@@ -579,7 +579,7 @@ pub struct Block {
     pub state_root: Uint256,
     pub timestamp: Uint256,
     #[serde(rename = "totalDifficulty")]
-    pub total_difficulty: Uint256,
+    pub total_difficulty: Option<Uint256>,
     pub transactions: Vec<TransactionResponse>,
     #[serde(rename = "transactionsRoot")]
     pub transactions_root: Uint256,
@@ -621,7 +621,7 @@ pub struct ConciseBlock {
     pub state_root: Uint256,
     pub timestamp: Uint256,
     #[serde(rename = "totalDifficulty")]
-    pub total_difficulty: Uint256,
+    pub total_difficulty: Option<Uint256>,
     pub transactions: Vec<Uint256>,
     #[serde(rename = "transactionsRoot")]
     pub transactions_root: Uint256,
@@ -892,6 +892,11 @@ mod tests {
             .expect("Failed to read test files!");
 
         let _decoded: Block = serde_json::from_str(&file).unwrap();
+
+        let file = read_to_string("test_files/complete_geth_eth_block_2.json")
+            .expect("Failed to read test files!");
+
+        let _decoded: Block = serde_json::from_str(&file).unwrap();
     }
 
     #[test]
@@ -902,6 +907,11 @@ mod tests {
         let _decoded: ConciseBlock = serde_json::from_str(&file).unwrap();
 
         let file = read_to_string("test_files/concise_geth_eth_block.json")
+            .expect("Failed to read test files!");
+
+        let _decoded: ConciseBlock = serde_json::from_str(&file).unwrap();
+
+        let file = read_to_string("test_files/concise_geth_eth_block_2.json")
             .expect("Failed to read test files!");
 
         let _decoded: ConciseBlock = serde_json::from_str(&file).unwrap();
