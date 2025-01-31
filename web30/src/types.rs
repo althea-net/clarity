@@ -234,6 +234,34 @@ impl TransactionResponse {
             }
         }
     }
+    pub fn get_to(&self) -> Option<Address> {
+        match self {
+            TransactionResponse::Eip1559 { to, .. }
+            | TransactionResponse::Eip2930 { to, .. }
+            | TransactionResponse::Legacy { to, .. } => *to,
+        }
+    }
+    pub fn get_from(&self) -> Address {
+        match self {
+            TransactionResponse::Eip1559 { from, .. }
+            | TransactionResponse::Eip2930 { from, .. }
+            | TransactionResponse::Legacy { from, .. } => *from,
+        }
+    }
+    pub fn get_data(&self) -> Vec<u8> {
+        match self {
+            TransactionResponse::Eip1559 { input, .. }
+            | TransactionResponse::Eip2930 { input, .. }
+            | TransactionResponse::Legacy { input, .. } => (**input).clone(),
+        }
+    }
+    pub fn get_value(&self) -> Uint256 {
+        match self {
+            TransactionResponse::Eip1559 { value, .. }
+            | TransactionResponse::Eip2930 { value, .. }
+            | TransactionResponse::Legacy { value, .. } => *value,
+        }
+    }
 }
 
 impl Ord for TransactionResponse {
