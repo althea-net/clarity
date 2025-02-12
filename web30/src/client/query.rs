@@ -1,6 +1,6 @@
 use crate::jsonrpc::error::Web3Error;
-use crate::types::ConciseBlock;
 use crate::types::{Block, Log, NewFilter, SyncingStatus, TransactionRequest, TransactionResponse};
+use crate::types::{ConciseBlock, TransactionReceipt};
 use clarity::Address;
 use num256::Uint256;
 use std::time::Duration;
@@ -260,6 +260,23 @@ impl Web3 {
                 "eth_getTransactionByHash",
                 // XXX: Technically it doesn't need to be Uint256, but since send_raw_transaction is
                 // returning it we'll keep it consistent.
+                vec![format!("{hash:#066x}")],
+                self.timeout,
+            )
+            .await
+    }
+
+    pub async fn eth_get_transaction_receipt(
+        &self,
+        hash: Uint256,
+    ) -> Result<Option<TransactionReceipt>, Web3Error> {
+        if let Ok(true) = self.eth_syncing().await {
+            warn!("Eth node is currently syncing, eth_get_transaction_by_receipt may not work if transaction is not synced");
+        }
+
+        self.jsonrpc_client
+            .request_method(
+                "eth_getTransactionReceipt",
                 vec![format!("{hash:#066x}")],
                 self.timeout,
             )
