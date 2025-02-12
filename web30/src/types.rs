@@ -8,7 +8,7 @@ use std::{cmp::Ordering, ops::Deref};
 /// Serializes slice of data as "UNFORMATTED DATA" format required
 /// by Ethereum JSONRPC API.
 ///
-/// See more https://github.com/ethereum/wiki/wiki/JSON-RPC#hex-value-encoding
+/// See more https://ethereum.org/en/developers/docs/apis/json-rpc/#hex-encoding
 pub fn data_serialize<S>(x: &[u8], s: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
@@ -19,7 +19,7 @@ where
 /// Deserializes slice of data as "UNFORMATTED DATA" format required
 /// by Ethereum JSONRPC API.
 ///
-/// See more https://github.com/ethereum/wiki/wiki/JSON-RPC#hex-value-encoding
+/// See more https://ethereum.org/en/developers/docs/apis/json-rpc/#hex-encoding
 pub fn data_deserialize<'de, D>(d: D) -> Result<Vec<u8>, D::Error>
 where
     D: Deserializer<'de>,
@@ -82,9 +82,60 @@ impl From<Vec<u8>> for Data {
     }
 }
 
+/// As received by getTransactionReceipt
+///
+/// See more: https://ethereum.org/en/developers/docs/apis/json-rpc/#eth_gettransactionreceipt
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct TransactionReceipt {
+    /// hash of the transaction
+    #[serde(rename = "transactionHash")]
+    transaction_hash: Data,
+    /// integer of the transaction's index position in the block, null when its pending
+    #[serde(rename = "transactionIndex")]
+    transaction_index: Option<Uint256>,
+    /// hash of the block where this transaction was in, null when its pending
+    #[serde(rename = "blockHash")]
+    block_hash: Option<Data>,
+    /// block number where this transaction was in, null when its pending
+    #[serde(rename = "blockNumber")]
+    block_number: Option<Uint256>,
+    /// The chain id field of this transaction
+    #[serde(rename = "chainId")]
+    chain_id: Uint256,
+    /// address of the sender
+    from: Address,
+    /// address of the receiver (null for contract deploy)
+    to: Option<Address>,
+    #[serde(rename = "cumulativeGasUsed")]
+    /// cumulative gas used
+    cumulative_gas_used: Uint256,
+    /// sum of base fee and tip paid per unit of gas
+    #[serde(rename = "effectiveGasPrice")]
+    effective_gas_price: Uint256,
+    /// amount of gas used by this transaction alone
+    #[serde(rename = "gasUsed")]
+    gas_used: Uint256,
+    /// The contract address created, if the transaction was a contract creation, otherwise null
+    #[serde(rename = "contractAddress")]
+    contract_address: Option<Address>,
+    /// Array of log objects created by the transaction
+    pub logs: Data,
+    /// Bloom filter for light clients to quickly retrieve related logs
+    #[serde(rename = "logsBloom")]
+    pub logs_bloom: Data,
+    /// integer of the transaction type: 0x0 for legacy transactions, 0x1 for access list types, 0x2 for dynamic fees
+    #[serde(rename = "type")]
+    pub type_: String,
+
+    /// 32 bytes of post-transaction stateroot - returned only pre Byzantium
+    pub root: Option<Data>,
+    /// either 1 (success) or 0 (failure) - returned only post Byzantium
+    pub status: Option<String>,
+}
+
 /// As received by getTransactionByHash
 ///
-/// See more: https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_gettransactionbyhash
+/// See more: https://ethereum.org/en/developers/docs/apis/json-rpc/#eth_gettransactionbyhash
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 #[serde(untagged)]
 pub enum TransactionResponse {
