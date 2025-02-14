@@ -3,11 +3,17 @@
     html_logo_url = "https://raw.githubusercontent.com/alloy-rs/core/main/assets/alloy.jpg",
     html_favicon_url = "https://raw.githubusercontent.com/alloy-rs/core/main/assets/favicon.ico"
 )]
-#![allow(missing_docs, missing_copy_implementations, clippy::missing_const_for_fn)]
+#![allow(
+    missing_docs,
+    missing_copy_implementations,
+    clippy::missing_const_for_fn
+)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies))]
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 
-extern crate proc_macro;
+extern crate paste;
+extern crate proc_macro2;
+extern crate syn;
 
 use syn::Result;
 
@@ -86,7 +92,7 @@ pub use yul::{
 };
 
 /// Parse a Solidity [`proc_macro::TokenStream`] into a [`File`].
-pub fn parse(input: proc_macro::TokenStream) -> Result<File> {
+pub fn parse(input: proc_macro2::TokenStream) -> Result<File> {
     syn::parse(input)
 }
 

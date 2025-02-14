@@ -14,6 +14,9 @@
 #![cfg_attr(not(test), warn(unused_crate_dependencies))]
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 
+pub mod expand;
+pub mod input;
+
 #[macro_use]
 extern crate proc_macro_error2;
 
@@ -166,7 +169,7 @@ use syn::parse_macro_input;
 /// ```ignore
 #[doc = include_str!("../doctests/structs.rs")]
 /// ```
-/// 
+///
 /// ### UDVT and type aliases
 ///
 /// User defined value types (UDVT) generate a tuple struct with the type as
@@ -175,7 +178,7 @@ use syn::parse_macro_input;
 /// ```ignore
 #[doc = include_str!("../doctests/types.rs")]
 /// ```
-/// 
+///
 /// ### State variables
 ///
 /// Public and external state variables will generate a getter function just like in Solidity.
@@ -198,7 +201,7 @@ use syn::parse_macro_input;
 /// ```ignore
 #[doc = include_str!("../doctests/function_like.rs")]
 /// ```
-/// 
+///
 /// ### Events
 ///
 /// Events generate a struct that implements `SolEvent`.
@@ -210,7 +213,7 @@ use syn::parse_macro_input;
 /// ```ignore
 #[doc = include_str!("../doctests/events.rs")]
 /// ```
-/// 
+///
 /// ### Contracts/interfaces
 ///
 /// Contracts generate a module with the same name, which contains all the items.
@@ -223,7 +226,7 @@ use syn::parse_macro_input;
 /// ```ignore
 #[doc = include_str!("../doctests/contracts.rs")]
 /// ```
-/// 
+///
 /// ## JSON ABI
 ///
 /// Contracts can also be generated from ABI JSON strings and files, similar to
@@ -250,7 +253,10 @@ use syn::parse_macro_input;
 pub fn sol(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as alloy_sol_macro_input::SolInput);
 
-    SolMacroExpander.expand(&input).unwrap_or_else(syn::Error::into_compile_error).into()
+    SolMacroExpander
+        .expand(&input)
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
 }
 
 struct SolMacroExpander;
@@ -297,7 +303,6 @@ impl SolInputExpander for SolMacroExpander {
                 crates.fill(&sol_attrs);
                 Ok(crate::expand::expand_type(&ty, &crates))
             }
-            #[cfg(feature = "json")]
             SolInputKind::Json(_, _) => unreachable!("input already normalized"),
         }?;
 

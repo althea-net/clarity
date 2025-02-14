@@ -7,8 +7,6 @@ members = [
     "soliloquy",
     "soliloquy/json-abi",
     "soliloquy/sol-macro",
-    "soliloquy/sol-macro-expander",
-    "soliloquy/sol-macro-input",
     "soliloquy/syn-solidity",
 ]
 
@@ -26,7 +24,7 @@ tiny-keccak = { version = "2.0", features = ["keccak"] }
 proc-macro-error2 = ">=2.0.0, <=2.0.1"
 proc-macro2 = "1.0"
 quote = "1.0"
-syn = "2.0"
+syn = {version = "2.0", features=["extra-traits"]}
 
 # used to resolve the recursive dep created by importing web30 as
 # a dev dependency

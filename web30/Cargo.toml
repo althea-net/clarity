@@ -8,8 +8,9 @@ edition = "2021"
 repository = "https://github.com/althea-net/web30"
 
 [dependencies]
-serde = {workspace=true}
-serde_derive = {workspace=true}
+serde.workspace = true
+serde_derive.workspace = true
+serde_json.workspace = true
 clarity = {path = "../clarity", version = "1.5.0"}
 num256 = {workspace = true}
 futures = "0.3"
