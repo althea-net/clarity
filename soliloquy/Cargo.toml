@@ -1,0 +1,25 @@
+[package]
+name = "soliloquy"
+version = "0.0.1"
+authors = ["Christian Borst"]
+description = "The solidity interaction layer for Clarity and Web30"
+license = "Apache-2.0"
+edition = "2021"
+repository = "https://github.com/althea-net/clarity/soliloquy"
+
+[dependencies]
+serde = "1.0"
+serde_derive = "1.0"
+serde_json = "1.0"
+clarity = {path = "../clarity", version = "1.5.0"}
+num256 = {workspace = true}
+futures = "0.3"
+awc = {version = "3.5", default-features = false, features=["openssl", "compress-gzip", "compress-zstd"]}
+tokio = {version = "1.33", features=["macros", "time"]}
+lazy_static = "1.4"
+log = "0.4"
+num-traits = "0.2"
+
+[dev-dependencies]
+actix = "0.13"
+env_logger = "0.10"

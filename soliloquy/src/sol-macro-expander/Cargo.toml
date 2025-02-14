@@ -1,0 +1,46 @@
+[package]
+name = "alloy-sol-macro-expander"
+description = "Expander used in the Solidity to Rust procedural macro"
+keywords = ["ethereum", "abi", "encoding", "evm", "solidity"]
+categories = ["encoding", "cryptography::cryptocurrencies"]
+homepage = "https://github.com/alloy-rs/core/tree/main/crates/sol-macro-expander"
+
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+exclude.workspace = true
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = [
+    "-Zunstable-options",
+    "--generate-link-to-definition",
+    "--show-type-layout",
+]
+
+[lints]
+workspace = true
+
+[dependencies]
+alloy-sol-macro-input = { path = "../sol-macro-input" }
+syn-solidity = { workspace = true, features = ["visit", "visit-mut"] }
+
+proc-macro-error2 = ">=2.0.0, <=2.0.1"
+proc-macro2 = "1.0'
+quote = "1.0"
+syn = { version = "2.0, features = ["extra-traits"] }
+
+
+heck = "0.5"
+hex.workspace = true
+indexmap = "2"
+tiny-keccak = { workspace = true, features = ["keccak"] }
+
+# json
+alloy-json-abi = { workspace = true, optional = true }
+
+[features]
+json = ["dep:alloy-json-abi", "alloy-sol-macro-input/json"]

@@ -12,10 +12,15 @@ Our implementation philosophy is that it is up to the developer to understand th
 This library is capable of decoding all transactions after Frontier and Homestead hardforks before that some transactions will not pass validation.
 
 # Web30
+
 [![Latest Version](https://img.shields.io/crates/v/web30.svg)](https://crates.io/crates/web30)
 [![Documentation](https://docs.rs/clarity/web30.svg)](https://docs.rs/web30)
 
 Web30 is a equally lightweight rpc client for Ethereum to be paired with Clarity, the goal of this client is to be a minimalist async interface for sending transactions and querying chain state.
+
+# Soliloquy
+
+Soliloquy is the Solidity interaction layer for Clarity and Web30. It features elements copied from the alloy ecosystem like a solidity compatible macro for automatically generating objects to interact with Contracts from Rust.
 
 # Getting Started
 
