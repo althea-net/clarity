@@ -9,6 +9,7 @@ members = [
     "soliloquy/sol-macro",
     "soliloquy/sol-type-parser",
     "soliloquy/syn-solidity",
+    "soliloquy/sol-contract"
 ]
 
 [workspace.package]

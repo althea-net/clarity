@@ -1,0 +1,25 @@
+[package]
+name = "alloy-contract"
+description = "Interact with on-chain contracts"
+
+edition.workspace = true
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = [
+    "-Zunstable-options",
+    "--generate-link-to-definition",
+    "--show-type-layout",
+]
+
+
+[dependencies]
+alloy-json-abi = { path = "../json-abi" }
+
+futures-util = "0.3"
+futures = "0.3"
+thiserror = { version = "2.0", default-features = false }
+
+reqwest = { version = "0.12", default-features = false }
+tokio = { version = "1" , features = ["macros", "rt-multi-thread"] }
+serde_json.workspace = true
