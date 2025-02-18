@@ -4,8 +4,9 @@ version = "0.0.1"
 authors = ["Christian Borst"]
 description = "The solidity interaction layer for Clarity and Web30"
 license = "Apache-2.0"
-edition = "2021"
 repository = "https://github.com/althea-net/clarity/soliloquy"
+
+edition.workspace = true
 
 [dependencies]
 serde = "1.0"

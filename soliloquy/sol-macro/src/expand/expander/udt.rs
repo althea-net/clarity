@@ -1,11 +1,11 @@
 //! [`ItemUdt`] expansion.
 
 use super::ExpCtxt;
-use alloy_sol_macro_input::ContainsSolAttrs;
-use ast::ItemUdt;
+use crate::input::ContainsSolAttrs;
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::Result;
+use syn_solidity::ItemUdt;
 
 pub(super) fn expand(cx: &ExpCtxt<'_>, udt: &ItemUdt) -> Result<TokenStream> {
     let ItemUdt { name, ty, .. } = udt;

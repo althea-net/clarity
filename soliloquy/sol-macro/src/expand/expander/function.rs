@@ -1,11 +1,11 @@
 //! [`ItemFunction`] expansion.
 
 use super::{expand_fields, expand_from_into_tuples, expand_tokenize, expand_tuple_types, ExpCtxt};
-use alloy_sol_macro_input::{mk_doc, ContainsSolAttrs};
-use ast::{FunctionKind, ItemFunction, Spanned};
+use crate::input::{mk_doc, ContainsSolAttrs};
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use syn::Result;
+use syn_solidity::{FunctionKind, ItemFunction, Spanned};
 
 /// Expands an [`ItemFunction`]:
 ///
@@ -24,7 +24,13 @@ use syn::Result;
 /// }
 /// ```
 pub(super) fn expand(cx: &ExpCtxt<'_>, function: &ItemFunction) -> Result<TokenStream> {
-    let ItemFunction { parameters, returns, name, kind, .. } = function;
+    let ItemFunction {
+        parameters,
+        returns,
+        name,
+        kind,
+        ..
+    } = function;
 
     if matches!(kind, FunctionKind::Constructor(_)) {
         return expand_constructor(cx, function);
@@ -64,7 +70,7 @@ pub(super) fn expand(cx: &ExpCtxt<'_>, function: &ItemFunction) -> Result<TokenS
     let return_converts = expand_from_into_tuples(&return_name, returns, cx);
 
     let signature = cx.function_signature(function);
-    let selector = crate::utils::selector(&signature);
+    let selector = crate::expand::utils::selector(&signature);
     let tokenize_impl = expand_tokenize(parameters, cx);
 
     let call_doc = docs.then(|| {

@@ -11,9 +11,7 @@
 #![cfg_attr(not(test), warn(unused_crate_dependencies))]
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 
-extern crate paste;
-extern crate proc_macro2;
-extern crate syn;
+extern crate proc_macro;
 
 use syn::Result;
 
@@ -92,7 +90,7 @@ pub use yul::{
 };
 
 /// Parse a Solidity [`proc_macro::TokenStream`] into a [`File`].
-pub fn parse(input: proc_macro2::TokenStream) -> Result<File> {
+pub fn parse(input: proc_macro::TokenStream) -> Result<File> {
     syn::parse(input)
 }
 

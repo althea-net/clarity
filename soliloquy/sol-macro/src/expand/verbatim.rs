@@ -1,4 +1,4 @@
-use crate::expand::ExternCrates;
+use crate::expand::expander::ExternCrates;
 use proc_macro2::TokenStream;
 use quote::quote;
 use std::collections::BTreeMap;

@@ -1,6 +1,6 @@
-use ast::Spanned;
 use proc_macro2::{Span, TokenStream};
 use quote::ToTokens;
+use syn_solidity::Spanned;
 use tiny_keccak::{Hasher, Keccak};
 
 /// Simple interface to the [`keccak256`] hash function.
@@ -70,7 +70,10 @@ impl<T> Spanned for ExprArray<T> {
 
 impl<T> ExprArray<T> {
     fn new(array: Vec<T>) -> Self {
-        Self { array, span: Span::call_site() }
+        Self {
+            array,
+            span: Span::call_site(),
+        }
     }
 }
 

@@ -1,11 +1,11 @@
 //! [`ItemEvent`] expansion.
 
 use super::{anon_name, expand_event_tokenize, expand_tuple_types, ExpCtxt};
-use alloy_sol_macro_input::{mk_doc, ContainsSolAttrs};
-use ast::{EventParameter, ItemEvent, SolIdent, Spanned};
+use crate::input::{mk_doc, ContainsSolAttrs};
 use proc_macro2::TokenStream;
 use quote::{quote, quote_spanned};
 use syn::Result;
+use syn_solidity::{EventParameter, ItemEvent, SolIdent, Spanned};
 
 /// Expands an [`ItemEvent`]:
 ///
@@ -31,12 +31,14 @@ pub(super) fn expand(cx: &ExpCtxt<'_>, event: &ItemEvent) -> Result<TokenStream>
 
     let name = cx.overloaded_name(event.into());
     let signature = cx.event_signature(event);
-    let selector = crate::utils::event_selector(&signature);
+    let selector = crate::expand::utils::event_selector(&signature);
     let anonymous = event.is_anonymous();
 
     // prepend the first topic if not anonymous
     let first_topic = (!anonymous).then(|| quote!(alloy_sol_types::sol_data::FixedBytes<32>));
-    let topic_list = event.indexed_params().map(|p| expand_event_topic_type(p, cx));
+    let topic_list = event
+        .indexed_params()
+        .map(|p| expand_event_topic_type(p, cx));
     let topic_list = first_topic.into_iter().chain(topic_list);
 
     let (data_tuple, _) = expand_tuple_types(event.non_indexed_params().map(|p| &p.ty), cx);
@@ -251,7 +253,8 @@ fn expand_event_topic_field(
 ) -> TokenStream {
     let name = anon_name((i, name));
     let ty = if cx.indexed_as_hash(param) {
-        let bytes32 = ast::Type::FixedBytes(name.span(), core::num::NonZeroU16::new(32).unwrap());
+        let bytes32 =
+            syn_solidity::Type::FixedBytes(name.span(), core::num::NonZeroU16::new(32).unwrap());
         cx.expand_rust_type(&bytes32)
     } else {
         cx.expand_rust_type(&param.ty)

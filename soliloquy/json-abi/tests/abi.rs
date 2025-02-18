@@ -1,5 +1,4 @@
 use alloy_json_abi::{AbiItem, EventParam, JsonAbi, Param, ToSolConfig};
-use pretty_assertions::assert_eq;
 use std::{
     collections::HashMap,
     fs,
@@ -28,7 +27,11 @@ fn abi() {
             continue;
         }
 
-        abi_test(&std::fs::read_to_string(&path).unwrap(), path.to_str().unwrap(), run_solc);
+        abi_test(
+            &std::fs::read_to_string(&path).unwrap(),
+            path.to_str().unwrap(),
+            run_solc,
+        );
     }
     if UPDATED.load(Ordering::Relaxed) {
         panic!("some file was not up to date and has been updated, simply re-run the tests");
@@ -105,7 +108,11 @@ fn to_sol_test(path: &str, abi: &JsonAbi, run_solc: bool) {
     }
 
     if run_solc {
-        let out = Command::new("solc").arg("--combined-json=abi").arg(&sol_path).output().unwrap();
+        let out = Command::new("solc")
+            .arg("--combined-json=abi")
+            .arg(&sol_path)
+            .output()
+            .unwrap();
         let stdout = String::from_utf8_lossy(&out.stdout);
         let stderr = String::from_utf8_lossy(&out.stderr);
         let panik = |s| -> ! { panic!("{s}\n\nstdout:\n{stdout}\n\nstderr:\n{stderr}") };
@@ -185,7 +192,8 @@ fn test_functions(abi: &JsonAbi) {
 }
 
 fn test_errors(abi: &JsonAbi) {
-    abi.errors().for_each(|e| e.inputs.iter().for_each(test_param));
+    abi.errors()
+        .for_each(|e| e.inputs.iter().for_each(test_param));
 
     abi.errors()
         .map(|e| e.name.clone())
@@ -200,7 +208,8 @@ fn test_errors(abi: &JsonAbi) {
 }
 
 fn test_events(abi: &JsonAbi) {
-    abi.events().for_each(|e| e.inputs.iter().for_each(test_event_param));
+    abi.events()
+        .for_each(|e| e.inputs.iter().for_each(test_event_param));
 
     abi.events()
         .map(|e| e.name.clone())
@@ -254,7 +263,10 @@ fn ensure_file_contents(file: &Path, contents: &str) {
         }
     }
 
-    eprintln!("\n\x1b[31;1merror\x1b[0m: {} was not up-to-date, updating\n", file.display());
+    eprintln!(
+        "\n\x1b[31;1merror\x1b[0m: {} was not up-to-date, updating\n",
+        file.display()
+    );
     if std::env::var("CI").is_ok() {
         eprintln!("    NOTE: run `cargo test` locally and commit the updated files\n");
     }
@@ -289,7 +301,9 @@ fn get_solc_version() -> Option<(u16, u16, u16)> {
     let end = version.find('+')?;
     let version = &version[..end];
 
-    let mut iter = version.split('.').map(|s| s.parse::<u16>().expect("bad solc version"));
+    let mut iter = version
+        .split('.')
+        .map(|s| s.parse::<u16>().expect("bad solc version"));
     let major = iter.next().unwrap();
     let minor = iter.next().unwrap();
     let patch = iter.next().unwrap();

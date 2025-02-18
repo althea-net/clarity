@@ -1,11 +1,7 @@
 //! Functions which generate Rust code from the Solidity AST.
 
-use crate::utils::{self, ExprArray};
-use alloy_sol_macro_input::{ContainsSolAttrs, SolAttrs};
-use ast::{
-    visit_mut, EventParameter, File, Item, ItemError, ItemEvent, ItemFunction, Parameters,
-    SolIdent, SolPath, Spanned, Type, VariableDeclaration, Visit, VisitMut,
-};
+use crate::expand::utils::{self, ExprArray};
+use crate::input::{ContainsSolAttrs, SolAttrs};
 use indexmap::IndexMap;
 use proc_macro2::{Delimiter, Group, Ident, Punct, Spacing, Span, TokenStream, TokenTree};
 use proc_macro_error2::{abort, emit_error};
@@ -18,6 +14,10 @@ use std::{
     sync::atomic::{AtomicBool, Ordering},
 };
 use syn::{ext::IdentExt, parse_quote, Attribute, Error, Result};
+use syn_solidity::{
+    visit_mut, EventParameter, File, Item, ItemError, ItemEvent, ItemFunction, Parameters,
+    SolIdent, SolPath, Spanned, Type, VariableDeclaration, Visit, VisitMut,
+};
 
 #[macro_use]
 mod macros;
@@ -32,7 +32,6 @@ mod ty;
 mod udt;
 mod var_def;
 
-#[cfg(feature = "json")]
 mod to_abi;
 
 /// The limit for the number of times to resolve a type.
@@ -48,7 +47,10 @@ pub fn expand(ast: File) -> Result<TokenStream> {
 /// Expands a Rust type from a Solidity type.
 pub fn expand_type(ty: &Type, crates: &ExternCrates) -> TokenStream {
     utils::pme_compat(|| {
-        let dummy_file = File { attrs: Vec::new(), items: Vec::new() };
+        let dummy_file = File {
+            attrs: Vec::new(),
+            items: Vec::new(),
+        };
         let mut cx = ExpCtxt::new(&dummy_file);
         cx.crates = crates.clone();
         cx.expand_type(ty)
@@ -101,7 +103,11 @@ impl<T> NamespacedMap<T> {
 impl<T: Default> NamespacedMap<T> {
     /// Inserts an item into the map if it does not exist and returns a mutable reference to it.
     pub fn get_or_insert_default(&mut self, namespace: Option<SolIdent>, name: SolIdent) -> &mut T {
-        self.0.entry(namespace).or_default().entry(name).or_default()
+        self.0
+            .entry(namespace)
+            .or_default()
+            .entry(name)
+            .or_default()
     }
 }
 
@@ -209,7 +215,9 @@ impl ExpCtxt<'_> {
         self.attrs = attrs;
         self.crates.fill(&self.attrs);
 
-        let errs = others.iter().map(|attr| Error::new_spanned(attr, "unexpected attribute"));
+        let errs = others
+            .iter()
+            .map(|attr| Error::new_spanned(attr, "unexpected attribute"));
         utils::combine_errors(errs)
     }
 
@@ -267,7 +275,11 @@ impl ExpCtxt<'_> {
         let map = self.custom_types.clone();
         for (namespace, custom_types) in &mut self.custom_types.0 {
             for ty in custom_types.values_mut() {
-                let mut resolver = Resolver { map: &map, cnt: 0, namespace: namespace.clone() };
+                let mut resolver = Resolver {
+                    map: &map,
+                    cnt: 0,
+                    namespace: namespace.clone(),
+                };
                 resolver.visit_type(ty);
                 if resolver.cnt >= RESOLVE_LIMIT {
                     abort!(
@@ -313,9 +325,9 @@ impl ExpCtxt<'_> {
                 for (_, &item) in items {
                     let (kind, selector) = match item {
                         Item::Function(function) => {
-                            (SelectorKind::Function, this.function_selector(function))
+                            (SelectorKind::Function, this.function_selector(&function))
                         }
-                        Item::Error(error) => (SelectorKind::Error, this.error_selector(error)),
+                        Item::Error(error) => (SelectorKind::Error, this.error_selector(&error)),
                         // Item::Event(event) => (SelectorKind::Event, this.event_selector(event)),
                         _ => continue,
                     };
@@ -364,8 +376,11 @@ impl ExpCtxt<'_> {
 
             self.with_namespace(namespace.clone(), |this| {
                 let overloaded_items = this.overloaded_items.0.get(namespace).unwrap();
-                let all_orig_names: Vec<_> =
-                    overloaded_items.values().flatten().filter_map(|f| f.name()).collect();
+                let all_orig_names: Vec<_> = overloaded_items
+                    .values()
+                    .flatten()
+                    .filter_map(|f| f.name())
+                    .collect();
 
                 for functions in overloaded_items.values().filter(|fs| fs.len() >= 2) {
                     // check for same parameters
@@ -422,15 +437,16 @@ impl ExpCtxt<'_> {
 impl<'ast> Visit<'ast> for ExpCtxt<'ast> {
     fn visit_item(&mut self, item: &'ast Item) {
         if let Some(name) = item.name() {
-            self.all_items.insert(self.current_namespace.clone(), name.clone(), item)
+            self.all_items
+                .insert(self.current_namespace.clone(), name.clone(), item)
         }
 
         if let Item::Contract(contract) = item {
             self.with_namespace(Some(contract.name.clone()), |this| {
-                ast::visit::visit_item(this, item);
+                syn_solidity::visit::visit_item(this, item);
             });
         } else {
-            ast::visit::visit_item(self, item);
+            syn_solidity::visit::visit_item(self, item);
         }
     }
 
@@ -440,21 +456,21 @@ impl<'ast> Visit<'ast> for ExpCtxt<'ast> {
                 .get_or_insert_default(self.current_namespace.clone(), name.clone())
                 .push(OverloadedItem::Function(function));
         }
-        ast::visit::visit_item_function(self, function);
+        syn_solidity::visit::visit_item_function(self, function);
     }
 
     fn visit_item_event(&mut self, event: &'ast ItemEvent) {
         self.overloaded_items
             .get_or_insert_default(self.current_namespace.clone(), event.name.clone())
             .push(OverloadedItem::Event(event));
-        ast::visit::visit_item_event(self, event);
+        syn_solidity::visit::visit_item_event(self, event);
     }
 
     fn visit_item_error(&mut self, error: &'ast ItemError) {
         self.overloaded_items
             .get_or_insert_default(self.current_namespace.clone(), error.name.clone())
             .push(OverloadedItem::Error(error));
-        ast::visit::visit_item_error(self, error);
+        syn_solidity::visit::visit_item_error(self, error);
     }
 }
 
@@ -537,7 +553,9 @@ impl<'ast> ExpCtxt<'ast> {
     }
 
     fn try_item(&self, name: &SolPath) -> Option<&Item> {
-        self.all_items.resolve(name, &self.current_namespace).copied()
+        self.all_items
+            .resolve(name, &self.current_namespace)
+            .copied()
     }
 
     fn custom_type(&self, name: &SolPath) -> &Type {
@@ -548,15 +566,17 @@ impl<'ast> ExpCtxt<'ast> {
     }
 
     fn try_custom_type(&self, name: &SolPath) -> Option<&Type> {
-        self.custom_types.resolve(name, &self.current_namespace).inspect(|&ty| {
-            if ty.is_custom() {
-                abort!(
-                    ty.span(),
-                    "unresolved custom type in map";
-                    note = name.span() => "name span";
-                );
-            }
-        })
+        self.custom_types
+            .resolve(name, &self.current_namespace)
+            .inspect(|&ty| {
+                if ty.is_custom() {
+                    abort!(
+                        ty.span(),
+                        "unresolved custom type in map";
+                        note = name.span() => "name span";
+                    );
+                }
+            })
     }
 
     fn indexed_as_hash(&self, param: &EventParameter) -> bool {
@@ -564,7 +584,10 @@ impl<'ast> ExpCtxt<'ast> {
     }
 
     fn custom_is_value_type(&self) -> impl Fn(&SolPath) -> bool + '_ {
-        move |ty| self.custom_type(ty).is_value_type(self.custom_is_value_type())
+        move |ty| {
+            self.custom_type(ty)
+                .is_value_type(self.custom_is_value_type())
+        }
     }
 
     /// Returns the name of the function, adjusted for overloads.
@@ -578,7 +601,11 @@ impl<'ast> ExpCtxt<'ast> {
     fn overloaded_name(&self, item: OverloadedItem<'ast>) -> SolIdent {
         let original_ident = item.name().expect("item has no name");
         let sig = item.signature(self);
-        match self.overloads.get(&self.current_namespace).and_then(|m| m.get(&sig)) {
+        match self
+            .overloads
+            .get(&self.current_namespace)
+            .and_then(|m| m.get(&sig))
+        {
             Some(name) => SolIdent::new_spanned(name, original_ident.span()),
             None => original_ident.clone(),
         }
@@ -869,7 +896,13 @@ fn expand_tuple_types<'a, I: IntoIterator<Item = &'a Type>>(
 
 /// Expand the body of a `tokenize` function.
 fn expand_tokenize<P>(params: &Parameters<P>, cx: &ExpCtxt<'_>) -> TokenStream {
-    tokenize_(params.iter().enumerate().map(|(i, p)| (i, &p.ty, p.name.as_ref())), cx)
+    tokenize_(
+        params
+            .iter()
+            .enumerate()
+            .map(|(i, p)| (i, &p.ty, p.name.as_ref())),
+        cx,
+    )
 }
 
 /// Expand the body of a `tokenize` function.

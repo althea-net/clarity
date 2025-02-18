@@ -1,18 +1,18 @@
 use super::ExpCtxt;
-use crate::verbatim::Verbatim;
+use crate::expand::verbatim::Verbatim;
 use alloy_json_abi::{
     Constructor, Error, Event, EventParam, Fallback, Function, Param, Receive, StateMutability,
 };
-use ast::{ItemError, ItemEvent, ItemFunction};
 use proc_macro2::TokenStream;
 use std::fmt::Write;
+use syn_solidity::{ItemError, ItemEvent, ItemFunction};
 
 pub(crate) fn generate<T>(t: &T, cx: &ExpCtxt<'_>) -> TokenStream
 where
     T: ToAbi,
     T::DynAbi: Verbatim,
 {
-    crate::verbatim::verbatim(&t.to_dyn_abi(cx), &cx.crates)
+    crate::expand::verbatim::verbatim(&t.to_dyn_abi(cx), &cx.crates)
 }
 
 pub(crate) trait ToAbi {
@@ -21,28 +21,39 @@ pub(crate) trait ToAbi {
     fn to_dyn_abi(&self, cx: &ExpCtxt<'_>) -> Self::DynAbi;
 }
 
-impl ToAbi for ast::ItemFunction {
+impl ToAbi for syn_solidity::ItemFunction {
     type DynAbi = Function;
 
     fn to_dyn_abi(&self, cx: &ExpCtxt<'_>) -> Self::DynAbi {
         Function {
-            name: self.name.as_ref().map(|i| i.as_string()).unwrap_or_default(),
+            name: self
+                .name
+                .as_ref()
+                .map(|i| i.as_string())
+                .unwrap_or_default(),
             inputs: self.parameters.to_dyn_abi(cx),
-            outputs: self.returns.as_ref().map(|r| r.returns.to_dyn_abi(cx)).unwrap_or_default(),
+            outputs: self
+                .returns
+                .as_ref()
+                .map(|r| r.returns.to_dyn_abi(cx))
+                .unwrap_or_default(),
             state_mutability: self.attributes.to_dyn_abi(cx),
         }
     }
 }
 
-impl ToAbi for ast::ItemError {
+impl ToAbi for syn_solidity::ItemError {
     type DynAbi = Error;
 
     fn to_dyn_abi(&self, cx: &ExpCtxt<'_>) -> Self::DynAbi {
-        Error { name: self.name.as_string(), inputs: self.parameters.to_dyn_abi(cx) }
+        Error {
+            name: self.name.as_string(),
+            inputs: self.parameters.to_dyn_abi(cx),
+        }
     }
 }
 
-impl ToAbi for ast::ItemEvent {
+impl ToAbi for syn_solidity::ItemEvent {
     type DynAbi = Event;
 
     fn to_dyn_abi(&self, cx: &ExpCtxt<'_>) -> Self::DynAbi {
@@ -54,7 +65,7 @@ impl ToAbi for ast::ItemEvent {
     }
 }
 
-impl<P> ToAbi for ast::Parameters<P> {
+impl<P> ToAbi for syn_solidity::Parameters<P> {
     type DynAbi = Vec<Param>;
 
     fn to_dyn_abi(&self, cx: &ExpCtxt<'_>) -> Self::DynAbi {
@@ -62,38 +73,55 @@ impl<P> ToAbi for ast::Parameters<P> {
     }
 }
 
-impl ToAbi for ast::VariableDeclaration {
+impl ToAbi for syn_solidity::VariableDeclaration {
     type DynAbi = Param;
 
     fn to_dyn_abi(&self, cx: &ExpCtxt<'_>) -> Self::DynAbi {
-        ty_to_param(self.name.as_ref().map(ast::SolIdent::as_string), &self.ty, cx)
+        ty_to_param(
+            self.name.as_ref().map(syn_solidity::SolIdent::as_string),
+            &self.ty,
+            cx,
+        )
     }
 }
 
-impl ToAbi for ast::EventParameter {
+impl ToAbi for syn_solidity::EventParameter {
     type DynAbi = EventParam;
 
     fn to_dyn_abi(&self, cx: &ExpCtxt<'_>) -> Self::DynAbi {
-        let name = self.name.as_ref().map(ast::SolIdent::as_string);
-        let Param { ty, name, components, internal_type } = ty_to_param(name, &self.ty, cx);
-        EventParam { ty, name, indexed: self.is_indexed(), internal_type, components }
+        let name = self.name.as_ref().map(syn_solidity::SolIdent::as_string);
+        let Param {
+            ty,
+            name,
+            components,
+            internal_type,
+        } = ty_to_param(name, &self.ty, cx);
+        EventParam {
+            ty,
+            name,
+            indexed: self.is_indexed(),
+            internal_type,
+            components,
+        }
     }
 }
 
-impl ToAbi for ast::FunctionAttributes {
+impl ToAbi for syn_solidity::FunctionAttributes {
     type DynAbi = StateMutability;
 
     fn to_dyn_abi(&self, _cx: &ExpCtxt<'_>) -> Self::DynAbi {
         match self.mutability() {
-            Some(ast::Mutability::Pure(_) | ast::Mutability::Constant(_)) => StateMutability::Pure,
-            Some(ast::Mutability::View(_)) => StateMutability::View,
-            Some(ast::Mutability::Payable(_)) => StateMutability::Payable,
+            Some(syn_solidity::Mutability::Pure(_) | syn_solidity::Mutability::Constant(_)) => {
+                StateMutability::Pure
+            }
+            Some(syn_solidity::Mutability::View(_)) => StateMutability::View,
+            Some(syn_solidity::Mutability::Payable(_)) => StateMutability::Payable,
             None => StateMutability::NonPayable,
         }
     }
 }
 
-fn ty_to_param(name: Option<String>, ty: &ast::Type, cx: &ExpCtxt<'_>) -> Param {
+fn ty_to_param(name: Option<String>, ty: &syn_solidity::Type, cx: &ExpCtxt<'_>) -> Param {
     let mut ty_name = ty_abi_string(ty, cx);
 
     // HACK: `cx.custom_type` resolves the custom type recursively, so in recursive structs the
@@ -106,8 +134,8 @@ fn ty_to_param(name: Option<String>, ty: &ast::Type, cx: &ExpCtxt<'_>) -> Param 
 
     let mut component_names = vec![];
     let resolved = match ty.peel_arrays() {
-        ast::Type::Custom(name) => {
-            if let ast::Item::Struct(s) = cx.item(name) {
+        syn_solidity::Type::Custom(name) => {
+            if let syn_solidity::Item::Struct(s) = cx.item(name) {
                 component_names = s
                     .fields
                     .names()
@@ -119,7 +147,7 @@ fn ty_to_param(name: Option<String>, ty: &ast::Type, cx: &ExpCtxt<'_>) -> Param 
         ty => ty,
     };
 
-    let components = if let ast::Type::Tuple(tuple) = resolved {
+    let components = if let syn_solidity::Type::Tuple(tuple) = resolved {
         tuple
             .types
             .iter()
@@ -133,17 +161,22 @@ fn ty_to_param(name: Option<String>, ty: &ast::Type, cx: &ExpCtxt<'_>) -> Param 
     // TODO: internal_type
     let internal_type = None;
 
-    Param { ty: ty_name, name: name.unwrap_or_default(), internal_type, components }
+    Param {
+        ty: ty_name,
+        name: name.unwrap_or_default(),
+        internal_type,
+        components,
+    }
 }
 
-fn ty_abi_string(ty: &ast::Type, cx: &ExpCtxt<'_>) -> String {
+fn ty_abi_string(ty: &syn_solidity::Type, cx: &ExpCtxt<'_>) -> String {
     let mut suffix = String::new();
     rec_ty_abi_string_suffix(cx, ty, &mut suffix);
 
     let mut ty = ty.peel_arrays();
-    if let ast::Type::Custom(name) = ty {
+    if let syn_solidity::Type::Custom(name) = ty {
         match cx.try_custom_type(name) {
-            Some(ast::Type::Tuple(_)) => return format!("tuple{suffix}"),
+            Some(syn_solidity::Type::Tuple(_)) => return format!("tuple{suffix}"),
             Some(custom) => ty = custom,
             None => {}
         }
@@ -151,8 +184,8 @@ fn ty_abi_string(ty: &ast::Type, cx: &ExpCtxt<'_>) -> String {
     format!("{}{suffix}", super::ty::TypePrinter::new(cx, ty))
 }
 
-fn rec_ty_abi_string_suffix(cx: &ExpCtxt<'_>, ty: &ast::Type, s: &mut String) {
-    if let ast::Type::Array(array) = ty {
+fn rec_ty_abi_string_suffix(cx: &ExpCtxt<'_>, ty: &syn_solidity::Type, s: &mut String) {
+    if let syn_solidity::Type::Array(array) = ty {
         rec_ty_abi_string_suffix(cx, &array.ty, s);
         if let Some(size) = cx.eval_array_size(array) {
             write!(s, "[{size}]").unwrap();
@@ -172,12 +205,16 @@ pub(super) fn constructor(function: &ItemFunction, cx: &ExpCtxt<'_>) -> Construc
 
 pub(super) fn fallback(function: &ItemFunction, _cx: &ExpCtxt<'_>) -> Fallback {
     assert!(function.kind.is_fallback());
-    Fallback { state_mutability: StateMutability::NonPayable }
+    Fallback {
+        state_mutability: StateMutability::NonPayable,
+    }
 }
 
 pub(super) fn receive(function: &ItemFunction, _cx: &ExpCtxt<'_>) -> Receive {
     assert!(function.kind.is_receive());
-    Receive { state_mutability: StateMutability::Payable }
+    Receive {
+        state_mutability: StateMutability::Payable,
+    }
 }
 
 macro_rules! make_map {
@@ -187,7 +224,7 @@ macro_rules! make_map {
             let item = item.to_dyn_abi($cx);
             map.entry(item.name.clone()).or_default().push(item);
         }
-        crate::verbatim::verbatim(&map, &$cx.crates)
+        crate::expand::verbatim::verbatim(&map, &$cx.crates)
     }};
 }
 

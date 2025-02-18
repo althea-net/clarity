@@ -1,13 +1,13 @@
 //! [`ItemContract`] expansion.
 
 use super::{anon_name, ExpCtxt};
-use crate::utils::ExprArray;
-use alloy_sol_macro_input::{docs_str, mk_doc, ContainsSolAttrs};
-use ast::{Item, ItemContract, ItemError, ItemEvent, ItemFunction, SolIdent, Spanned};
+use crate::expand::utils::ExprArray;
+use crate::input::{docs_str, mk_doc, ContainsSolAttrs};
 use heck::ToSnakeCase;
 use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, quote};
 use syn::{parse_quote, Attribute, Result};
+use syn_solidity::{Item, ItemContract, ItemError, ItemEvent, ItemFunction, SolIdent, Spanned};
 
 /// Expands an [`ItemContract`]:
 ///
@@ -33,7 +33,10 @@ pub(super) fn expand(cx: &mut ExpCtxt<'_>, contract: &ItemContract) -> Result<To
 
     let (sol_attrs, attrs) = contract.split_attrs()?;
 
-    let extra_methods = sol_attrs.extra_methods.or(cx.attrs.extra_methods).unwrap_or(false);
+    let extra_methods = sol_attrs
+        .extra_methods
+        .or(cx.attrs.extra_methods)
+        .unwrap_or(false);
     let rpc = sol_attrs.rpc.or(cx.attrs.rpc).unwrap_or(false);
     let abi = sol_attrs.abi.or(cx.attrs.abi).unwrap_or(false);
     let docs = sol_attrs.docs.or(cx.attrs.docs).unwrap_or(true);
@@ -80,20 +83,26 @@ pub(super) fn expand(cx: &mut ExpCtxt<'_>, contract: &ItemContract) -> Result<To
     let mut errors = Vec::with_capacity(contract.body.len());
     let mut events = Vec::with_capacity(contract.body.len());
 
-    let (mut mod_attrs, item_attrs) =
-        attrs.into_iter().partition::<Vec<_>, _>(|a| a.path().is_ident("doc"));
-    mod_attrs.extend(item_attrs.iter().filter(|a| !a.path().is_ident("derive")).cloned());
+    let (mut mod_attrs, item_attrs) = attrs
+        .into_iter()
+        .partition::<Vec<_>, _>(|a| a.path().is_ident("doc"));
+    mod_attrs.extend(
+        item_attrs
+            .iter()
+            .filter(|a| !a.path().is_ident("derive"))
+            .cloned(),
+    );
 
     let mut item_tokens = TokenStream::new();
     for item in body {
         match item {
             Item::Function(function) => match function.kind {
-                ast::FunctionKind::Function(_) if function.name.is_some() => {
+                syn_solidity::FunctionKind::Function(_) if function.name.is_some() => {
                     functions.push(function.clone());
                 }
-                ast::FunctionKind::Function(_) => {}
-                ast::FunctionKind::Modifier(_) => {}
-                ast::FunctionKind::Constructor(_) => {
+                syn_solidity::FunctionKind::Function(_) => {}
+                syn_solidity::FunctionKind::Modifier(_) => {}
+                syn_solidity::FunctionKind::Constructor(_) => {
                     if constructor.is_none() {
                         constructor = Some(function);
                     } else {
@@ -101,7 +110,7 @@ pub(super) fn expand(cx: &mut ExpCtxt<'_>, contract: &ItemContract) -> Result<To
                         return Err(syn::Error::new(function.span(), msg));
                     }
                 }
-                ast::FunctionKind::Fallback(_) => {
+                syn_solidity::FunctionKind::Fallback(_) => {
                     if fallback.is_none() {
                         fallback = Some(function);
                     } else {
@@ -109,7 +118,7 @@ pub(super) fn expand(cx: &mut ExpCtxt<'_>, contract: &ItemContract) -> Result<To
                         return Err(syn::Error::new(function.span(), msg));
                     }
                 }
-                ast::FunctionKind::Receive(_) => {
+                syn_solidity::FunctionKind::Receive(_) => {
                     if receive.is_none() {
                         receive = Some(function);
                     } else {
@@ -134,12 +143,18 @@ pub(super) fn expand(cx: &mut ExpCtxt<'_>, contract: &ItemContract) -> Result<To
         } else {
             // prepend `item_attrs` to `item.attrs`
             let mut item = item.clone();
-            item.attrs_mut().expect("is_none checked above").splice(0..0, item_attrs.clone());
+            item.attrs_mut()
+                .expect("is_none checked above")
+                .splice(0..0, item_attrs.clone());
             item_tokens.extend(cx.expand_item(&item)?);
         }
     }
 
-    let enum_expander = CallLikeExpander { cx, contract_name: name.clone(), extra_methods };
+    let enum_expander = CallLikeExpander {
+        cx,
+        contract_name: name.clone(),
+        extra_methods,
+    };
     // Remove any `Default` derives.
     let mut enum_attrs = item_attrs;
     for attr in &mut enum_attrs {
@@ -147,7 +162,7 @@ pub(super) fn expand(cx: &mut ExpCtxt<'_>, contract: &ItemContract) -> Result<To
             continue;
         }
 
-        let derives = alloy_sol_macro_input::parse_derives(attr);
+        let derives = crate::input::parse_derives(attr);
         let mut derives = derives.into_iter().collect::<Vec<_>>();
         if derives.is_empty() {
             continue;
@@ -190,7 +205,7 @@ pub(super) fn expand(cx: &mut ExpCtxt<'_>, contract: &ItemContract) -> Result<To
 
     let abi = abi.then(|| {
         if_json! {
-            use crate::verbatim::verbatim;
+            use crate::expand::verbatim::verbatim;
             use super::to_abi;
 
             let crates = &cx.crates;
@@ -581,8 +596,9 @@ impl ExpandData {
 
         let old_variants = self.variants.clone();
         let old_types = self.types.clone();
-        let new_idxs =
-            prev.iter().map(|selector| self.selectors.iter().position(|s| s == selector).unwrap());
+        let new_idxs = prev
+            .iter()
+            .map(|selector| self.selectors.iter().position(|s| s == selector).unwrap());
         for (old, new) in new_idxs.enumerate() {
             if old == new {
                 continue;
@@ -604,11 +620,17 @@ enum ToExpand<'a> {
 
 impl ToExpand<'_> {
     fn to_data(&self, expander: &CallLikeExpander<'_>) -> ExpandData {
-        let &CallLikeExpander { cx, ref contract_name, .. } = expander;
+        let &CallLikeExpander {
+            cx,
+            ref contract_name,
+            ..
+        } = expander;
         match self {
             Self::Functions(functions) => {
-                let variants: Vec<_> =
-                    functions.iter().map(|f| cx.overloaded_name(f.into()).0).collect();
+                let variants: Vec<_> = functions
+                    .iter()
+                    .map(|f| cx.overloaded_name(f.into()).0)
+                    .collect();
 
                 let types: Vec<_> = variants.iter().map(|name| cx.raw_call_name(name)).collect();
 
@@ -640,8 +662,10 @@ impl ToExpand<'_> {
             },
 
             Self::Events(events) => {
-                let variants: Vec<_> =
-                    events.iter().map(|&event| cx.overloaded_name(event.into()).0).collect();
+                let variants: Vec<_> = events
+                    .iter()
+                    .map(|&event| cx.overloaded_name(event.into()).0)
+                    .collect();
 
                 ExpandData {
                     name: format_ident!("{contract_name}Events"),
@@ -680,7 +704,13 @@ impl CallLikeExpander<'_> {
         }
 
         let def = self.generate_enum(data, &sorted_data, attrs);
-        let ExpandData { name, variants, min_data_len, trait_, .. } = data;
+        let ExpandData {
+            name,
+            variants,
+            min_data_len,
+            trait_,
+            ..
+        } = data;
         let types = data.types();
         let name_s = name.to_string();
         let count = data.variants.len();
@@ -869,7 +899,11 @@ impl CallLikeExpander<'_> {
         assert!(selectors.iter().all(|s| s.array.len() == selector_len));
         let selector_type = quote!([u8; #selector_len]);
 
-        self.cx.type_derives(&mut attrs, types.iter().cloned().map(ast::Type::custom), false);
+        self.cx.type_derives(
+            &mut attrs,
+            types.iter().cloned().map(syn_solidity::Type::custom),
+            false,
+        );
 
         let mut tokens = quote! {
             #(#attrs)*
@@ -894,8 +928,10 @@ impl CallLikeExpander<'_> {
         };
 
         if self.extra_methods {
-            let conversions =
-                variants.iter().zip(types).map(|(v, t)| generate_variant_conversions(name, v, t));
+            let conversions = variants
+                .iter()
+                .zip(types)
+                .map(|(v, t)| generate_variant_conversions(name, v, t));
             let methods = variants.iter().zip(types).map(generate_variant_methods);
             tokens.extend(conversions);
             tokens.extend(quote! {

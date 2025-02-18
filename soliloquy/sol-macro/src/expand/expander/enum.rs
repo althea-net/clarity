@@ -1,11 +1,11 @@
 //! [`ItemEnum`] expansion.
 
 use super::ExpCtxt;
-use alloy_sol_macro_input::{derives_mapped, mk_doc, ContainsSolAttrs};
-use ast::{ItemEnum, Spanned};
+use crate::input::{derives_mapped, mk_doc, ContainsSolAttrs};
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::Result;
+use syn_solidity::{ItemEnum, Spanned};
 
 /// Expands an [`ItemEnum`]:
 ///

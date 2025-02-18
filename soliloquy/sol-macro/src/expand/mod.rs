@@ -5,5 +5,3 @@
 pub mod expander;
 mod utils;
 mod verbatim;
-
-extern crate syn_solidity as ast;

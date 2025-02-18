@@ -1,11 +1,11 @@
 //! [`ItemError`] expansion.
 
 use super::{expand_fields, expand_from_into_tuples, expand_tokenize, ExpCtxt};
-use alloy_sol_macro_input::{mk_doc, ContainsSolAttrs};
-use ast::ItemError;
+use crate::input::{mk_doc, ContainsSolAttrs};
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::Result;
+use syn_solidity::ItemError;
 
 /// Expands an [`ItemError`]:
 ///
@@ -19,7 +19,9 @@ use syn::Result;
 /// }
 /// ```
 pub(super) fn expand(cx: &ExpCtxt<'_>, error: &ItemError) -> Result<TokenStream> {
-    let ItemError { parameters: params, .. } = error;
+    let ItemError {
+        parameters: params, ..
+    } = error;
     cx.assert_resolved(params)?;
 
     let (sol_attrs, mut attrs) = error.split_attrs()?;
@@ -31,7 +33,7 @@ pub(super) fn expand(cx: &ExpCtxt<'_>, error: &ItemError) -> Result<TokenStream>
 
     let name = cx.overloaded_name(error.into());
     let signature = cx.error_signature(error);
-    let selector = crate::utils::selector(&signature);
+    let selector = crate::expand::utils::selector(&signature);
 
     let alloy_sol_types = &cx.crates.sol_types;
 

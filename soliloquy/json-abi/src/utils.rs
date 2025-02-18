@@ -1,8 +1,8 @@
 use crate::{EventParam, Param, StateMutability};
 use alloc::string::String;
-use alloy_primitives::Selector;
 use core::{fmt::Write, num::NonZeroUsize};
 use parser::{utils::ParsedSignature, ParameterSpecifier, TypeSpecifier, TypeStem};
+use sha3::{Digest, Keccak256};
 
 /// Capacity to allocate per [Param].
 const PARAM_CAP: usize = 32;
@@ -118,8 +118,10 @@ pub(crate) fn event_full_signature(name: &str, inputs: &[EventParam]) -> String 
 }
 
 /// `keccak256(preimage)[..4]`
-pub(crate) fn selector(preimage: &str) -> Selector {
-    alloy_primitives::keccak256(preimage.as_bytes())[..4].try_into().unwrap()
+pub(crate) fn selector(preimage: &str) -> [u8; 4] {
+    Keccak256::digest(preimage.as_bytes())[..4]
+        .try_into()
+        .unwrap()
 }
 
 /// Strips `prefix` from `s` before parsing with `parser`. `prefix` must be followed by whitespace.
@@ -150,9 +152,12 @@ pub(crate) fn mk_param(name: Option<&str>, ty: TypeSpecifier<'_>) -> Param {
     let name = name.unwrap_or_default().into();
     let internal_type = None;
     match ty.stem {
-        TypeStem::Root(s) => {
-            Param { name, ty: ty_string(s.span(), &ty.sizes), components: vec![], internal_type }
-        }
+        TypeStem::Root(s) => Param {
+            name,
+            ty: ty_string(s.span(), &ty.sizes),
+            components: vec![],
+            internal_type,
+        },
         TypeStem::Tuple(t) => Param {
             name,
             ty: ty_string("tuple", &ty.sizes),
@@ -205,7 +210,12 @@ mod tests {
     }
 
     fn param2(kind: &str, name: &str) -> Param {
-        Param { ty: kind.into(), name: name.into(), internal_type: None, components: vec![] }
+        Param {
+            ty: kind.into(),
+            name: name.into(),
+            internal_type: None,
+            components: vec![],
+        }
     }
 
     fn eparam(kind: &str) -> EventParam {
@@ -228,7 +238,12 @@ mod tests {
 
     fn params(components: impl IntoIterator<Item = &'static str>) -> Param {
         let components = components.into_iter().map(param).collect();
-        crate::Param { name: "param".into(), ty: "tuple".into(), internal_type: None, components }
+        crate::Param {
+            name: "param".into(),
+            ty: "tuple".into(),
+            internal_type: None,
+            components,
+        }
     }
 
     fn full_signature_raw(
@@ -262,14 +277,25 @@ mod tests {
             "foo(bytes,bytes32)"
         );
         assert_eq!(
-            signature("foo", &[param("int"), params(["uint[]"]), param("string")], None),
+            signature(
+                "foo",
+                &[param("int"), params(["uint[]"]), param("string")],
+                None
+            ),
             "foo(int,(uint[]),string)"
         );
 
         assert_eq!(signature("foo", &[], Some(&[])), "foo()()");
-        assert_eq!(signature("foo", &[param("a")], Some(&[param("b")])), "foo(a)(b)");
         assert_eq!(
-            signature("foo", &[param("a"), param("c")], Some(&[param("b"), param("d")])),
+            signature("foo", &[param("a")], Some(&[param("b")])),
+            "foo(a)(b)"
+        );
+        assert_eq!(
+            signature(
+                "foo",
+                &[param("a"), param("c")],
+                Some(&[param("b"), param("d")])
+            ),
             "foo(a,c)(b,d)"
         );
     }
@@ -278,7 +304,10 @@ mod tests {
     fn test_full_signature() {
         assert_eq!(full_signature_np("foo", &[], None), "function foo()");
         assert_eq!(full_signature_np("foo", &[], Some(&[])), "function foo()");
-        assert_eq!(full_signature_np("bar", &[param2("bool", "")], None), "function bar(bool)");
+        assert_eq!(
+            full_signature_np("bar", &[param2("bool", "")], None),
+            "function bar(bool)"
+        );
         assert_eq!(
             full_signature_np("bar", &[param2("bool", "")], Some(&[param2("bool", "")])),
             "function bar(bool) returns (bool)"
@@ -306,8 +335,12 @@ mod tests {
             param2("uint256", "tokenOutParam"),
             param2("uint256", "maxPrice"),
         ];
-        let swaps =
-            Param { name: "swaps".into(), ty: "tuple[]".into(), internal_type: None, components };
+        let swaps = Param {
+            name: "swaps".into(),
+            ty: "tuple[]".into(),
+            internal_type: None,
+            components,
+        };
 
         assert_eq!(
             full_signature_with_sm(
@@ -350,7 +383,10 @@ mod tests {
     fn test_event_signature() {
         assert_eq!(event_signature("foo", &[]), "foo()");
         assert_eq!(event_signature("foo", &[eparam("bool")]), "foo(bool)");
-        assert_eq!(event_signature("foo", &[eparam("bool"), eparam("string")]), "foo(bool,string)");
+        assert_eq!(
+            event_signature("foo", &[eparam("bool"), eparam("string")]),
+            "foo(bool,string)"
+        );
     }
 
     #[test]
@@ -363,7 +399,10 @@ mod tests {
         assert_eq!(
             event_full_signature(
                 "foo",
-                &[eparam2("bool", "confirmed", true), eparam2("string", "message", false)]
+                &[
+                    eparam2("bool", "confirmed", true),
+                    eparam2("string", "message", false)
+                ]
             ),
             "event foo(bool indexed confirmed, string message)"
         );
@@ -411,8 +450,14 @@ mod tests {
 
         assert_eq!(parse_sig::<true>("foo()"), Ok(empty_sig("foo", false)));
         assert_eq!(parse_sig::<true>("foo()()"), Ok(empty_sig("foo", false)));
-        assert_eq!(parse_sig::<true>("foo()external()"), Ok(empty_sig("foo", false)));
-        assert_eq!(parse_sig::<true>("foo() \t ()"), Ok(empty_sig("foo", false)));
+        assert_eq!(
+            parse_sig::<true>("foo()external()"),
+            Ok(empty_sig("foo", false))
+        );
+        assert_eq!(
+            parse_sig::<true>("foo() \t ()"),
+            Ok(empty_sig("foo", false))
+        );
         assert_eq!(parse_sig::<true>("foo()  ()"), Ok(empty_sig("foo", false)));
 
         assert_eq!(parse_sig::<false>("foo()"), Ok(empty_sig("foo", false)));
@@ -421,15 +466,36 @@ mod tests {
         parse_sig::<false>("foo(,)()").unwrap_err();
         parse_sig::<false>("foo(,)(,)").unwrap_err();
 
-        assert_eq!(parse_sig::<false>("foo()anonymous"), Ok(empty_sig("foo", true)));
-        assert_eq!(parse_sig::<false>("foo()\t anonymous"), Ok(empty_sig("foo", true)));
+        assert_eq!(
+            parse_sig::<false>("foo()anonymous"),
+            Ok(empty_sig("foo", true))
+        );
+        assert_eq!(
+            parse_sig::<false>("foo()\t anonymous"),
+            Ok(empty_sig("foo", true))
+        );
 
-        assert_eq!(parse_sig::<true>("foo()anonymous"), Ok(empty_sig("foo", true)));
-        assert_eq!(parse_sig::<true>("foo()\t anonymous"), Ok(empty_sig("foo", true)));
+        assert_eq!(
+            parse_sig::<true>("foo()anonymous"),
+            Ok(empty_sig("foo", true))
+        );
+        assert_eq!(
+            parse_sig::<true>("foo()\t anonymous"),
+            Ok(empty_sig("foo", true))
+        );
 
-        assert_eq!(parse_sig::<true>("foo() \t ()anonymous"), Ok(empty_sig("foo", true)));
-        assert_eq!(parse_sig::<true>("foo()()anonymous"), Ok(empty_sig("foo", true)));
-        assert_eq!(parse_sig::<true>("foo()()\t anonymous"), Ok(empty_sig("foo", true)));
+        assert_eq!(
+            parse_sig::<true>("foo() \t ()anonymous"),
+            Ok(empty_sig("foo", true))
+        );
+        assert_eq!(
+            parse_sig::<true>("foo()()anonymous"),
+            Ok(empty_sig("foo", true))
+        );
+        assert_eq!(
+            parse_sig::<true>("foo()()\t anonymous"),
+            Ok(empty_sig("foo", true))
+        );
 
         assert_eq!(
             parse_sig::<false>("foo(uint256 param)"),
@@ -451,7 +517,11 @@ mod tests {
 
         assert_eq!(
             parse_sig::<true>("toString(uint number)(string s)"),
-            Ok(sig("toString", vec![param2("uint256", "number")], vec![param2("string", "s")]))
+            Ok(sig(
+                "toString",
+                vec![param2("uint256", "number")],
+                vec![param2("string", "s")]
+            ))
         );
 
         let mut sig_full = sig("toString", vec![param("uint256")], vec![param("string")]);

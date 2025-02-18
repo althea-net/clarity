@@ -1,4 +1,5 @@
 use alloy_json_abi::{Error, JsonAbi, Param};
+use sha3::{Digest, Keccak256};
 use std::{fs::File, io::BufReader};
 
 #[test]
@@ -38,8 +39,7 @@ fn big_function() {
     let expected = "fulfillAvailableAdvancedOrders(((address,address,(uint8,address,uint256,uint256,uint256)[],(uint8,address,uint256,uint256,uint256,address)[],uint8,uint256,uint256,bytes32,uint256,bytes32,uint256),uint120,uint120,bytes,bytes)[],(uint256,uint8,uint256,uint256,bytes32[])[],(uint256,uint256)[][],(uint256,uint256)[][],bytes32,address,uint256)";
     let f = serde_json::from_str::<alloy_json_abi::Function>(s).unwrap();
     assert_eq!(f.signature(), expected);
-    assert_eq!(f.selector(), alloy_primitives::keccak256(expected)[..4]);
-    assert_eq!(f.selector(), alloy_primitives::hex!("87201b41"));
+    assert_eq!(f.selector(), Keccak256::digest(expected)[..4]);
 
     let ethabi = serde_json::from_str::<ethabi::Function>(s).unwrap();
     assert_eq!(f.selector(), ethabi.short_signature());

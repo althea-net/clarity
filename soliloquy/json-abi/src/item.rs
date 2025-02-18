@@ -1,9 +1,9 @@
 use crate::{param::Param, serde_state_mutability_compat, utils::*, EventParam, StateMutability};
 use alloc::{borrow::Cow, string::String, vec::Vec};
-use alloy_primitives::{keccak256, Selector, B256};
 use core::str::FromStr;
 use parser::utils::ParsedSignature;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use sha3::{Digest, Keccak256};
 
 /// Declares all JSON ABI items.
 macro_rules! abi_items {
@@ -373,9 +373,17 @@ impl Constructor {
     }
 
     fn parsed(sig: ParsedSignature<Param>) -> parser::Result<Self> {
-        let ParsedSignature { name, inputs, outputs, anonymous, state_mutability } = sig;
+        let ParsedSignature {
+            name,
+            inputs,
+            outputs,
+            anonymous,
+            state_mutability,
+        } = sig;
         if name != "constructor" {
-            return Err(parser::Error::new("constructors' name must be exactly \"constructor\""));
+            return Err(parser::Error::new(
+                "constructors' name must be exactly \"constructor\"",
+            ));
         }
         if !outputs.is_empty() {
             return Err(parser::Error::new("constructors cannot have outputs"));
@@ -383,7 +391,10 @@ impl Constructor {
         if anonymous {
             return Err(parser::Error::new("constructors cannot be anonymous"));
         }
-        Ok(Self { inputs, state_mutability: state_mutability.unwrap_or_default() })
+        Ok(Self {
+            inputs,
+            state_mutability: state_mutability.unwrap_or_default(),
+        })
     }
 }
 
@@ -420,7 +431,13 @@ impl Error {
     }
 
     fn parsed(sig: ParsedSignature<Param>) -> parser::Result<Self> {
-        let ParsedSignature { name, inputs, outputs, anonymous, state_mutability } = sig;
+        let ParsedSignature {
+            name,
+            inputs,
+            outputs,
+            anonymous,
+            state_mutability,
+        } = sig;
         if !outputs.is_empty() {
             return Err(parser::Error::new("errors cannot have outputs"));
         }
@@ -443,7 +460,7 @@ impl Error {
 
     /// Computes this error's selector: `keccak256(self.signature())[..4]`
     #[inline]
-    pub fn selector(&self) -> Selector {
+    pub fn selector(&self) -> [u8; 4] {
         selector(&self.signature())
     }
 }
@@ -505,11 +522,22 @@ impl Function {
     }
 
     fn parsed(sig: ParsedSignature<Param>) -> parser::Result<Self> {
-        let ParsedSignature { name, inputs, outputs, anonymous, state_mutability } = sig;
+        let ParsedSignature {
+            name,
+            inputs,
+            outputs,
+            anonymous,
+            state_mutability,
+        } = sig;
         if anonymous {
             return Err(parser::Error::new("functions cannot be anonymous"));
         }
-        Ok(Self { name, inputs, outputs, state_mutability: state_mutability.unwrap_or_default() })
+        Ok(Self {
+            name,
+            inputs,
+            outputs,
+            state_mutability: state_mutability.unwrap_or_default(),
+        })
     }
 
     /// Returns this function's signature: `$name($($inputs),*)`.
@@ -538,12 +566,17 @@ impl Function {
     /// storing a string which can still fully reconstruct the original Fragment
     #[inline]
     pub fn full_signature(&self) -> String {
-        full_signature(&self.name, &self.inputs, Some(&self.outputs), self.state_mutability)
+        full_signature(
+            &self.name,
+            &self.inputs,
+            Some(&self.outputs),
+            self.state_mutability,
+        )
     }
 
     /// Computes this error's selector: `keccak256(self.signature())[..4]`
     #[inline]
-    pub fn selector(&self) -> Selector {
+    pub fn selector(&self) -> [u8; 4] {
         selector(&self.signature())
     }
 }
@@ -586,14 +619,24 @@ impl Event {
     }
 
     fn parsed(sig: ParsedSignature<EventParam>) -> parser::Result<Self> {
-        let ParsedSignature { name, inputs, outputs, anonymous, state_mutability } = sig;
+        let ParsedSignature {
+            name,
+            inputs,
+            outputs,
+            anonymous,
+            state_mutability,
+        } = sig;
         if !outputs.is_empty() {
             return Err(parser::Error::new("events cannot have outputs"));
         }
         if state_mutability.is_some() {
             return Err(parser::Error::new("events cannot have state mutability"));
         }
-        Ok(Self { name, inputs, anonymous })
+        Ok(Self {
+            name,
+            inputs,
+            anonymous,
+        })
     }
 
     /// Returns this event's signature: `$name($($inputs),*)`.
@@ -617,8 +660,10 @@ impl Event {
 
     /// Computes this event's selector: `keccak256(self.signature())`
     #[inline]
-    pub fn selector(&self) -> B256 {
-        keccak256(self.signature().as_bytes())
+    pub fn selector(&self) -> [u8; 32] {
+        Keccak256::digest(self.signature().as_bytes())[0..32]
+            .try_into()
+            .unwrap()
     }
 
     /// Computes the number of this event's indexed topics.
@@ -637,7 +682,12 @@ mod tests {
     // }
 
     fn param2(kind: &str, name: &str) -> Param {
-        Param { ty: kind.into(), name: name.into(), internal_type: None, components: vec![] }
+        Param {
+            ty: kind.into(),
+            name: name.into(),
+            internal_type: None,
+            components: vec![],
+        }
     }
 
     #[test]
@@ -646,7 +696,13 @@ mod tests {
             let name = "foo";
             let name1 = format!("{prefix} {name}");
             let name2 = format!("{prefix}{name}");
-            assert_eq!(AbiItem::parse(&format!("{name1}()")).unwrap().name().unwrap(), name);
+            assert_eq!(
+                AbiItem::parse(&format!("{name1}()"))
+                    .unwrap()
+                    .name()
+                    .unwrap(),
+                name
+            );
             assert!(AbiItem::parse(&format!("{name2}()")).is_err());
         }
     }
@@ -662,12 +718,19 @@ mod tests {
         assert_eq!(Function::parse("foo()"), Ok(new("foo")));
         assert_eq!(Function::parse("function foo()"), Ok(new("foo")));
         assert_eq!(Function::parse("functionfoo()"), Ok(new("functionfoo")));
-        assert_eq!(Function::parse("function functionfoo()"), Ok(new("functionfoo")));
+        assert_eq!(
+            Function::parse("function functionfoo()"),
+            Ok(new("functionfoo"))
+        );
     }
 
     #[test]
     fn parse_event_prefix() {
-        let new = |name: &str| Event { name: name.into(), inputs: vec![], anonymous: false };
+        let new = |name: &str| Event {
+            name: name.into(),
+            inputs: vec![],
+            anonymous: false,
+        };
         assert_eq!(Event::parse("foo()"), Ok(new("foo")));
         assert_eq!(Event::parse("event foo()"), Ok(new("foo")));
         assert_eq!(Event::parse("eventfoo()"), Ok(new("eventfoo")));
@@ -676,7 +739,10 @@ mod tests {
 
     #[test]
     fn parse_error_prefix() {
-        let new = |name: &str| Error { name: name.into(), inputs: vec![] };
+        let new = |name: &str| Error {
+            name: name.into(),
+            inputs: vec![],
+        };
         assert_eq!(Error::parse("foo()"), Ok(new("foo")));
         assert_eq!(Error::parse("error foo()"), Ok(new("foo")));
         assert_eq!(Error::parse("errorfoo()"), Ok(new("errorfoo")));

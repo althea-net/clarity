@@ -3,7 +3,6 @@ use crate::{
     AbiItem, Constructor, Error, Event, Fallback, Function, Receive,
 };
 use alloc::{collections::btree_map, string::String, vec::Vec};
-use alloy_primitives::Bytes;
 use btree_map::BTreeMap;
 use core::{fmt, iter, iter::Flatten};
 use serde::{
@@ -25,7 +24,9 @@ macro_rules! set_if_none {
 
 macro_rules! entry_and_push {
     ($map:expr, $v:expr) => {
-        $map.entry($v.name.clone()).or_default().push($v.into_owned())
+        $map.entry($v.name.clone())
+            .or_default()
+            .push($v.into_owned())
     };
 }
 
@@ -121,7 +122,9 @@ impl JsonAbi {
         // serde_json docs recommend buffering the whole reader to a string
         // This also prevents a borrowing issue when deserializing from a reader
         let mut json = String::with_capacity(1024);
-        reader.read_to_string(&mut json).map_err(serde_json::Error::io)?;
+        reader
+            .read_to_string(&mut json)
+            .map_err(serde_json::Error::io)?;
 
         Self::from_json_str(&json)
     }
@@ -477,7 +480,8 @@ impl<'de> Visitor<'de> for JsonAbiVisitor {
     fn visit_seq<A: SeqAccess<'de>>(self, mut seq: A) -> Result<Self::Value, A::Error> {
         let mut abi = JsonAbi::new();
         while let Some(item) = seq.next_element()? {
-            abi.insert_item(item).map_err(serde::de::Error::duplicate_field)?;
+            abi.insert_item(item)
+                .map_err(serde::de::Error::duplicate_field)?;
         }
         Ok(abi)
     }
@@ -495,10 +499,10 @@ pub struct ContractObject {
     pub abi: Option<JsonAbi>,
     /// The contract bytecode.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub bytecode: Option<Bytes>,
+    pub bytecode: Option<Vec<u8>>,
     /// The contract deployed bytecode.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub deployed_bytecode: Option<Bytes>,
+    pub deployed_bytecode: Option<Vec<u8>>,
 }
 
 impl<'de> Deserialize<'de> for ContractObject {
@@ -533,14 +537,14 @@ impl<'de> Visitor<'de> for ContractObjectVisitor {
         #[derive(Deserialize)]
         #[serde(untagged)]
         enum Bytecode {
-            Bytes(Bytes),
-            Object { object: Bytes },
+            Bytes(Vec<u8>),
+            Object { object: Vec<u8> },
             Unlinked(String),
             UnlinkedObject { object: String },
         }
 
         impl Bytecode {
-            fn ensure_bytes<E: serde::de::Error>(self) -> Result<Bytes, E> {
+            fn ensure_bytes<E: serde::de::Error>(self) -> Result<Vec<u8>, E> {
                 match self {
                     Bytecode::Bytes(bytes) | Bytecode::Object { object: bytes } => Ok(bytes),
                     Bytecode::Unlinked(unlinked)
@@ -593,6 +597,10 @@ impl<'de> Visitor<'de> for ContractObjectVisitor {
             }
         }
 
-        Ok(ContractObject { abi, bytecode, deployed_bytecode })
+        Ok(ContractObject {
+            abi,
+            bytecode,
+            deployed_bytecode,
+        })
     }
 }

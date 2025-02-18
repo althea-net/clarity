@@ -1,9 +1,11 @@
 //! State variable ([`VariableDefinition`]) expansion.
 
 use super::ExpCtxt;
-use ast::{ItemFunction, ParameterList, Spanned, Type, VariableDeclaration, VariableDefinition};
 use proc_macro2::TokenStream;
 use syn::{Error, Result};
+use syn_solidity::{
+    ItemFunction, ParameterList, Spanned, Type, VariableDeclaration, VariableDefinition,
+};
 
 /// Expands a [`VariableDefinition`].
 ///
@@ -20,7 +22,11 @@ pub(super) fn var_as_function(
     var_def: &VariableDefinition,
 ) -> Result<Option<ItemFunction>> {
     // Only expand public or external state variables.
-    if !var_def.attributes.visibility().is_some_and(|v| v.is_public() || v.is_external()) {
+    if !var_def
+        .attributes
+        .visibility()
+        .is_some_and(|v| v.is_public() || v.is_external())
+    {
         return Ok(None);
     }
 
@@ -31,7 +37,10 @@ pub(super) fn var_as_function(
 
 /// Expands return-position custom types.
 fn expand_returns(cx: &ExpCtxt<'_>, f: &mut ItemFunction) -> Result<()> {
-    let returns = f.returns.as_mut().expect("generated getter function with no returns");
+    let returns = f
+        .returns
+        .as_mut()
+        .expect("generated getter function with no returns");
     let ret = returns.returns.first_mut().unwrap();
     if !ret.ty.has_custom_simple() {
         return Ok(());

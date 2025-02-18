@@ -1,20 +1,19 @@
-use ast::Spanned;
 use std::path::PathBuf;
 use syn::{
     parse::{discouraged::Speculative, Parse, ParseStream},
     Attribute, Error, Ident, LitStr, Result, Token,
 };
+use syn_solidity::Spanned;
 
 /// Parsed input for `sol!`-like macro expanders. This enum represents a `Sol` file, a JSON ABI, or
 /// a Solidity type.
 #[derive(Clone, Debug)]
 pub enum SolInputKind {
     /// Solidity type.
-    Type(ast::Type),
+    Type(syn_solidity::Type),
     /// Solidity file or snippet.
-    Sol(ast::File),
+    Sol(syn_solidity::File),
     /// JSON ABI file
-    #[cfg(feature = "json")]
     Json(Ident, alloy_json_abi::ContractObject),
 }
 
@@ -27,9 +26,9 @@ impl Parse for SolInputKind {
                 Ok(Self::Sol(file))
             }
             Err(e) => match input.parse() {
-                Ok(ast::Type::Custom(_)) | Err(_) => Err(e),
+                Ok(syn_solidity::Type::Custom(_)) | Err(_) => Err(e),
 
-                Ok(ast::Type::Mapping(m)) => {
+                Ok(syn_solidity::Type::Mapping(m)) => {
                     Err(Error::new(m.span(), "mapping types are not yet supported"))
                 }
 
@@ -63,7 +62,11 @@ impl Parse for SolInput {
         if fork.peek(LitStr) || (fork.peek(Ident) && fork.peek2(Token![,]) && fork.peek3(LitStr)) {
             Self::parse_abigen(attrs, input)
         } else {
-            input.parse().map(|kind| Self { attrs, path: None, kind })
+            input.parse().map(|kind| Self {
+                attrs,
+                path: None,
+                kind,
+            })
         }
     }
 }
@@ -112,22 +115,24 @@ impl SolInput {
 
         let s = value.trim();
         if s.is_empty() {
-            let msg = if is_path { "file path is empty" } else { "empty input is not allowed" };
+            let msg = if is_path {
+                "file path is empty"
+            } else {
+                "empty input is not allowed"
+            };
             Err(Error::new(span, msg))
         } else if (s.starts_with('{') && s.ends_with('}'))
             || (s.starts_with('[') && s.ends_with(']'))
         {
-            #[cfg(feature = "json")]
             {
                 let json = serde_json::from_str(s)
                     .map_err(|e| Error::new(span, format!("invalid JSON: {e}")))?;
                 let name = name.ok_or_else(|| Error::new(span, "need a name for JSON ABI"))?;
-                Ok(Self { attrs, path, kind: SolInputKind::Json(name, json) })
-            }
-            #[cfg(not(feature = "json"))]
-            {
-                let msg = "JSON support must be enabled with the \"json\" feature";
-                Err(Error::new(span, msg))
+                Ok(Self {
+                    attrs,
+                    path,
+                    kind: SolInputKind::Json(name, json),
+                })
             }
         } else {
             if let Some(name) = name {

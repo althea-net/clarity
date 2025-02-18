@@ -14,14 +14,14 @@
 #![cfg_attr(not(test), warn(unused_crate_dependencies))]
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 
-pub mod expand;
-pub mod input;
+mod expand;
+mod input;
 
 #[macro_use]
 extern crate proc_macro_error2;
 
-use alloy_sol_macro_expander::expand;
-use alloy_sol_macro_input::{SolAttrs, SolInput, SolInputExpander, SolInputKind};
+use expand::expander;
+use input::{SolAttrs, SolInput, SolInputExpander, SolInputKind};
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::parse_macro_input;
@@ -251,7 +251,7 @@ use syn::parse_macro_input;
 #[proc_macro]
 #[proc_macro_error]
 pub fn sol(input: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(input as alloy_sol_macro_input::SolInput);
+    let input = parse_macro_input!(input as input::SolInput);
 
     SolMacroExpander
         .expand(&input)
@@ -265,13 +265,10 @@ impl SolInputExpander for SolMacroExpander {
     fn expand(&mut self, input: &SolInput) -> syn::Result<proc_macro2::TokenStream> {
         let input = input.clone();
 
-        #[cfg(feature = "json")]
         let is_json = matches!(input.kind, SolInputKind::Json { .. });
-        #[cfg(not(feature = "json"))]
         let is_json = false;
 
         // Convert JSON input to Solidity input
-        #[cfg(feature = "json")]
         let input = input.normalize_json()?;
 
         let SolInput { attrs, path, kind } = input;
@@ -288,7 +285,7 @@ impl SolInputExpander for SolMacroExpander {
                     file.attrs.extend(attrs);
                 }
 
-                crate::expand::expand(file)
+                crate::expand::expander::expand(file)
             }
             SolInputKind::Type(ty) => {
                 let (sol_attrs, rest) = SolAttrs::parse(&attrs)?;
@@ -299,9 +296,9 @@ impl SolInputExpander for SolMacroExpander {
                     ));
                 }
 
-                let mut crates = crate::expand::ExternCrates::default();
+                let mut crates = crate::expand::expander::ExternCrates::default();
                 crates.fill(&sol_attrs);
-                Ok(crate::expand::expand_type(&ty, &crates))
+                Ok(crate::expand::expander::expand_type(&ty, &crates))
             }
             SolInputKind::Json(_, _) => unreachable!("input already normalized"),
         }?;

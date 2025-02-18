@@ -1,12 +1,12 @@
 //! [`ItemStruct`] expansion.
 
 use super::{expand_fields, expand_from_into_tuples, expand_tokenize, ExpCtxt};
-use alloy_sol_macro_input::{mk_doc, ContainsSolAttrs};
-use ast::{Item, ItemStruct, Spanned, Type};
+use crate::input::{mk_doc, ContainsSolAttrs};
 use proc_macro2::TokenStream;
 use quote::quote;
 use std::num::NonZeroU16;
 use syn::Result;
+use syn_solidity::{Item, ItemStruct, Spanned, Type};
 
 /// Expands an [`ItemStruct`]:
 ///
@@ -32,8 +32,10 @@ pub(super) fn expand(cx: &ExpCtxt<'_>, s: &ItemStruct) -> Result<TokenStream> {
     cx.derives(&mut attrs, fields, true);
     let docs = sol_attrs.docs.or(cx.attrs.docs).unwrap_or(true);
 
-    let (field_types, field_names): (Vec<_>, Vec<_>) =
-        fields.iter().map(|f| (cx.expand_type(&f.ty), f.name.as_ref().unwrap())).unzip();
+    let (field_types, field_names): (Vec<_>, Vec<_>) = fields
+        .iter()
+        .map(|f| (cx.expand_type(&f.ty), f.name.as_ref().unwrap()))
+        .unzip();
 
     let eip712_encode_type_fns = expand_encode_type_fns(cx, fields, name);
 
@@ -192,8 +194,8 @@ pub(super) fn expand(cx: &ExpCtxt<'_>, s: &ItemStruct) -> Result<TokenStream> {
 
 fn expand_encode_type_fns(
     cx: &ExpCtxt<'_>,
-    fields: &ast::Parameters<syn::token::Semi>,
-    name: &ast::SolIdent,
+    fields: &syn_solidity::Parameters<syn::token::Semi>,
+    name: &syn_solidity::SolIdent,
 ) -> TokenStream {
     // account for UDVTs and enums which do not implement SolStruct
     let mut fields = fields.clone();
