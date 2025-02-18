@@ -3,11 +3,36 @@ resolver = "2"
 
 members = [
     "clarity",
-    "web30"
+    "web30",
+    "soliloquy/contract",
+    "soliloquy/contract/contract-abigen",
+    "soliloquy/contract/contract-derive",
+    "soliloquy/core",
 ]
 
+[workspace.package]
+edition = "2021"
+
 [workspace.dependencies]
+contract-abigen = { path = "soliloquy/contract/contract-abigen", default-features = false }
+contract-derive = { path = "soliloquy/contract/contract-derive", default-features = false }
+soliloquy-core = { path = "soliloquy/core"}
+
 num256 = "0.6"
+serde = "1.0"
+serde_derive = "1.0"
+serde_json = "1.0"
+criterion = "0.5"
+hex = { package = "const-hex", version = "1.14", default-features = false, features = [
+    "alloc",
+    "core-error",
+] }
+tiny-keccak = { version = "2.0", features = ["keccak"] }
+proc-macro-error2 = ">=2.0.0, <=2.0.1"
+proc-macro2 = "1.0"
+quote = "1.0"
+syn = {version = "2.0", features=["extra-traits"]}
+sha3 = "0.10"
 
 # used to resolve the recursive dep created by importing web30 as
 # a dev dependency

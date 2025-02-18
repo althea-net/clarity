@@ -1,0 +1,59 @@
+[package]
+name = "soliloquy-core"
+authors = ["Georgios Konstantopoulos <me@gakonst.com>"]
+readme = "README.md"
+description = "Ethereum data types, cryptography and utilities"
+
+edition.workspace = true
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[package.metadata.playground]
+all-features = true
+
+[dependencies]
+# abi
+open-fastrlp = { version = "0.1.4", features = ["std", "derive", "ethereum-types"] }
+rlp = { version = "0.5", features = ["derive"] }
+ethabi = { version = "18.0.0", default-features = false, features = ["full-serde", "rlp"] }
+arrayvec = { version = "0.7", default-features = false }
+
+# crypto
+elliptic-curve = { version = "0.13.5", default-features = false } 
+generic-array = { version = "0.14.7", default-features = false }
+k256 = { version = "0.13.1", default-features = false, features = ["ecdsa", "std"] }
+tiny-keccak = { version = "2.0.2", default-features = false }
+rand = "0.8"
+
+# misc
+chrono = { version = "0.4", default-features = false }
+serde.workspace = true
+serde_json.workspace = true
+thiserror = "1.0"
+bytes = { version = "1.4", features = ["serde"] }
+hex = { package = "const-hex", version = "1.6", features = ["hex"] }
+once_cell = { version = "1.18" }
+unicode-xid = "0.2"
+strum = { version = "0.26.1", features = ["derive"] }
+num_enum = "0.7"
+cargo_metadata = { version = "0.18.0" }
+syn = { workspace = true }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+tempfile = "3.8"
+
+[dev-dependencies]
+bincode = { version = "1.3.3", default-features = false }
+once_cell = "1.18"
+hex-literal = "0.4"
+rand = "0.8"
+
+[features]
+celo = ["legacy"] # celo support extends the transaction format with extra fields
+legacy = []
+optimism = []
+
+# Deprecated
+eip712 = []

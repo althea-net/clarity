@@ -1,0 +1,32 @@
+[package]
+name = "contract"
+authors = ["Georgios Konstantopoulos <me@gakonst.com>"]
+readme = "README.md"
+description = "Type-safe abstractions for interacting with Ethereum smart contracts"
+
+edition.workspace = true
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[package.metadata.playground]
+all-features = true
+
+[dependencies]
+soliloquy-core.workspace = true
+
+serde.workspace = true
+serde_json.workspace = true
+futures-util = "0.3"
+pin-project = "1.1"
+thiserror = "1.0"
+once_cell = "1.18"
+hex = { package = "const-hex", version = "1.6", features = ["hex"] }
+
+# abigen
+contract-abigen = { workspace = true, optional = true }
+contract-derive = { workspace = true, optional = true }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+tokio = { version = "1.32", features = ["macros", "rt-multi-thread"] }

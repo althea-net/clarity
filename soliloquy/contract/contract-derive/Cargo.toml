@@ -1,0 +1,25 @@
+[package]
+name = "contract-derive"
+authors = [
+    "Nicholas Rodrigues Lordello <nlordell@gmail.com>",
+    "Georgios Konstantopoulos <me@gakonst.com>",
+]
+readme = "README.md"
+description = "Proc macros for type-safe bindings generation to Ethereum smart contracts"
+
+edition.workspace = true
+
+[lib]
+proc-macro = true
+
+[dependencies]
+soliloquy-core.workspace = true
+contract-abigen.workspace = true
+
+proc-macro2.workspace = true
+quote.workspace = true
+syn.workspace = true
+
+Inflector = "0.11"
+hex.workspace = true
+serde_json.workspace = true
