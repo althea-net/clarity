@@ -1,4 +1,4 @@
-use crate::SolInput;
+use crate::input::SolInput;
 use proc_macro2::TokenStream;
 
 /// Expands a `SolInput` into a `TokenStream`.

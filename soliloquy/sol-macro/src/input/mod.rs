@@ -9,8 +9,8 @@ pub use attr::{
     derives_mapped, docs_str, mk_doc, parse_derives, CasingStyle, ContainsSolAttrs, SolAttrs,
 };
 
-mod input;
-pub use input::{SolInput, SolInputKind};
+mod sol_input;
+pub use sol_input::{SolInput, SolInputKind};
 
 mod expander;
 pub use expander::SolInputExpander;
