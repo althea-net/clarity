@@ -16,12 +16,21 @@ use syn_solidity::{
 #[cfg_attr(miri, ignore = "no fs")]
 fn contracts() {
     static PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/contracts");
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap().parent().unwrap();
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap();
 
-    let mut entries: Vec<_> = fs::read_dir(PATH).unwrap().collect::<Result<_, _>>().unwrap();
+    let mut entries: Vec<_> = fs::read_dir(PATH)
+        .unwrap()
+        .collect::<Result<_, _>>()
+        .unwrap();
     entries.sort_by_key(std::fs::DirEntry::path);
     let mut patcher = GitPatcher::new(entries, root);
+    println!("Patching");
     patcher.patch();
+    println!("Patch done");
     for file in patcher.files() {
         let path = file.path();
         let file = match parse_file(&path) {
@@ -46,28 +55,40 @@ struct GitPatcher<'a> {
 
 impl<'a> GitPatcher<'a> {
     fn new(entries: Vec<DirEntry>, root: &'a Path) -> Self {
-        Self { entries, root, patched: false }
+        Self {
+            entries,
+            root,
+            patched: false,
+        }
     }
 
     fn patches(&self) -> impl Iterator<Item = &DirEntry> {
-        self.entries.iter().filter(|p| p.path().extension() == Some("patch".as_ref()))
+        self.entries
+            .iter()
+            .filter(|p| p.path().extension() == Some("patch".as_ref()))
     }
 
     fn files(&self) -> impl Iterator<Item = &DirEntry> {
-        self.entries.iter().filter(|p| p.path().extension() == Some("sol".as_ref()))
+        self.entries
+            .iter()
+            .filter(|p| p.path().extension() == Some("sol".as_ref()))
     }
 
     fn patch(&mut self) {
         self.patched = true;
         for patch in self.patches() {
             let path = patch.path();
-            let s = Command::new("git")
-                .current_dir(self.root)
-                .arg("apply")
-                .arg(&path)
-                .status()
-                .unwrap();
-            assert!(s.success(), "failed to apply patch at {}: {s}", path.display());
+            let mut s = Command::new("git");
+            let t = s.current_dir(self.root).arg("apply").arg(&path);
+            println!("command: {:?}", t);
+            let u = t.status().unwrap();
+            // .status()
+            // .unwrap();
+            assert!(
+                u.success(),
+                "failed to apply patch at {}: {u}",
+                path.display()
+            );
         }
     }
 

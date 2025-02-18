@@ -1,5 +1,5 @@
---- a/crates/syn-solidity/tests/contracts/UniswapV2Pair.sol
-+++ b/crates/syn-solidity/tests/contracts/UniswapV2Pair.sol
+--- a/soliloquy/syn-solidity/tests/contracts/UniswapV2Pair.sol
++++ b/soliloquy/syn-solidity/tests/contracts/UniswapV2Pair.sol
 @@ -77,23 +77,23 @@ interface IUniswapV2ERC20 {
  
  library SafeMath {

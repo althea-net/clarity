@@ -1,5 +1,5 @@
---- a/crates/syn-solidity/tests/contracts/PrbMath.sol
-+++ b/crates/syn-solidity/tests/contracts/PrbMath.sol
+--- a/soliloquy/syn-solidity/tests/contracts/PrbMath.sol
++++ b/soliloquy/syn-solidity/tests/contracts/PrbMath.sol
 @@ -5,7 +5,7 @@
  
  /*//////////////////////////////////////////////////////////////////////////
