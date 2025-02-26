@@ -14,6 +14,8 @@ rustdoc-args = ["--cfg", "docsrs"]
 all-features = true
 
 [dependencies]
+clarity = { path = "../../clarity" }
+web30 = { path = "../../web30" }
 # abi
 open-fastrlp = { version = "0.1.4", features = ["std", "derive", "ethereum-types"] }
 rlp = { version = "0.5", features = ["derive"] }

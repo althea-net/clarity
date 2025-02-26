@@ -2,11 +2,6 @@
 
 // TODO: Support `online` for WASM
 
-#[cfg(all(feature = "online", not(target_arch = "wasm32")))]
-mod online;
-#[cfg(all(feature = "online", not(target_arch = "wasm32")))]
-pub use online::Explorer;
-
 use crate::util;
 use eyre::{Error, Result};
 use std::{env, fs, path::PathBuf, str::FromStr};
@@ -21,19 +16,6 @@ pub enum Source {
 
     /// An ABI located on the local file system.
     Local(PathBuf),
-
-    /// An address of a smart contract address verified at a supported blockchain explorer.
-    #[cfg(all(feature = "online", not(target_arch = "wasm32")))]
-    Explorer(Explorer, ethers_core::types::Address),
-
-    /// The package identifier of an npm package with a path to a Truffle artifact or ABI to be
-    /// retrieved from `unpkg.io`.
-    #[cfg(all(feature = "online", not(target_arch = "wasm32")))]
-    Npm(String),
-
-    /// An ABI to be retrieved over HTTP(S).
-    #[cfg(all(feature = "online", not(target_arch = "wasm32")))]
-    Http(url::Url),
 }
 
 impl Default for Source {
@@ -83,13 +65,7 @@ impl Source {
         match source.chars().next() {
             Some('[' | '{') => Ok(Self::String(source.to_string())),
 
-            #[cfg(any(not(feature = "online"), target_arch = "wasm32"))]
             _ => Ok(Self::local(source)?),
-
-            #[cfg(all(feature = "online", not(target_arch = "wasm32")))]
-            Some('/') => Self::local(source),
-            #[cfg(all(feature = "online", not(target_arch = "wasm32")))]
-            _ => Self::parse_online(source),
         }
     }
 
@@ -119,7 +95,7 @@ impl Source {
             } else {
                 eyre::eyre!("File does not exist: {path}")
             };
-            return Err(err)
+            return Err(err);
         }
 
         Ok(Source::Local(resolved))
@@ -157,9 +133,6 @@ impl Source {
         match self {
             Self::Local(path) => Ok(fs::read_to_string(path)?),
             Self::String(abi) => Ok(abi.clone()),
-
-            #[cfg(all(feature = "online", not(target_arch = "wasm32")))]
-            _ => self.get_online(),
         }
     }
 }
@@ -172,7 +145,10 @@ mod tests {
     #[test]
     fn parse_source() {
         let rel = "../tests/solidity-contracts/console.json";
-        let abs = concat!(env!("CARGO_MANIFEST_DIR"), "/../tests/solidity-contracts/console.json");
+        let abs = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../tests/solidity-contracts/console.json"
+        );
         let abs_url = concat!(
             "file://",
             env!("CARGO_MANIFEST_DIR"),

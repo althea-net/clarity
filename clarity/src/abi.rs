@@ -45,9 +45,11 @@ pub enum AbiToken {
     Bytes(Vec<u8>),
     /// This is a dynamic array of bytes that reflects dynamic "bytes" type in Solidity
     UnboundedBytes(Vec<u8>),
+    /// Fixed size array with supported values of supported types already converted
+    FixedArray(Vec<AbiToken>, usize),
     /// Dynamic array with supported values of supported types already converted
-    Dynamic(Vec<AbiToken>),
-    /// A struct to be encoded as a contract call argument
+    DynamicArray(Vec<AbiToken>),
+    /// A struct to be encoded as a contract call argument (equivalent to tuple)
     Struct(Vec<AbiToken>),
 }
 
@@ -103,7 +105,14 @@ impl AbiToken {
                 res[31] = value as u8;
                 SerializedToken::Static(res)
             }
-            AbiToken::Dynamic(ref tokens) => {
+            AbiToken::FixedArray(ref tokens, len) => {
+                let mut wtr = vec![];
+                let prefix: AbiToken = (len as u64).into();
+                wtr.extend(prefix.serialize().as_static_ref().unwrap());
+                wtr.extend(encode_tokens(tokens));
+                SerializedToken::Dynamic(wtr)
+            }
+            AbiToken::DynamicArray(ref tokens) => {
                 let mut wtr = vec![];
                 let prefix: AbiToken = (tokens.len() as u64).into();
                 wtr.extend(prefix.serialize().as_static_ref().unwrap());
@@ -237,55 +246,55 @@ impl From<Vec<u8>> for AbiToken {
 
 impl From<Vec<u16>> for AbiToken {
     fn from(v: Vec<u16>) -> AbiToken {
-        AbiToken::Dynamic(v.into_iter().map(Into::into).collect())
+        AbiToken::DynamicArray(v.into_iter().map(Into::into).collect())
     }
 }
 
 impl From<Vec<u32>> for AbiToken {
     fn from(v: Vec<u32>) -> AbiToken {
-        AbiToken::Dynamic(v.into_iter().map(Into::into).collect())
+        AbiToken::DynamicArray(v.into_iter().map(Into::into).collect())
     }
 }
 
 impl From<Vec<u64>> for AbiToken {
     fn from(v: Vec<u64>) -> AbiToken {
-        AbiToken::Dynamic(v.into_iter().map(Into::into).collect())
+        AbiToken::DynamicArray(v.into_iter().map(Into::into).collect())
     }
 }
 
 impl From<Vec<u128>> for AbiToken {
     fn from(v: Vec<u128>) -> AbiToken {
-        AbiToken::Dynamic(v.into_iter().map(Into::into).collect())
+        AbiToken::DynamicArray(v.into_iter().map(Into::into).collect())
     }
 }
 
 impl From<Vec<i8>> for AbiToken {
     fn from(v: Vec<i8>) -> AbiToken {
-        AbiToken::Dynamic(v.into_iter().map(Into::into).collect())
+        AbiToken::DynamicArray(v.into_iter().map(Into::into).collect())
     }
 }
 
 impl From<Vec<i16>> for AbiToken {
     fn from(v: Vec<i16>) -> AbiToken {
-        AbiToken::Dynamic(v.into_iter().map(Into::into).collect())
+        AbiToken::DynamicArray(v.into_iter().map(Into::into).collect())
     }
 }
 
 impl From<Vec<i32>> for AbiToken {
     fn from(v: Vec<i32>) -> AbiToken {
-        AbiToken::Dynamic(v.into_iter().map(Into::into).collect())
+        AbiToken::DynamicArray(v.into_iter().map(Into::into).collect())
     }
 }
 
 impl From<Vec<i64>> for AbiToken {
     fn from(v: Vec<i64>) -> AbiToken {
-        AbiToken::Dynamic(v.into_iter().map(Into::into).collect())
+        AbiToken::DynamicArray(v.into_iter().map(Into::into).collect())
     }
 }
 
 impl From<Vec<i128>> for AbiToken {
     fn from(v: Vec<i128>) -> AbiToken {
-        AbiToken::Dynamic(v.into_iter().map(Into::into).collect())
+        AbiToken::DynamicArray(v.into_iter().map(Into::into).collect())
     }
 }
 
@@ -309,19 +318,19 @@ impl<'a> From<&'a str> for AbiToken {
 
 impl From<Vec<Address>> for AbiToken {
     fn from(v: Vec<Address>) -> AbiToken {
-        AbiToken::Dynamic(v.into_iter().map(Into::into).collect())
+        AbiToken::DynamicArray(v.into_iter().map(Into::into).collect())
     }
 }
 
 impl From<Vec<AbiToken>> for AbiToken {
     fn from(v: Vec<AbiToken>) -> AbiToken {
-        AbiToken::Dynamic(v.into_iter().map(Into::into).collect())
+        AbiToken::DynamicArray(v.into_iter().map(Into::into).collect())
     }
 }
 
 impl From<&[Address]> for AbiToken {
     fn from(v: &[Address]) -> AbiToken {
-        AbiToken::Dynamic(v.iter().map(Into::into).collect())
+        AbiToken::DynamicArray(v.iter().map(Into::into).collect())
     }
 }
 
@@ -339,13 +348,13 @@ impl From<&Uint256> for AbiToken {
 
 impl From<Vec<Uint256>> for AbiToken {
     fn from(v: Vec<Uint256>) -> AbiToken {
-        AbiToken::Dynamic(v.into_iter().map(Into::into).collect())
+        AbiToken::DynamicArray(v.into_iter().map(Into::into).collect())
     }
 }
 
 impl From<&[Uint256]> for AbiToken {
     fn from(v: &[Uint256]) -> AbiToken {
-        AbiToken::Dynamic(v.iter().map(Into::into).collect())
+        AbiToken::DynamicArray(v.iter().map(Into::into).collect())
     }
 }
 
@@ -363,13 +372,13 @@ impl From<&Int256> for AbiToken {
 
 impl From<Vec<Int256>> for AbiToken {
     fn from(v: Vec<Int256>) -> AbiToken {
-        AbiToken::Dynamic(v.into_iter().map(Into::into).collect())
+        AbiToken::DynamicArray(v.into_iter().map(Into::into).collect())
     }
 }
 
 impl From<&[Int256]> for AbiToken {
     fn from(v: &[Int256]) -> AbiToken {
-        AbiToken::Dynamic(v.iter().map(Into::into).collect())
+        AbiToken::DynamicArray(v.iter().map(Into::into).collect())
     }
 }
 /// Raw derive for a Keccak256 digest from a string
@@ -488,7 +497,16 @@ fn get_tokens_count(tokens: &[AbiToken]) -> usize {
             AbiToken::Struct(v) => count += get_tokens_count(v),
             // for the case of an array of structs we count that structs members
             // that is what we'll see in the function header
-            AbiToken::Dynamic(d) => {
+            AbiToken::FixedArray(d, _) => {
+                if is_struct_array(d) && !d.is_empty() {
+                    count += get_tokens_count(&[d[0].clone()])
+                } else {
+                    count += 1
+                }
+            }
+            // for the case of an array of structs we count that structs members
+            // that is what we'll see in the function header
+            AbiToken::DynamicArray(d) => {
                 if is_struct_array(d) && !d.is_empty() {
                     count += get_tokens_count(&[d[0].clone()])
                 } else {

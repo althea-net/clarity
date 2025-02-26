@@ -6,7 +6,9 @@ use crate::{
     types::{self, Selector, Uint8, H256, H512, I256, U128, U256, U64},
     utils::id,
 };
-pub use ethabi::{self, Contract as Abi, *};
+use clarity::{abi::AbiToken, Address};
+pub use ethabi::{self, Contract as Abi};
+use ethabi::{Event, Function};
 
 mod tokens;
 pub use tokens::{Detokenize, InvalidOutputType, Tokenizable, TokenizableItem, Tokenize};
@@ -39,6 +41,35 @@ mod sealed {
     impl Sealed for Function {}
     impl Sealed for Event {}
     impl Sealed for ethabi::AbiError {}
+}
+
+/// Function and event param types.
+#[derive(Debug, Clone, PartialEq)]
+pub enum ParamType {
+    /// Address.
+    Address,
+    /// Vector of bytes with fixed size.
+    FixedBytes(usize),
+    /// Bytes.
+    UnboundedBytes,
+    /// Signed integer.
+    Int(usize),
+    /// Unsigned integer.
+    Uint(usize),
+    /// Boolean.
+    Bool,
+    /// String.
+    String,
+    /// Fixed size string encoded into a fixed bytes32
+    FixedString,
+    /// Array with fixed size.
+    FixedArray(Box<ParamType>, usize),
+    /// Array of unknown size.
+    DynamicArray(Box<ParamType>),
+    /// Struct containing different types
+    Struct(Vec<ParamType>),
+    /// Tuple containing different types
+    Tuple(Vec<ParamType>),
 }
 
 /// Extension trait for `ethabi::Function`.
@@ -79,7 +110,11 @@ impl EventExt for Event {
         format!(
             "{}({}){}",
             self.name,
-            self.inputs.iter().map(|input| input.kind.to_string()).collect::<Vec<_>>().join(","),
+            self.inputs
+                .iter()
+                .map(|input| input.kind.to_string())
+                .collect::<Vec<_>>()
+                .join(","),
             if self.anonymous { " anonymous" } else { "" },
         )
     }
@@ -97,9 +132,14 @@ pub trait ErrorExt: sealed::Sealed {
 impl ErrorExt for ethabi::AbiError {
     fn abi_signature(&self) -> String {
         if self.inputs.is_empty() {
-            return format!("{}()", self.name)
+            return format!("{}()", self.name);
         }
-        let inputs = self.inputs.iter().map(|p| p.kind.to_string()).collect::<Vec<_>>().join(",");
+        let inputs = self
+            .inputs
+            .iter()
+            .map(|p| p.kind.to_string())
+            .collect::<Vec<_>>()
+            .join(",");
         format!("{}({inputs})", self.name)
     }
 
@@ -123,16 +163,18 @@ pub trait AbiType {
 pub fn minimum_size(ty: &ParamType) -> usize {
     match ty {
         // 1 word
-        ParamType::Uint(_) |
-        ParamType::Int(_) |
-        ParamType::Bool |
-        ParamType::Address |
-        ParamType::FixedBytes(_) => 32,
+        ParamType::Uint(_)
+        | ParamType::Int(_)
+        | ParamType::Bool
+        | ParamType::Address
+        | ParamType::FixedString
+        | ParamType::FixedBytes(_) => 32,
         // min 2 words (offset, length)
-        ParamType::Bytes | ParamType::String | ParamType::Array(_) => 64,
+        ParamType::UnboundedBytes | ParamType::String | ParamType::DynamicArray(_) => 64,
         // sum of all elements
         ParamType::FixedArray(ty, len) => minimum_size(ty) * len,
         ParamType::Tuple(tys) => tys.iter().map(minimum_size).sum(),
+        ParamType::Struct(tys) => tys.iter().map(minimum_size).sum(),
     }
 }
 
@@ -149,7 +191,7 @@ pub trait AbiArrayType: AbiType {}
 
 impl<T: AbiArrayType> AbiType for Vec<T> {
     fn param_type() -> ParamType {
-        ParamType::Array(Box::new(T::param_type()))
+        ParamType::DynamicArray(Box::new(T::param_type()))
     }
 }
 impl<T: AbiArrayType> AbiArrayType for Vec<T> {}
@@ -184,9 +226,9 @@ macro_rules! impl_abi_type {
 }
 
 impl_abi_type!(
-    types::Bytes => Bytes,
-    bytes::Bytes => Bytes,
-    Vec<u8> =>  Array(Box::new(ParamType::Uint(8))),
+    types::Bytes => UnboundedBytes,
+    bytes::Bytes => UnboundedBytes,
+    Vec<u8> =>  DynamicArray(Box::new(ParamType::Uint(8))),
     Address => Address,
     bool => Bool,
     String => String,
@@ -307,7 +349,10 @@ mod tests {
                 r#"{"name":"baz","inputs":[{"name":"a","type":"uint256"}],"anonymous":true}"#,
                 "baz(uint256) anonymous",
             ),
-            (r#"{"name":"bax","inputs":[],"anonymous":true}"#, "bax() anonymous"),
+            (
+                r#"{"name":"bax","inputs":[],"anonymous":true}"#,
+                "bax() anonymous",
+            ),
         ] {
             let event: Event = serde_json::from_str(e).expect("invalid event JSON");
             let signature = event.abi_signature();
@@ -318,20 +363,29 @@ mod tests {
     #[test]
     fn abi_type_works() {
         assert_eq!(ParamType::Bytes, types::Bytes::param_type());
-        assert_eq!(ParamType::Array(Box::new(ParamType::Uint(8))), Vec::<u8>::param_type());
-        assert_eq!(ParamType::Array(Box::new(ParamType::Bytes)), Vec::<types::Bytes>::param_type());
+        assert_eq!(
+            ParamType::Array(Box::new(ParamType::Uint(8))),
+            Vec::<u8>::param_type()
+        );
+        assert_eq!(
+            ParamType::Array(Box::new(ParamType::Bytes)),
+            Vec::<types::Bytes>::param_type()
+        );
         assert_eq!(
             ParamType::Array(Box::new(ParamType::Array(Box::new(ParamType::Uint(8))))),
             Vec::<Vec<u8>>::param_type()
         );
         assert_eq!(
-            ParamType::Array(Box::new(ParamType::Array(Box::new(ParamType::Array(Box::new(
-                ParamType::Uint(8)
-            )))))),
+            ParamType::Array(Box::new(ParamType::Array(Box::new(ParamType::Array(
+                Box::new(ParamType::Uint(8))
+            ))))),
             Vec::<Vec<Vec<u8>>>::param_type()
         );
 
-        assert_eq!(ParamType::Array(Box::new(ParamType::Uint(16))), Vec::<u16>::param_type());
+        assert_eq!(
+            ParamType::Array(Box::new(ParamType::Uint(16))),
+            Vec::<u16>::param_type()
+        );
 
         assert_eq!(
             ParamType::Tuple(vec![ParamType::Bytes, ParamType::Address]),

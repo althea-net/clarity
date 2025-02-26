@@ -1,8 +1,8 @@
-use ethabi::{
-    AbiError, Constructor, Event, EventParam, Function, Param, ParamType, StateMutability,
-};
+use ethabi::{AbiError, Constructor, Event, EventParam, Function, Param, StateMutability};
 use std::{fmt, iter::Peekable, str::CharIndices};
 use unicode_xid::UnicodeXID;
+
+use crate::abi::ParamType;
 
 pub type Spanned<Token, Loc, Error> = Result<(Loc, Token, Loc), Error>;
 
@@ -170,7 +170,10 @@ pub(crate) struct HumanReadableLexer<'input> {
 impl<'input> HumanReadableLexer<'input> {
     /// Creates a new instance of the lexer
     pub fn new(input: &'input str) -> Self {
-        Self { chars: input.char_indices().peekable(), input }
+        Self {
+            chars: input.char_indices().peekable(),
+            input,
+        }
     }
 
     fn next_token(&mut self) -> Option<Spanned<Token<'input>, usize, LexerError>> {
@@ -182,12 +185,12 @@ impl<'input> HumanReadableLexer<'input> {
                         if let Some((i, ch)) = self.chars.peek() {
                             if !UnicodeXID::is_xid_continue(*ch) && *ch != '$' {
                                 end = *i;
-                                break
+                                break;
                             }
                             self.chars.next();
                         } else {
                             end = self.input.len();
-                            break
+                            break;
                         }
                     }
                     let id = &self.input[start..end];
@@ -196,7 +199,7 @@ impl<'input> HumanReadableLexer<'input> {
                         Some(Ok((start, w, end)))
                     } else {
                         Some(Ok((start, Token::Identifier(id), end)))
-                    }
+                    };
                 }
                 Some((start, ch)) if ch.is_ascii_digit() => {
                     let mut end = start + 1;
@@ -220,7 +223,7 @@ impl<'input> HumanReadableLexer<'input> {
 
                             while let Some((i, ch)) = self.chars.peek() {
                                 if !ch.is_ascii_hexdigit() && *ch != '_' {
-                                    break
+                                    break;
                                 }
                                 end = *i;
                                 self.chars.next();
@@ -230,23 +233,23 @@ impl<'input> HumanReadableLexer<'input> {
                                 start,
                                 Token::HexNumber(&self.input[start..=end]),
                                 end + 1,
-                            )))
+                            )));
                         }
                     }
 
                     loop {
                         if let Some((i, ch)) = self.chars.peek().cloned() {
                             if !ch.is_ascii_digit() {
-                                break
+                                break;
                             }
                             self.chars.next();
                             end = i + 1;
                         } else {
                             end = self.input.len();
-                            break
+                            break;
                         }
                     }
-                    return Some(Ok((start, Token::Number(&self.input[start..end]), end + 1)))
+                    return Some(Ok((start, Token::Number(&self.input[start..end]), end + 1)));
                 }
                 Some((i, '(')) => return Some(Ok((i, Token::OpenParenthesis, i + 1))),
                 Some((i, ')')) => return Some(Ok((i, Token::CloseParenthesis, i + 1))),
@@ -262,11 +265,11 @@ impl<'input> HumanReadableLexer<'input> {
                         if let Some((i, ch)) = self.chars.next() {
                             end = i;
                             if ch.is_whitespace() {
-                                break
+                                break;
                             }
                         } else {
                             end = self.input.len();
-                            break
+                            break;
                         }
                     }
 
@@ -274,7 +277,7 @@ impl<'input> HumanReadableLexer<'input> {
                         start,
                         end,
                         self.input[start..end].to_owned(),
-                    )))
+                    )));
                 }
                 None => return None,
             }
@@ -302,7 +305,9 @@ impl<'input> HumanReadableParser<'input> {
     /// Creates a new instance of the lexer
     pub fn new(input: &'input str) -> Self {
         let lexer = HumanReadableLexer::new(input);
-        Self { lexer: lexer.peekable() }
+        Self {
+            lexer: lexer.peekable(),
+        }
     }
 
     /// Parses the input into a [ParamType]
@@ -364,7 +369,10 @@ impl<'input> HumanReadableParser<'input> {
         self.take_open_parenthesis()?;
         let inputs = self.take_function_params()?;
         self.take_close_parenthesis()?;
-        Ok(AbiError { name: name.to_string(), inputs })
+        Ok(AbiError {
+            name: name.to_string(),
+            inputs,
+        })
     }
 
     /// Returns the next `Constructor` and consumes the underlying tokens
@@ -410,7 +418,13 @@ impl<'input> HumanReadableParser<'input> {
 
         Ok(
             #[allow(deprecated)]
-            Function { name: name.to_string(), inputs, outputs, constant: None, state_mutability },
+            Function {
+                name: name.to_string(),
+                inputs,
+                outputs,
+                constant: None,
+                state_mutability,
+            },
         )
     }
 
@@ -419,7 +433,11 @@ impl<'input> HumanReadableParser<'input> {
         self.take_open_parenthesis()?;
         let inputs = self.take_event_params()?;
         self.take_close_parenthesis()?;
-        let event = Event { name: name.to_string(), inputs, anonymous: self.take_anonymous() };
+        let event = Event {
+            name: name.to_string(),
+            inputs,
+            anonymous: self.take_anonymous(),
+        };
 
         Ok(event)
     }
@@ -527,7 +545,7 @@ impl<'input> HumanReadableParser<'input> {
         let mut params = Vec::new();
 
         if self.peek_next(token) {
-            return Ok(params)
+            return Ok(params);
         }
 
         loop {
@@ -558,7 +576,11 @@ impl<'input> HumanReadableParser<'input> {
         let kind = self.take_param()?;
         let _location = self.take_data_location();
         let name = self.take_name_opt()?.unwrap_or("");
-        Ok(Param { name: name.to_string(), kind, internal_type: None })
+        Ok(Param {
+            name: name.to_string(),
+            kind,
+            internal_type: None,
+        })
     }
 
     /// Parses all event params
@@ -581,12 +603,16 @@ impl<'input> HumanReadableParser<'input> {
                 Token::Identifier(id) => {
                     name = id;
                     self.next();
-                    break
+                    break;
                 }
                 _ => break,
             };
         }
-        Ok(EventParam { name: name.to_string(), kind, indexed })
+        Ok(EventParam {
+            name: name.to_string(),
+            kind,
+            indexed,
+        })
     }
 
     /// Parses a list of parameter types
@@ -594,7 +620,7 @@ impl<'input> HumanReadableParser<'input> {
         let mut params = Vec::new();
 
         if self.peek_next(Token::CloseParenthesis) {
-            return Ok(params)
+            return Ok(params);
         }
         loop {
             params.push(self.take_param()?);
@@ -862,7 +888,11 @@ mod tests {
         let f = AbiError {
             name: "MyError".to_string(),
             inputs: vec![
-                Param { name: "author".to_string(), kind: ParamType::Address, internal_type: None },
+                Param {
+                    name: "author".to_string(),
+                    kind: ParamType::Address,
+                    internal_type: None,
+                },
                 Param {
                     name: "oldValue".to_string(),
                     kind: ParamType::String,
@@ -886,7 +916,11 @@ mod tests {
     fn parse_constructor() {
         let f = Constructor {
             inputs: vec![
-                Param { name: "author".to_string(), kind: ParamType::Address, internal_type: None },
+                Param {
+                    name: "author".to_string(),
+                    kind: ParamType::Address,
+                    internal_type: None,
+                },
                 Param {
                     name: "oldValue".to_string(),
                     kind: ParamType::String,
@@ -912,7 +946,11 @@ mod tests {
         let f = Function {
             name: "get".to_string(),
             inputs: vec![
-                Param { name: "author".to_string(), kind: ParamType::Address, internal_type: None },
+                Param {
+                    name: "author".to_string(),
+                    kind: ParamType::Address,
+                    internal_type: None,
+                },
                 Param {
                     name: "oldValue".to_string(),
                     kind: ParamType::String,
@@ -944,9 +982,21 @@ mod tests {
         let f = Function {
             name: "get".to_string(),
             inputs: vec![
-                Param { name: "".to_string(), kind: ParamType::Address, internal_type: None },
-                Param { name: "".to_string(), kind: ParamType::String, internal_type: None },
-                Param { name: "".to_string(), kind: ParamType::String, internal_type: None },
+                Param {
+                    name: "".to_string(),
+                    kind: ParamType::Address,
+                    internal_type: None,
+                },
+                Param {
+                    name: "".to_string(),
+                    kind: ParamType::String,
+                    internal_type: None,
+                },
+                Param {
+                    name: "".to_string(),
+                    kind: ParamType::String,
+                    internal_type: None,
+                },
             ],
             outputs: vec![],
             constant: None,
@@ -964,7 +1014,11 @@ mod tests {
         let f = Function {
             name: "get".to_string(),
             inputs: vec![
-                Param { name: "author".to_string(), kind: ParamType::Address, internal_type: None },
+                Param {
+                    name: "author".to_string(),
+                    kind: ParamType::Address,
+                    internal_type: None,
+                },
                 Param {
                     name: "oldValue".to_string(),
                     kind: ParamType::String,
@@ -982,7 +1036,11 @@ mod tests {
                     kind: ParamType::Uint(256),
                     internal_type: None,
                 },
-                Param { name: "output".to_string(), kind: ParamType::Address, internal_type: None },
+                Param {
+                    name: "output".to_string(),
+                    kind: ParamType::Address,
+                    internal_type: None,
+                },
             ],
             constant: None,
             state_mutability: Default::default(),
@@ -1002,13 +1060,33 @@ mod tests {
         let mut f = Function {
             name: "get".to_string(),
             inputs: vec![
-                Param { name: "".to_string(), kind: ParamType::Address, internal_type: None },
-                Param { name: "".to_string(), kind: ParamType::String, internal_type: None },
-                Param { name: "".to_string(), kind: ParamType::String, internal_type: None },
+                Param {
+                    name: "".to_string(),
+                    kind: ParamType::Address,
+                    internal_type: None,
+                },
+                Param {
+                    name: "".to_string(),
+                    kind: ParamType::String,
+                    internal_type: None,
+                },
+                Param {
+                    name: "".to_string(),
+                    kind: ParamType::String,
+                    internal_type: None,
+                },
             ],
             outputs: vec![
-                Param { name: "".to_string(), kind: ParamType::Uint(256), internal_type: None },
-                Param { name: "".to_string(), kind: ParamType::Address, internal_type: None },
+                Param {
+                    name: "".to_string(),
+                    kind: ParamType::Uint(256),
+                    internal_type: None,
+                },
+                Param {
+                    name: "".to_string(),
+                    kind: ParamType::Address,
+                    internal_type: None,
+                },
             ],
             constant: None,
             state_mutability: Default::default(),
@@ -1029,13 +1107,34 @@ mod tests {
 
     #[test]
     fn test_parse_param() {
-        assert_eq!(HumanReadableParser::parse_type("address").unwrap(), ParamType::Address);
-        assert_eq!(HumanReadableParser::parse_type("bytes").unwrap(), ParamType::Bytes);
-        assert_eq!(HumanReadableParser::parse_type("bytes32").unwrap(), ParamType::FixedBytes(32));
-        assert_eq!(HumanReadableParser::parse_type("bool").unwrap(), ParamType::Bool);
-        assert_eq!(HumanReadableParser::parse_type("string").unwrap(), ParamType::String);
-        assert_eq!(HumanReadableParser::parse_type("int").unwrap(), ParamType::Int(256));
-        assert_eq!(HumanReadableParser::parse_type("uint").unwrap(), ParamType::Uint(256));
+        assert_eq!(
+            HumanReadableParser::parse_type("address").unwrap(),
+            ParamType::Address
+        );
+        assert_eq!(
+            HumanReadableParser::parse_type("bytes").unwrap(),
+            ParamType::Bytes
+        );
+        assert_eq!(
+            HumanReadableParser::parse_type("bytes32").unwrap(),
+            ParamType::FixedBytes(32)
+        );
+        assert_eq!(
+            HumanReadableParser::parse_type("bool").unwrap(),
+            ParamType::Bool
+        );
+        assert_eq!(
+            HumanReadableParser::parse_type("string").unwrap(),
+            ParamType::String
+        );
+        assert_eq!(
+            HumanReadableParser::parse_type("int").unwrap(),
+            ParamType::Int(256)
+        );
+        assert_eq!(
+            HumanReadableParser::parse_type("uint").unwrap(),
+            ParamType::Uint(256)
+        );
         assert_eq!(
             HumanReadableParser::parse_type(
                 "
@@ -1044,7 +1143,10 @@ mod tests {
             .unwrap(),
             ParamType::Int(32)
         );
-        assert_eq!(HumanReadableParser::parse_type("uint32").unwrap(), ParamType::Uint(32));
+        assert_eq!(
+            HumanReadableParser::parse_type("uint32").unwrap(),
+            ParamType::Uint(32)
+        );
     }
 
     #[test]
@@ -1094,7 +1196,10 @@ mod tests {
         );
         assert_eq!(
             HumanReadableParser::parse_type("bool[3][]").unwrap(),
-            ParamType::Array(Box::new(ParamType::FixedArray(Box::new(ParamType::Bool), 3)))
+            ParamType::Array(Box::new(ParamType::FixedArray(
+                Box::new(ParamType::Bool),
+                3
+            )))
         );
     }
 

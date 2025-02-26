@@ -1,9 +1,11 @@
 //! Mod of types for ethereum logs
+use clarity::{Address, Uint256};
 use serde::{Deserialize, Serialize};
 use soliloquy_core::{
     abi::{Error, RawLog},
-    types::{Address, Log, TxHash, H256, U256, U64},
+    // types::{Address, Log, TxHash, H256, U256, U64},
 };
+use web30::types::{Data, Log};
 
 /// A trait for types (events) that can be decoded from a `RawLog`
 pub trait EthLogDecode: Send + Sync {
@@ -25,19 +27,19 @@ pub struct LogMeta {
     pub address: Address,
 
     /// The block in which the log was emitted
-    pub block_number: U64,
+    pub block_number: Uint256,
 
     /// The block hash in which the log was emitted
-    pub block_hash: H256,
+    pub block_hash: Data,
 
     /// The transaction hash in which the log was emitted
-    pub transaction_hash: TxHash,
+    pub transaction_hash: Data,
 
     /// Transactions index position log was created from
-    pub transaction_index: U64,
+    pub transaction_index: Uint256,
 
     /// Log index position in the block
-    pub log_index: U256,
+    pub log_index: Uint256,
 }
 
 impl From<&Log> for LogMeta {
@@ -45,8 +47,8 @@ impl From<&Log> for LogMeta {
         LogMeta {
             address: src.address,
             block_number: src.block_number.expect("should have a block number"),
-            block_hash: src.block_hash.expect("should have a block hash"),
-            transaction_hash: src.transaction_hash.expect("should have a tx hash"),
+            block_hash: src.block_hash.clone().expect("should have a block hash"),
+            transaction_hash: src.transaction_hash.clone().expect("should have a tx hash"),
             transaction_index: src.transaction_index.expect("should have a tx index"),
             log_index: src.log_index.expect("should have a log index"),
         }

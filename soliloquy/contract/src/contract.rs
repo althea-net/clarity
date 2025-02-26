@@ -4,24 +4,22 @@ use crate::{
     event::Event,
     event_core::EthEvent,
 };
-use ethers_providers::Middleware;
 use soliloquy_core::{
     abi::{Abi, Detokenize, Error, EventExt, Function, Tokenize},
     types::{Address, Filter, Selector, ValueOrArray},
 };
-use std::{borrow::Borrow, fmt::Debug, marker::PhantomData, sync::Arc};
+use std::{fmt::Debug, marker::PhantomData};
 
-#[cfg(not(feature = "legacy"))]
+// TODO: Make a way for the user to specify the transaction type (EIP1559/Legacy)
 use soliloquy_core::types::Eip1559TransactionRequest;
-#[cfg(feature = "legacy")]
-use soliloquy_core::types::TransactionRequest;
+// use soliloquy_core::types::TransactionRequest;
 
-/// `Contract` is a [`ContractInstance`] object with an `Arc` middleware.
+/// `Contract` is a [`ContractInstance`] object
 /// This type alias exists to preserve backwards compatibility with
 /// less-abstract Contracts.
 ///
 /// For full usage docs, see [`ContractInstance`].
-pub type Contract<M> = ContractInstance<std::sync::Arc<M>, M>;
+pub type Contract = ContractInstance;
 
 /// A Contract is an abstraction of an executable program on the Ethereum Blockchain.
 /// It has code (called byte code) as well as allocated long-term memory
@@ -120,7 +118,7 @@ pub type Contract<M> = ContractInstance<std::sync::Arc<M>, M>;
 /// # async fn foo() -> Result<(), Box<dyn std::error::Error>> {
 /// use soliloquy_core::{abi::Abi, types::Address};
 /// use ethers_contract::{Contract, EthEvent};
-/// use ethers_providers::{Provider, Http, Middleware};
+/// use ethers_providers::{Provider, Http};
 /// use std::{convert::TryFrom, sync::Arc};
 /// use soliloquy_core::abi::{Detokenize, Token, InvalidOutputType};
 /// # // this is a fake address used just for this example
@@ -148,42 +146,17 @@ pub type Contract<M> = ContractInstance<std::sync::Arc<M>, M>;
 /// # }
 /// ```
 ///
-/// _Disclaimer: these above docs have been adapted from the corresponding [ethers.js page](https://docs.ethers.io/ethers.js/html/api-contract.html)_
-///
-/// # Usage Note
-///
-/// `ContractInternal` accepts any client that implements `B: Borrow<M>` where
-/// `M :Middleware`. Previous `Contract` versions used only arcs, and relied
-/// heavily on [`Arc`]. Due to constraints on the [`FunctionCall`] type,
-/// calling contracts requires a `B: Borrow<M> + Clone`. This is fine for most
-/// middlware. However, when `B` is an owned middleware that is not Clone, we
-/// cannot issue contract calls. Some notable exceptions:
-///
-/// - `NonceManagerMiddleware`
-/// - `SignerMiddleware` (when using a non-Clone Signer)
-///
-/// When using non-Clone middlewares, instead of instantiating a contract that
-/// OWNS the middlware, pass the contract a REFERENCE to the middleware. This
-/// will fix the trait bounds issue (as `&M` is always `Clone`).
-///
-/// We expect to fix this fully in a future version
-///
 /// [`abigen`]: macro.abigen.html
 /// [`Abigen` builder]: struct.Abigen.html
 /// [`event`]: method@crate::ContractInstance::event
 /// [`method`]: method@crate::ContractInstance::method
 #[derive(Debug)]
-pub struct ContractInstance<B, M> {
+pub struct ContractInstance {
     address: Address,
     base_contract: BaseContract,
-    client: B,
-    _m: PhantomData<M>,
 }
 
-impl<B, M> std::ops::Deref for ContractInstance<B, M>
-where
-    B: Borrow<M>,
-{
+impl std::ops::Deref for ContractInstance {
     type Target = BaseContract;
 
     fn deref(&self) -> &Self::Target {
@@ -191,24 +164,16 @@ where
     }
 }
 
-impl<B, M> Clone for ContractInstance<B, M>
-where
-    B: Clone + Borrow<M>,
-{
+impl Clone for ContractInstance {
     fn clone(&self) -> Self {
         ContractInstance {
             base_contract: self.base_contract.clone(),
-            client: self.client.clone(),
             address: self.address,
-            _m: self._m,
         }
     }
 }
 
-impl<B, M> ContractInstance<B, M>
-where
-    B: Borrow<M>,
-{
+impl ContractInstance {
     /// Returns the contract's address
     pub fn address(&self) -> Address {
         self.address
@@ -218,52 +183,27 @@ where
     pub fn abi(&self) -> &Abi {
         &self.base_contract.abi
     }
-
-    /// Returns a pointer to the contract's client.
-    pub fn client(&self) -> B
-    where
-        B: Clone,
-    {
-        self.client.clone()
-    }
-
-    /// Returns a reference to the contract's client.
-    pub fn client_ref(&self) -> &M {
-        self.client.borrow()
-    }
 }
 
-impl<B, M> ContractInstance<B, M>
-where
-    B: Borrow<M>,
-    M: Middleware,
-{
+impl ContractInstance {
     /// Returns an [`Event`] builder for the provided event.
     ///
     /// This function operates in a static context, then it does not require a `self` to reference
     /// to instantiate an [`Event`] builder.
-    pub fn event_of_type<D: EthEvent>(client: B) -> Event<B, M, D> {
+    pub fn event_of_type<D: EthEvent>() -> Event<D> {
         Event {
-            provider: client,
             filter: Filter::new().event(&D::abi_signature()),
             datatype: PhantomData,
-            _m: PhantomData,
         }
     }
 }
 
-impl<B, M> ContractInstance<B, M>
-where
-    B: Borrow<M>,
-    M: Middleware,
-{
+impl ContractInstance {
     /// Creates a new contract from the provided client, abi and address
-    pub fn new(address: impl Into<Address>, abi: impl Into<BaseContract>, client: B) -> Self {
+    pub fn new(address: impl Into<Address>, abi: impl Into<BaseContract>) -> Self {
         Self {
             base_contract: abi.into(),
-            client,
             address: address.into(),
-            _m: PhantomData,
         }
     }
 
@@ -271,15 +211,10 @@ where
     ///
     /// Clones `self` internally
     #[must_use]
-    pub fn connect<N>(&self, client: Arc<N>) -> ContractInstance<Arc<N>, N>
-    where
-        N: Middleware,
-    {
+    pub fn connect(&self) -> ContractInstance {
         ContractInstance {
             base_contract: self.base_contract.clone(),
-            client,
             address: self.address,
-            _m: PhantomData,
         }
     }
 
@@ -287,41 +222,30 @@ where
     ///
     /// Clones `self` internally
     #[must_use]
-    pub fn connect_with<C, N>(&self, client: C) -> ContractInstance<C, N>
-    where
-        C: Borrow<N>,
-    {
+    pub fn connect_with(&self) -> ContractInstance {
         ContractInstance {
             base_contract: self.base_contract.clone(),
-            client,
             address: self.address,
-            _m: PhantomData,
         }
     }
 }
 
-impl<B, M> ContractInstance<B, M>
-where
-    B: Clone + Borrow<M>,
-    M: Middleware,
-{
+impl ContractInstance {
     /// Returns an [`Event`] builder with the provided filter.
-    pub fn event_with_filter<D>(&self, filter: Filter) -> Event<B, M, D> {
+    pub fn event_with_filter<D>(&self, filter: Filter) -> Event<D> {
         Event {
-            provider: self.client.clone(),
             filter: filter.address(ValueOrArray::Value(self.address)),
             datatype: PhantomData,
-            _m: PhantomData,
         }
     }
 
     /// Returns an [`Event`] builder for the provided event.
-    pub fn event<D: EthEvent>(&self) -> Event<B, M, D> {
-        D::new(Filter::new(), self.client.clone())
+    pub fn event<D: EthEvent>(&self) -> Event<D> {
+        D::new(Filter::new())
     }
 
     /// Returns an [`Event`] builder with the provided name.
-    pub fn event_for_name<D>(&self, name: &str) -> Result<Event<B, M, D>, Error> {
+    pub fn event_for_name<D>(&self, name: &str) -> Result<Event<D>, Error> {
         // get the event's full name
         let event = self.base_contract.abi.event(name)?;
         Ok(self.event_with_filter(Filter::new().event(&event.abi_signature())))
@@ -331,16 +255,15 @@ where
         &self,
         function: &Function,
         args: T,
-    ) -> Result<FunctionCall<B, M, D>, AbiError> {
+    ) -> Result<FunctionCall<D>, AbiError> {
         let data = encode_function_data(function, args)?;
 
-        #[cfg(feature = "legacy")]
-        let tx = TransactionRequest {
-            to: Some(self.address.into()),
-            data: Some(data),
-            ..Default::default()
-        };
-        #[cfg(not(feature = "legacy"))]
+        // TODO: Make a way for functions to create legacy and EIP1559 transactions
+        // let tx = TransactionRequest {
+        //     to: Some(self.address.into()),
+        //     data: Some(data),
+        //     ..Default::default()
+        // };
         let tx = Eip1559TransactionRequest {
             to: Some(self.address.into()),
             data: Some(data),
@@ -351,11 +274,9 @@ where
 
         Ok(FunctionCall {
             tx,
-            client: self.client.clone(),
             block: None,
             function: function.to_owned(),
             datatype: PhantomData,
-            _m: self._m,
         })
     }
 
@@ -365,7 +286,7 @@ where
         &self,
         signature: Selector,
         args: T,
-    ) -> Result<FunctionCall<B, M, D>, AbiError> {
+    ) -> Result<FunctionCall<D>, AbiError> {
         let function = self
             .base_contract
             .methods
@@ -382,7 +303,7 @@ where
         &self,
         name: &str,
         args: T,
-    ) -> Result<FunctionCall<B, M, D>, AbiError> {
+    ) -> Result<FunctionCall<D>, AbiError> {
         // get the function
         let function = self.base_contract.abi.function(name)?;
         self.method_func(function, args)

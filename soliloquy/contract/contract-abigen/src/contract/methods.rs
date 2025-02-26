@@ -49,7 +49,6 @@ impl Context {
     }
 
     /// Returns all deploy (constructor) implementations
-    #[cfg(feature = "providers")]
     pub(crate) fn deployment_methods(&self) -> Option<TokenStream> {
         // don't generate deploy if no bytecode
         self.contract_bytecode.as_ref()?;

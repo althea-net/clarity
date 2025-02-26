@@ -9,12 +9,9 @@ use std::{
     hash::Hash,
 };
 
-if_providers! {
-    use crate::ContractInstance;
-    use ethers_providers::Middleware;
-    use soliloquy_core::types::Address;
-    use std::borrow::Borrow;
-}
+use crate::ContractInstance;
+use soliloquy_core::types::Address;
+use std::borrow::Borrow;
 
 /// A reduced form of `Contract` which just takes the `abi` and produces
 /// ABI encoded data for its functions.

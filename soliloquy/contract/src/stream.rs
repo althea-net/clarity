@@ -2,16 +2,17 @@
 //! events
 
 use crate::LogMeta;
+use clarity::Uint256;
 use futures_util::{
     future::Either,
     stream::{Stream, StreamExt},
 };
 use pin_project::pin_project;
-use soliloquy_core::types::{Log, U256};
 use std::{
     pin::Pin,
     task::{Context, Poll},
 };
+use web30::types::Log;
 
 type MapEvent<'a, R, E> = Box<dyn Fn(Log) -> Result<R, E> + 'a + Send + Sync>;
 
@@ -23,7 +24,7 @@ type MapEvent<'a, R, E> = Box<dyn Fn(Log) -> Result<R, E> + 'a + Send + Sync>;
 /// information about the filter/subscription's id.
 pub struct EventStream<'a, T, R, E> {
     /// The stream ID, provided by the RPC server
-    pub id: U256,
+    pub id: Uint256,
     #[pin]
     stream: T,
     parse: MapEvent<'a, R, E>,
@@ -40,7 +41,7 @@ impl<'a, T, R, E> EventStream<'a, T, R, E> {
     /// Instantiate a new `EventStream`
     ///
     /// Typically users should not call this directly
-    pub fn new(id: U256, stream: T, parse: MapEvent<'a, R, E>) -> Self {
+    pub fn new(id: Uint256, stream: T, parse: MapEvent<'a, R, E>) -> Self {
         Self { id, stream, parse }
     }
 }

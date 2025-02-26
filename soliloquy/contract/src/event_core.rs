@@ -7,13 +7,9 @@ use soliloquy_core::{
 };
 use std::borrow::Cow;
 
-if_providers! {
-    use std::borrow::Borrow;
-    use std::marker::PhantomData;
-    use soliloquy_core::types::Filter;
-    use ethers_providers::Middleware;
-    use crate::event::Event;
-}
+use crate::event::Event;
+use soliloquy_core::types::Filter;
+use std::marker::PhantomData;
 
 /// Attempt to parse a log into a specific output type.
 pub fn parse_log<D>(log: Log) -> std::result::Result<D, AbiError>
@@ -49,19 +45,14 @@ pub trait EthEvent: Detokenize + Send + Sync {
     fn is_anonymous() -> bool;
 
     /// Returns an Event builder for the ethereum event represented by this types ABI signature.
-    #[cfg(feature = "providers")]
-    fn new<B, M>(filter: Filter, provider: B) -> Event<B, M, Self>
+    fn new(filter: Filter) -> Event<Self>
     where
         Self: Sized,
-        B: Borrow<M>,
-        M: Middleware,
     {
         let filter = filter.event(&Self::abi_signature());
         Event {
             filter,
-            provider,
             datatype: PhantomData,
-            _m: PhantomData,
         }
     }
 }
