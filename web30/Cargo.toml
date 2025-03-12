@@ -1,6 +1,6 @@
 [package]
 name = "web30"
-version = "1.6.1"
+version = "1.6.2"
 authors = ["Michal Papierski", "Jehan Tremback", "Justin Kilpatrick"]
 description = "Async endian safe web3 library"
 license = "Apache-2.0"
