@@ -18,6 +18,11 @@ pub use core::Web3;
 
 #[cfg(test)]
 mod test {
+    use std::time::Duration;
+
+    use clarity::Address;
+    use num256::Uint256;
+
     use super::*;
 
     #[actix_rt::test]
