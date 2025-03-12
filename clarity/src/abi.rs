@@ -315,7 +315,7 @@ impl From<Vec<Address>> for AbiToken {
 
 impl From<Vec<AbiToken>> for AbiToken {
     fn from(v: Vec<AbiToken>) -> AbiToken {
-        AbiToken::Dynamic(v.into_iter().map(Into::into).collect())
+        AbiToken::Dynamic(v.into_iter().collect())
     }
 }
 

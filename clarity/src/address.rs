@@ -223,7 +223,7 @@ fn eip_55_string(address_bytes: [u8; 20]) -> String {
                     // is seven indexed from the other direction
                     7
                 };
-                if hash[index] & 1 << bit != 0 {
+                if hash[index] & (1 << bit) != 0 {
                     capitalized_hex_str.push(character.to_ascii_uppercase());
                 } else {
                     capitalized_hex_str.push(character);
