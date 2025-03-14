@@ -18,7 +18,7 @@ pub use core::Web3;
 
 #[cfg(test)]
 mod test {
-    use std::time::Duration;
+    use std::{str::FromStr, time::Duration};
 
     use clarity::Address;
     use num256::Uint256;
@@ -163,5 +163,21 @@ mod test {
         #[allow(unused_variables)]
         let val = web3.eth_get_latest_block().await;
         //println!("{:?}", val);
+    }
+
+    #[actix_rt::test]
+    #[ignore]
+    async fn test_transaction_receipt() {
+        let web3 = Web3::new("http://testnet.althea.net:8545", Duration::from_secs(30));
+        let val = web3
+            .eth_get_transaction_receipt(
+                Uint256::from_str(
+                    "0x3c096fe3fdee374fd47b7d493e22be515c39b77501751f94b28b1e0d47483289",
+                )
+                .unwrap(),
+            )
+            .await
+            .unwrap();
+        println!("{:?}", val);
     }
 }

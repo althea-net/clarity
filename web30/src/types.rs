@@ -28,7 +28,7 @@ where
     hex_str_to_bytes(&s).map_err(serde::de::Error::custom)
 }
 
-#[derive(Serialize, Deserialize, Debug, Default, Clone, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone, Eq, PartialEq, Hash)]
 pub struct Log {
     /// true when the log was removed, due to a chain reorganization. false if its a valid log.
     pub removed: Option<bool>,
@@ -84,53 +84,100 @@ impl From<Vec<u8>> for Data {
 
 /// As received by getTransactionReceipt
 ///
+/// Pre byzantium transctions have a root field
+/// Post byzantium transactions have a status field
+///
 /// See more: https://ethereum.org/en/developers/docs/apis/json-rpc/#eth_gettransactionreceipt
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
-pub struct TransactionReceipt {
-    /// hash of the transaction
-    #[serde(rename = "transactionHash")]
-    transaction_hash: Data,
-    /// integer of the transaction's index position in the block, null when its pending
-    #[serde(rename = "transactionIndex")]
-    transaction_index: Option<Uint256>,
+#[serde(untagged)]
+pub enum TransactionReceipt {
+    PreByzantium(PreByzantiumTransactionReceipt),
+    PostByzantium(PostByzantiumTransactionReceipt),
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct PreByzantiumTransactionReceipt {
     /// hash of the block where this transaction was in, null when its pending
     #[serde(rename = "blockHash")]
-    block_hash: Option<Data>,
+    block_hash: Uint256,
     /// block number where this transaction was in, null when its pending
     #[serde(rename = "blockNumber")]
-    block_number: Option<Uint256>,
-    /// The chain id field of this transaction
-    #[serde(rename = "chainId")]
-    chain_id: Uint256,
-    /// address of the sender
-    from: Address,
-    /// address of the receiver (null for contract deploy)
-    to: Option<Address>,
-    #[serde(rename = "cumulativeGasUsed")]
+    block_number: Uint256,
+    /// The contract address created, if the transaction was a contract creation, otherwise null
+    #[serde(rename = "contractAddress")]
+    contract_address: Option<Address>,
     /// cumulative gas used
+    #[serde(rename = "cumulativeGasUsed")]
     cumulative_gas_used: Uint256,
     /// sum of base fee and tip paid per unit of gas
     #[serde(rename = "effectiveGasPrice")]
     effective_gas_price: Uint256,
+    /// address of the sender
+    from: Address,
     /// amount of gas used by this transaction alone
     #[serde(rename = "gasUsed")]
     gas_used: Uint256,
-    /// The contract address created, if the transaction was a contract creation, otherwise null
-    #[serde(rename = "contractAddress")]
-    contract_address: Option<Address>,
     /// Array of log objects created by the transaction
-    pub logs: Data,
+    pub logs: Vec<Log>,
     /// Bloom filter for light clients to quickly retrieve related logs
     #[serde(rename = "logsBloom")]
     pub logs_bloom: Data,
+    /// address of the receiver (None for contract deploy)
+    to: Option<Address>,
+    /// hash of the transaction
+    #[serde(rename = "transactionHash")]
+    transaction_hash: Uint256,
+    /// integer of the transaction's index position in the block, null when its pending
+    #[serde(rename = "transactionIndex")]
+    transaction_index: Uint256,
     /// integer of the transaction type: 0x0 for legacy transactions, 0x1 for access list types, 0x2 for dynamic fees
     #[serde(rename = "type")]
     pub type_: String,
 
-    /// 32 bytes of post-transaction stateroot - returned only pre Byzantium
-    pub root: Option<Data>,
     /// either 1 (success) or 0 (failure) - returned only post Byzantium
-    pub status: Option<String>,
+    pub root: String,
+}
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct PostByzantiumTransactionReceipt {
+    /// hash of the block where this transaction was in, null when its pending
+    #[serde(rename = "blockHash")]
+    block_hash: Uint256,
+    /// block number where this transaction was in, null when its pending
+    #[serde(rename = "blockNumber")]
+    block_number: Uint256,
+    /// The contract address created, if the transaction was a contract creation, otherwise null
+    #[serde(rename = "contractAddress")]
+    contract_address: Option<Address>,
+    /// cumulative gas used
+    #[serde(rename = "cumulativeGasUsed")]
+    cumulative_gas_used: Uint256,
+    /// sum of base fee and tip paid per unit of gas
+    #[serde(rename = "effectiveGasPrice")]
+    effective_gas_price: Uint256,
+    /// address of the sender
+    from: Address,
+    /// amount of gas used by this transaction alone
+    #[serde(rename = "gasUsed")]
+    gas_used: Uint256,
+    /// Array of log objects created by the transaction
+    pub logs: Vec<Log>,
+    /// Bloom filter for light clients to quickly retrieve related logs
+    #[serde(rename = "logsBloom")]
+    pub logs_bloom: Data,
+    /// address of the receiver (None for contract deploy)
+    to: Option<Address>,
+    /// hash of the transaction
+    #[serde(rename = "transactionHash")]
+    transaction_hash: Uint256,
+    /// integer of the transaction's index position in the block, null when its pending
+    #[serde(rename = "transactionIndex")]
+    transaction_index: Uint256,
+    /// integer of the transaction type: 0x0 for legacy transactions, 0x1 for access list types, 0x2 for dynamic fees
+    #[serde(rename = "type")]
+    pub type_: Uint256,
+
+    /// either 1 (success) or 0 (failure) - returned only post Byzantium
+    pub status: String,
 }
 
 /// As received by getTransactionByHash
