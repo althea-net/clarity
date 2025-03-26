@@ -300,8 +300,7 @@ fn all_bytes_are_zero(input: &[u8]) -> bool {
 }
 
 /// Safely downcasts a Uint256 to system integer size, note that on systems with 32 bit integer size
-/// this may return invalid for some otherwise valid RLP, but only in the case that the system doesn't have
-/// enough memory to decode the value anyways. I guess swap might allow this error case to actually be encountered
+/// this may return invalid for some otherwise valid RLP
 pub fn downcast(input: Uint256) -> Result<usize, Error> {
     if input > usize::MAX.into() {
         Err(Error::DeserializeRlp)
@@ -311,6 +310,19 @@ pub fn downcast(input: Uint256) -> Result<usize, Error> {
         let mut slice = [0; USIZE_BYTES];
         slice.copy_from_slice(&bytes[0..USIZE_BYTES]);
         Ok(usize::from_le_bytes(slice))
+    }
+}
+
+/// Safely downcasts a Uint256 to u64 size
+pub fn downcast_u64(input: Uint256) -> Result<u64, Error> {
+    if input > u64::MAX.into() {
+        Err(Error::DeserializeRlp)
+    } else {
+        const U64_BYTES: usize = (u64::BITS / 8) as usize;
+        let bytes = input.to_le_bytes();
+        let mut slice = [0; U64_BYTES];
+        slice.copy_from_slice(&bytes[0..U64_BYTES]);
+        Ok(u64::from_le_bytes(slice))
     }
 }
 
@@ -332,6 +344,13 @@ mod tests {
         assert!(downcast(max + 1u8.into()).is_err());
         #[cfg(all(unix, target_pointer_width = "64"))]
         assert_eq!(downcast(max + 1u8.into()).unwrap(), (u32::MAX as usize + 1));
+    }
+
+    #[test]
+    fn test_downcast_u64() {
+        assert_eq!(downcast_u64(50u8.into()).unwrap(), 50);
+        let max = Uint256::from(u64::MAX);
+        assert!(downcast_u64(max + 1u8.into()).is_err());
     }
 
     #[test]
