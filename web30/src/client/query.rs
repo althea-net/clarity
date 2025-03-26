@@ -1,6 +1,7 @@
 use crate::jsonrpc::error::Web3Error;
 use crate::types::{Block, Log, NewFilter, SyncingStatus, TransactionRequest, TransactionResponse};
 use crate::types::{ConciseBlock, TransactionReceipt};
+use clarity::rlp::downcast_u64;
 use clarity::Address;
 use num256::Uint256;
 use std::time::Duration;
@@ -18,13 +19,15 @@ impl Web3 {
     }
 
     /// Returns the EIP155 chain ID used for transaction signing at the current best block. Null is returned if not available.
-    pub async fn eth_chainid(&self) -> Result<Option<Uint256>, Web3Error> {
+    pub async fn eth_chainid(&self) -> Result<u64, Web3Error> {
         let ret: Result<Uint256, Web3Error> = self
             .jsonrpc_client
             .request_method("eth_chainId", Vec::<String>::new(), self.timeout)
             .await;
-
-        Ok(Some(ret?))
+        // there is no actually specified maximum chain id, so in theory we should use Uint256 here, but u64 is much easier to handle
+        // from an encoding standpoint
+        let value = ret?;
+        Ok(downcast_u64(value)?)
     }
 
     pub async fn eth_get_logs(&self, new_filter: NewFilter) -> Result<Vec<Log>, Web3Error> {

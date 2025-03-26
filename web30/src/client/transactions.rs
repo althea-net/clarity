@@ -174,7 +174,7 @@ impl Web3 {
         let network_id = if let Some(ni) = network_id {
             ni
         } else {
-            self.net_version().await?
+            self.eth_chainid().await?
         };
 
         // this is an edge case where we are about to send a transaction that can't possibly
@@ -233,7 +233,7 @@ impl Web3 {
         let our_balance = self.eth_get_balance(own_address);
         let nonce = self.eth_get_transaction_count(own_address);
         let max_fee_per_gas = self.get_base_fee_per_gas();
-        let chain_id = self.net_version();
+        let chain_id = self.eth_chainid();
 
         // request in parallel
         let (our_balance, nonce, base_fee_per_gas, chain_id) =

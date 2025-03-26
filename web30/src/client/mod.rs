@@ -9,7 +9,6 @@ const ETHEREUM_INTRINSIC_GAS: u32 = 21000;
 pub mod core;
 pub mod gas;
 pub mod misc;
-pub mod net;
 pub mod query;
 pub mod transactions;
 
@@ -18,31 +17,19 @@ pub use core::Web3;
 
 #[cfg(test)]
 mod test {
-    use std::{str::FromStr, time::Duration};
-
+    use super::*;
     use clarity::Address;
     use num256::Uint256;
-
-    use super::*;
+    use std::{str::FromStr, time::Duration};
 
     #[actix_rt::test]
     async fn test_chain_id() {
         let web3 = Web3::new("https://eth.althea.net", Duration::from_secs(30));
         let web3_xdai = Web3::new("https://dai.althea.net", Duration::from_secs(30));
-        assert_eq!(Some(Uint256::from(1u8)), web3.eth_chainid().await.unwrap());
-        assert_eq!(
-            Some(Uint256::from(100u8)),
-            web3_xdai.eth_chainid().await.unwrap()
-        );
+        assert_eq!(1, web3.eth_chainid().await.unwrap());
+        assert_eq!(100, web3_xdai.eth_chainid().await.unwrap());
     }
 
-    #[actix_rt::test]
-    async fn test_net_version() {
-        let web3_xdai = Web3::new("https://dai.althea.net", Duration::from_secs(30));
-        let web3 = Web3::new("https://eth.althea.net", Duration::from_secs(30));
-        assert_eq!(1u64, web3.net_version().await.unwrap());
-        assert_eq!(100u64, web3_xdai.net_version().await.unwrap());
-    }
     #[ignore]
     #[actix_rt::test]
     async fn test_complex_response() {
