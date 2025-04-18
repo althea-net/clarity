@@ -1,7 +1,6 @@
 extern crate clarity;
 extern crate num256;
 extern crate num_traits;
-extern crate rustc_test as test;
 extern crate serde_json;
 use std::{cmp::Ordering, collections::HashMap, fmt::Display, str::FromStr};
 

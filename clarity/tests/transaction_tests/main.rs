@@ -1,6 +1,5 @@
 extern crate num256;
 extern crate num_traits;
-extern crate rustc_test as test;
 extern crate serde_json;
 #[macro_use]
 extern crate serde_derive;
@@ -15,9 +14,11 @@ use std::io;
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
 use structs::*;
-use test::{DynTestFn, DynTestName, ShouldPanic, TestDesc, TestDescAndFn};
+use test::{DynTest, DynTestName, ShouldPanic, TestDesc, TestDescAndFn};
 
+mod stats;
 mod structs;
+mod test;
 
 /// These are tests we exlude ourselves from becuase they are either invalid or don't apply to us
 /// since we are not a consensus client
@@ -283,7 +284,7 @@ fn create_test_with_network(
 
     TestDescAndFn {
         desc,
-        testfn: DynTestFn(Box::new(move || {
+        testfn: DynTest(Box::new(move || {
             test_fn(&a, &b, network);
         })),
     }

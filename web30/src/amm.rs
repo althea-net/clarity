@@ -202,8 +202,8 @@ impl Web3 {
     /// * `token_in` - The address of an ERC20 token to offer up
     /// * `token_out` - The address of an ERC20 token to receive
     /// * `fee_uint24` - Optional fee level of the `token_in`<->`token_out` pool to query - limited to uint24 in size.
-    ///    Defaults to the pool fee of 0.3%
-    ///    The suggested pools are 0.3% (3000), 0.05% (500), 1% (10000), and 0.01% (100) but more may be added permissionlessly
+    ///   Defaults to the pool fee of 0.3%
+    ///   The suggested pools are 0.3% (3000), 0.05% (500), 1% (10000), and 0.01% (100) but more may be added permissionlessly
     /// * `amount` - the amount of token_in to swap for some amount of token_out
     /// * `max_slippage` - The maximum acceptable slippage, defaults to 0.005 (0.5%)
     /// * `uniswap_quoter` - Optional address of the Uniswap v3 quoter to contact, default is 0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6
@@ -273,8 +273,8 @@ impl Web3 {
     /// * `token_in` - The address of an ERC20 token to offer up
     /// * `token_out` - The address of an ERC20 token to receive
     /// * `fee_uint24` - Optional fee level of the `token_in`<->`token_out` pool to query - limited to uint24 in size.
-    ///    Defaults to the pool fee of 0.3%
-    ///    The suggested pools are 0.3% (3000), 0.05% (500), 1% (10000), and 0.01% (100) but more may be added permissionlessly
+    ///   Defaults to the pool fee of 0.3%
+    ///   The suggested pools are 0.3% (3000), 0.05% (500), 1% (10000), and 0.01% (100) but more may be added permissionlessly
     /// * `sqrt_price_limit_x96_uint160` - Optional square root price limit, see methods below for more information
     /// * `uniswap_quoter` - Optional address of the Uniswap v3 quoter to contact, default is 0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6
     ///
@@ -394,8 +394,8 @@ impl Web3 {
     /// * `token_in` - The address of the ERC20 token to exchange for `token_out`
     /// * `token_out` - The address of the ERC20 token to receive
     /// * `fee_uint24` - Optional fee level of the `token_in`<->`token_out` pool to query - limited to uint24 in size.
-    ///    Defaults to the medium pool fee of 0.3%
-    ///    The suggested pools are 0.3% (3000), 0.05% (500), 1% (10000), and 0.01% (100) but more may be added permissionlessly
+    ///   Defaults to the medium pool fee of 0.3%
+    ///   The suggested pools are 0.3% (3000), 0.05% (500), 1% (10000), and 0.01% (100) but more may be added permissionlessly
     /// * `amount` - The amount of `token_in` to exchange for as much `token_out` as possible
     /// * `deadline` - Optional deadline to the swap before it is cancelled, 10 minutes if None
     /// * `max_slippage` - Optional maximum slippage amount for the swap, defaults to 0.005 (0.5%) if None
@@ -463,13 +463,13 @@ impl Web3 {
     /// * `token_in` - The address of the ERC20 token to exchange for `token_out`
     /// * `token_out` - The address of the ERC20 token to receive
     /// * `fee_uint24` - Optional fee level of the `token_in`<->`token_out` pool to query - limited to uint24 in size.
-    ///    Defaults to the medium pool fee of 0.3%
-    ///    The suggested pools are 0.3% (3000), 0.05% (500), 1% (10000), and 0.01% (100) but more may be added permissionlessly
+    ///   Defaults to the medium pool fee of 0.3%
+    ///   The suggested pools are 0.3% (3000), 0.05% (500), 1% (10000), and 0.01% (100) but more may be added permissionlessly
     /// * `amount` - The amount of `token_in` to exchange for as much `token_out` as possible
     /// * `deadline` - Optional deadline to the swap before it is cancelled, 10 minutes if None
     /// * `amount_out_min` - Optional minimum amount of `token_out` to receive or the swap is cancelled, ignored if None
     /// * `sqrt_price_limit_x96_64` - Optional square root price limit, ignored if None or 0.
-    ///                               See the methods below for more information
+    ///   See the methods below for more information
     /// * `uniswap_router` - Optional address of the Uniswap v3 SwapRouter to contact, default is 0xE592427A0AEce92De3Edee1F18E0157C05861564
     /// * `options` - Optional arguments for the Transaction, see send_transaction()
     /// * `wait_timeout` - Set to Some(TIMEOUT) if you wish to wait for this tx to enter the chain before returning
@@ -636,8 +636,8 @@ impl Web3 {
     /// * `eth_private_key` - The private key of the holder of `token_in` who will receive `token_out`
     /// * `token_out` - The address of the ERC20 token to receive
     /// * `fee_uint24` - Optional fee level of the `token_in`<->`token_out` pool to query - limited to uint24 in size.
-    ///    Defaults to the medium pool fee of 0.3%
-    ///    The suggested pools are 0.3% (3000), 0.05% (500), 1% (10000), and 0.01% (100) but more may be added permissionlessly
+    ///   Defaults to the medium pool fee of 0.3%
+    ///   The suggested pools are 0.3% (3000), 0.05% (500), 1% (10000), and 0.01% (100) but more may be added permissionlessly
     /// * `amount` - The amount of `token_in` to exchange for as much `token_out` as possible
     /// * `deadline` - Optional deadline to the swap before it is cancelled, 10 minutes if None
     /// * `max_slippage` - Optional maximum slippage amount for the swap, defaults to 0.005 (0.5%) if None
@@ -707,14 +707,14 @@ impl Web3 {
     /// * `eth_private_key` - The private key of the holder of `token_in` who will receive `token_out`
     /// * `token_out` - The address of the ERC20 token to receive
     /// * `fee_uint24` - Optional fee level of the `token_in`<->`token_out` pool to query - limited to uint24 in size.
-    ///    Defaults to the medium pool fee of 0.3%
-    ///    The suggested pools are 0.3% (3000), 0.05% (500), 1% (10000), and 0.01% (100) but more may be added permissionlessly
+    ///   Defaults to the medium pool fee of 0.3%
+    ///   The suggested pools are 0.3% (3000), 0.05% (500), 1% (10000), and 0.01% (100) but more may be added permissionlessly
     /// * `amount` - The amount of `token_in` to exchange for as much `token_out` as possible
     /// * `deadline` - Optional deadline to the swap before it is cancelled, 10 minutes if None
     /// * `amount_out_min` - Optional minimum amount of `token_out` to receive or the swap is cancelled,
-    ///                      if None and sqrt_price_limit_x96_64 is Some(_) then a sensible value will be computed
+    ///   if None and sqrt_price_limit_x96_64 is Some(_) then a sensible value will be computed
     /// * `sqrt_price_limit_x96_64` - Optional square root price limit, ignored if None or 0. See methods below
-    ///                               for how to work with this value
+    ///   for how to work with this value
     /// * `uniswap_router` - Optional address of the Uniswap v3 SwapRouter to contact, default is 0xE592427A0AEce92De3Edee1F18E0157C05861564
     /// * `options` - Optional arguments for the Transaction, see send_transaction()
     /// * `wait_timeout` - Set to Some(TIMEOUT) if you wish to wait for this tx to enter the chain before returning
