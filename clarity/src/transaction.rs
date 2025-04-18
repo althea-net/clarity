@@ -20,6 +20,49 @@ use sha3::{Digest, Keccak256};
 use std::fmt;
 use std::fmt::Display;
 
+/// Used to represent the possible types of transactions
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum TransactionType {
+    Legacy,
+    Eip2930,
+    Eip1559,
+    Unknown,
+}
+
+impl From<Uint256> for TransactionType {
+    fn from(value: Uint256) -> TransactionType {
+        match value {
+            val if val == 0u8.into() => TransactionType::Legacy,
+            val if val == 1u8.into() => TransactionType::Eip2930,
+            val if val == 2u8.into() => TransactionType::Eip1559,
+            _ => TransactionType::Unknown,
+        }
+    }
+}
+
+impl TryFrom<String> for TransactionType {
+    type Error = Error;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        match value.as_str() {
+            "legacy" => Ok(TransactionType::Legacy),
+            "eip2930" => Ok(TransactionType::Eip2930),
+            "eip1559" => Ok(TransactionType::Eip1559),
+            _ => Err(Error::UnknownTxType(0u8.into())),
+        }
+    }
+}
+impl Display for TransactionType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            TransactionType::Legacy => write!(f, "legacy"),
+            TransactionType::Eip2930 => write!(f, "eip2930"),
+            TransactionType::Eip1559 => write!(f, "eip1559"),
+            TransactionType::Unknown => write!(f, "unknown"),
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Transaction {
     /// The original Ethereum transaction format, will always start with a byte >=0xc0
@@ -212,6 +255,14 @@ fn count_nonzero_bytes(haystack: &[u8]) -> usize {
 }
 
 impl Transaction {
+    pub fn get_type(&self) -> TransactionType {
+        match self {
+            Transaction::Legacy { .. } => TransactionType::Legacy,
+            Transaction::Eip2930 { .. } => TransactionType::Eip2930,
+            Transaction::Eip1559 { .. } => TransactionType::Eip1559,
+        }
+    }
+
     pub fn is_valid(&self) -> bool {
         // invalid signature check
         if let Some(sig) = self.get_signature() {

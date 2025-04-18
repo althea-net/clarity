@@ -1,3 +1,4 @@
+use clarity::transaction::TransactionType;
 use clarity::utils::{bytes_to_hex_str, hex_str_to_bytes};
 use clarity::{Address, Transaction};
 use num256::Uint256;
@@ -95,6 +96,97 @@ pub enum TransactionReceipt {
     PostByzantium(PostByzantiumTransactionReceipt),
 }
 
+impl TransactionReceipt {
+    pub fn get_block_number(&self) -> Option<Uint256> {
+        match self {
+            TransactionReceipt::PreByzantium(receipt) => Some(receipt.block_number),
+            TransactionReceipt::PostByzantium(receipt) => Some(receipt.block_number),
+        }
+    }
+    pub fn get_transaction_hash(&self) -> Uint256 {
+        match self {
+            TransactionReceipt::PreByzantium(receipt) => receipt.transaction_hash,
+            TransactionReceipt::PostByzantium(receipt) => receipt.transaction_hash,
+        }
+    }
+    pub fn get_block_hash(&self) -> Option<Uint256> {
+        match self {
+            TransactionReceipt::PreByzantium(receipt) => Some(receipt.block_hash),
+            TransactionReceipt::PostByzantium(receipt) => Some(receipt.block_hash),
+        }
+    }
+    pub fn get_contract_address(&self) -> Option<Address> {
+        match self {
+            TransactionReceipt::PreByzantium(receipt) => receipt.contract_address,
+            TransactionReceipt::PostByzantium(receipt) => receipt.contract_address,
+        }
+    }
+    pub fn get_gas_used(&self) -> Uint256 {
+        match self {
+            TransactionReceipt::PreByzantium(receipt) => receipt.gas_used,
+            TransactionReceipt::PostByzantium(receipt) => receipt.gas_used,
+        }
+    }
+    pub fn get_cumulative_gas_used(&self) -> Uint256 {
+        match self {
+            TransactionReceipt::PreByzantium(receipt) => receipt.cumulative_gas_used,
+            TransactionReceipt::PostByzantium(receipt) => receipt.cumulative_gas_used,
+        }
+    }
+    pub fn get_effective_gas_price(&self) -> Uint256 {
+        match self {
+            TransactionReceipt::PreByzantium(receipt) => receipt.effective_gas_price,
+            TransactionReceipt::PostByzantium(receipt) => receipt.effective_gas_price,
+        }
+    }
+    pub fn get_logs(&self) -> Vec<Log> {
+        match self {
+            TransactionReceipt::PreByzantium(receipt) => receipt.logs.clone(),
+            TransactionReceipt::PostByzantium(receipt) => receipt.logs.clone(),
+        }
+    }
+    pub fn get_logs_bloom(&self) -> Data {
+        match self {
+            TransactionReceipt::PreByzantium(receipt) => receipt.logs_bloom.clone(),
+            TransactionReceipt::PostByzantium(receipt) => receipt.logs_bloom.clone(),
+        }
+    }
+    pub fn get_transaction_index(&self) -> Option<Uint256> {
+        match self {
+            TransactionReceipt::PreByzantium(receipt) => Some(receipt.transaction_index),
+            TransactionReceipt::PostByzantium(receipt) => Some(receipt.transaction_index),
+        }
+    }
+    pub fn get_from(&self) -> Address {
+        match self {
+            TransactionReceipt::PreByzantium(receipt) => receipt.from,
+            TransactionReceipt::PostByzantium(receipt) => receipt.from,
+        }
+    }
+    pub fn get_to(&self) -> Option<Address> {
+        match self {
+            TransactionReceipt::PreByzantium(receipt) => receipt.to,
+            TransactionReceipt::PostByzantium(receipt) => receipt.to,
+        }
+    }
+    pub fn get_type(&self) -> TransactionType {
+        let num = match self {
+            TransactionReceipt::PreByzantium(receipt) => receipt.transaction_type,
+            TransactionReceipt::PostByzantium(receipt) => receipt.transaction_type,
+        };
+        num.into()
+    }
+    pub fn get_success(&self) -> bool {
+        match self {
+            TransactionReceipt::PreByzantium(receipt) => receipt.root == 1u8.into(),
+            TransactionReceipt::PostByzantium(receipt) => receipt.status == 1u8.into(),
+        }
+    }
+    pub fn get_status(&self) -> bool {
+        self.get_success()
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct PreByzantiumTransactionReceipt {
     /// hash of the block where this transaction was in, null when its pending
@@ -132,10 +224,10 @@ pub struct PreByzantiumTransactionReceipt {
     transaction_index: Uint256,
     /// integer of the transaction type: 0x0 for legacy transactions, 0x1 for access list types, 0x2 for dynamic fees
     #[serde(rename = "type")]
-    pub type_: String,
+    pub transaction_type: Uint256,
 
-    /// either 1 (success) or 0 (failure) - returned only post Byzantium
-    pub root: String,
+    /// either 1 (success) or 0 (failure) - returned only pre Byzantium
+    pub root: Uint256,
 }
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct PostByzantiumTransactionReceipt {
@@ -174,10 +266,10 @@ pub struct PostByzantiumTransactionReceipt {
     transaction_index: Uint256,
     /// integer of the transaction type: 0x0 for legacy transactions, 0x1 for access list types, 0x2 for dynamic fees
     #[serde(rename = "type")]
-    pub type_: Uint256,
+    pub transaction_type: Uint256,
 
     /// either 1 (success) or 0 (failure) - returned only post Byzantium
-    pub status: String,
+    pub status: Uint256,
 }
 
 /// As received by getTransactionByHash
@@ -816,6 +908,33 @@ mod tests {
                 println!("{res:?}");
                 System::current().stop_with_code(1);
             }
+        });
+    }
+
+    /// This test is used to get new blocks for testing easily
+    #[test]
+    #[ignore]
+    fn test_transaction_reciept() {
+        use actix::System;
+        env_logger::init();
+        let runner = System::new();
+        let web3 = Web3::new("https://eth.althea.net", Duration::from_secs(5));
+        runner.block_on(async move {
+            let res = web3
+                .eth_get_transaction_receipt(
+                    "0xd7b2bc6ec6d23dd1744ef6c9d86d2527f32b47ab4a71250d4aa52261efc8e8b0"
+                        .parse()
+                        .unwrap(),
+                )
+                .await;
+
+            if res.is_err() {
+                println!("{res:?}");
+                System::current().stop_with_code(1);
+            }
+
+            let status = res.unwrap().unwrap().get_success();
+            print!("{status:#?}");
         });
     }
 
