@@ -371,7 +371,7 @@ impl Web3 {
 
     /// Utility function for generating a events requests filtered specifically for a given ERC20
     /// and a given destination
-    pub async fn get_erc20_transfer_events_by_desintation(
+    pub async fn get_erc20_transfer_events_by_destination(
         &self,
         erc20: Address,
         destination: Address,
@@ -384,6 +384,31 @@ impl Web3 {
             end_block,
             vec![erc20],
             vec![TRANSFER_EVENT_SIG, "", &bytes_to_data(&destination)],
+        )
+        .await
+    }
+
+    /// Utility function for generating a events requests filtered specifically for a given ERC20
+    /// and a given source and destination
+    pub async fn get_erc20_transfer_events_by_sender_and_destination(
+        &self,
+        erc20: Address,
+        sender: Address,
+        destination: Address,
+        start_block: Uint256,
+        end_block: Option<Uint256>,
+    ) -> Result<Vec<Log>, Web3Error> {
+        let sender = address_to_event(sender);
+        let destination = address_to_event(destination);
+        self.check_for_events(
+            start_block,
+            end_block,
+            vec![erc20],
+            vec![
+                TRANSFER_EVENT_SIG,
+                &bytes_to_data(&sender),
+                &bytes_to_data(&destination),
+            ],
         )
         .await
     }
@@ -429,7 +454,7 @@ mod test {
         let start_block = 22334091u64.into();
         let end_block = None;
         let logs = web3
-            .get_erc20_transfer_events_by_desintation(
+            .get_erc20_transfer_events_by_destination(
                 dai_address,
                 caller_address,
                 start_block,
