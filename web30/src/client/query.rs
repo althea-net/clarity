@@ -30,6 +30,14 @@ impl Web3 {
         Ok(downcast_u64(value)?)
     }
 
+    /// Requests logs as provided by a filter, see this guide for some advice on how to use this
+    /// https://docs.alchemy.com/docs/deep-dive-into-eth_getlogs
+    /// A transaction with a log with topics [A, B] will be matched by the following topic filters:
+    /// [] “anything”
+    /// [A] “A in first position (and anything after)”
+    /// [null, B] “anything in first position AND B in second position (and anything after)”
+    /// [A, B] “A in first position AND B in second position (and anything after)”
+    /// [[A, B], [A, B]] “(A OR B) in first position AND (A OR B) in second position (and anything after)”
     pub async fn eth_get_logs(&self, new_filter: NewFilter) -> Result<Vec<Log>, Web3Error> {
         self.jsonrpc_client
             .request_method("eth_getLogs", vec![new_filter], self.timeout)

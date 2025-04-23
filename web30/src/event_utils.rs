@@ -22,7 +22,8 @@ pub fn address_to_event(address: Address) -> [u8; 32] {
     }
 }
 
-fn bytes_to_data(s: &[u8]) -> String {
+// Internal function to convert a [u8; 32] to a hex string with 0x appended
+pub fn bytes_to_data(s: &[u8]) -> String {
     let mut val = "0x".to_string();
     val.push_str(&bytes_to_hex_str(s));
     val
@@ -132,8 +133,10 @@ impl Web3 {
         }
     }
 
-    /// Checks for multiple events as defined by their signature strings over a block range. If no ending block is provided
-    /// the latest will be used. This function will not wait for events to occur.
+    /// Checks an events with additional topics, the first argumement should always be an event signature, with the following being
+    /// topics, topics are positional, so if you want to skip a topic provide an empty string. If no ending block is provided
+    /// the latest will be used. This function will not wait for events to occur. Note this is a simplified endpoint that does not
+    /// fully represent the eth_getLogs endpoint, use eth_get_logs for the full power fo event requests.
     pub async fn check_for_events(
         &self,
         start_block: Uint256,
@@ -153,46 +156,13 @@ impl Web3 {
 
         let mut final_topics = Vec::new();
         for event in events {
-            let sig = derive_signature(event)?;
-            final_topics.push(Some(vec![Some(bytes_to_data(&sig))]));
-        }
-
-        let new_filter = NewFilter {
-            address: contract_address,
-            from_block,
-            to_block,
-            topics: Some(final_topics),
-        };
-
-        self.eth_get_logs(new_filter).await
-    }
-
-    /// Checks for multiple events as defined by arbitrary user input over a block range. If no ending block is provided
-    /// the latest will be used. This function will not wait for events to occur
-    pub async fn check_for_arbitrary_events(
-        &self,
-        start_block: Uint256,
-        end_block: Option<Uint256>,
-        contract_address: Vec<Address>,
-        topics: Vec<Vec<[u8; 32]>>,
-    ) -> Result<Vec<Log>, Web3Error> {
-        // Build a filter with specified topics
-        let from_block = Some(format!("{start_block:#x}"));
-        let to_block;
-        if let Some(end_block) = end_block {
-            to_block = Some(format!("{end_block:#x}"));
-        } else {
-            let latest_block = self.eth_block_number().await?;
-            to_block = Some(format!("{latest_block:#x}"));
-        }
-
-        let mut final_topics = Vec::new();
-        for topic in topics {
-            let mut parts = Vec::new();
-            for item in topic {
-                parts.push(Some(bytes_to_data(&item)))
+            if let Ok(sig) = derive_signature(event) {
+                final_topics.push(Some(vec![Some(bytes_to_data(&sig))]));
+            } else if event.is_empty() {
+                final_topics.push(None);
+            } else {
+                final_topics.push(Some(vec![Some(event.to_string())]));
             }
-            final_topics.push(Some(parts));
         }
 
         let new_filter = NewFilter {

@@ -1,6 +1,8 @@
 //! This module contains utility functions for interacting with ERC20 tokens and contracts
+use crate::address_to_event;
+use crate::event_utils::bytes_to_data;
 use crate::jsonrpc::error::Web3Error;
-use crate::types::TransactionRequest;
+use crate::types::{Log, TransactionRequest};
 use crate::{client::Web3, types::SendTxOption};
 use clarity::{abi::encode_call, PrivateKey as EthPrivateKey};
 use clarity::{Address, Uint256};
@@ -347,21 +349,110 @@ impl Web3 {
             }
         }))
     }
-}
 
-#[test]
-fn test_erc20_metadata() {
-    use actix::System;
-    let runner = System::new();
-    let web3 = Web3::new("https://eth.althea.net", Duration::from_secs(30));
-    let dai_address = "0x6b175474e89094c44da98b954eedeac495271d0f"
-        .parse()
-        .unwrap();
-    // random coinbase address hoping it always has eth to 'pay' for this call
-    let caller_address = "0x503828976D22510aad0201ac7EC88293211D23Da"
-        .parse()
-        .unwrap();
-    runner.block_on(async move {
+    /// Utility function for generating a events requests filtered specifically for a given ERC20
+    /// and a given sender
+    pub async fn get_erc20_transfer_events_by_sender(
+        &self,
+        erc20: Address,
+        sender: Address,
+        start_block: Uint256,
+        end_block: Option<Uint256>,
+    ) -> Result<Vec<Log>, Web3Error> {
+        let sender = address_to_event(sender);
+        self.check_for_events(
+            start_block,
+            end_block,
+            vec![erc20],
+            vec![TRANSFER_EVENT_SIG, &bytes_to_data(&sender)],
+        )
+        .await
+    }
+
+    /// Utility function for generating a events requests filtered specifically for a given ERC20
+    /// and a given destination
+    pub async fn get_erc20_transfer_events_by_desintation(
+        &self,
+        erc20: Address,
+        destination: Address,
+        start_block: Uint256,
+        end_block: Option<Uint256>,
+    ) -> Result<Vec<Log>, Web3Error> {
+        let destination = address_to_event(destination);
+        self.check_for_events(
+            start_block,
+            end_block,
+            vec![erc20],
+            vec![TRANSFER_EVENT_SIG, "", &bytes_to_data(&destination)],
+        )
+        .await
+    }
+
+    /// Gets all approval events in the range for a specific erc20 address and a specific owner
+    /// approving tranfers
+    pub async fn get_erc20_approval_events_by_owner(
+        &self,
+        erc20: Address,
+        src: Address,
+        start_block: Uint256,
+        end_block: Option<Uint256>,
+    ) -> Result<Vec<Log>, Web3Error> {
+        let src = address_to_event(src);
+        self.check_for_events(
+            start_block,
+            end_block,
+            vec![erc20],
+            vec![APPROVE_EVENT_SIG, &bytes_to_data(&src)],
+        )
+        .await
+    }
+}
+/// The event signature for ERC20 transfers
+pub const TRANSFER_EVENT_SIG: &str = "Transfer(address,address,uint256)";
+/// The event signature for ERC20 approvals
+pub const APPROVE_EVENT_SIG: &str = "Approval(address,address,uint256)";
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[actix_rt::test]
+    async fn test_filtered_erc20_transfer_events() {
+        let web3 = Web3::new("https://eth.althea.net", Duration::from_secs(30));
+        let dai_address = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
+            .parse()
+            .unwrap();
+        // random coinbase address hoping it always has eth to 'pay' for this call
+        let caller_address = "0xC69d72D8940d66CfC3Aeb06AeBD1F97b64e49E08"
+            .parse()
+            .unwrap();
+        let start_block = 22334091u64.into();
+        let end_block = None;
+        let logs = web3
+            .get_erc20_transfer_events_by_desintation(
+                dai_address,
+                caller_address,
+                start_block,
+                end_block,
+            )
+            .await
+            .unwrap();
+        println!("Logs len {}", logs.len());
+        for log in logs.iter() {
+            println!("Log: {:?}", log.block_number);
+        }
+    }
+
+    #[actix_rt::test]
+    async fn test_erc20_metadata() {
+        let web3 = Web3::new("https://eth.althea.net", Duration::from_secs(30));
+        let dai_address = "0x6b175474e89094c44da98b954eedeac495271d0f"
+            .parse()
+            .unwrap();
+        // random coinbase address hoping it always has eth to 'pay' for this call
+        let caller_address = "0x503828976D22510aad0201ac7EC88293211D23Da"
+            .parse()
+            .unwrap();
         assert_eq!(
             web3.get_erc20_decimals(dai_address, caller_address)
                 .await
@@ -387,5 +478,5 @@ fn test_erc20_metadata() {
                 .unwrap(),
             "Dai Stablecoin"
         );
-    })
+    }
 }
