@@ -9,16 +9,23 @@ use clarity::{Address, Uint256};
 use std::time::{Duration, Instant};
 use tokio::time::sleep as delay_for;
 
-/// takes an address and spits out an event, There's some argument to
-/// not use [u8; 32] for event definitions because of how much trouble
-/// this is but mostly you watch for addresses, Uint256 values and byte arrays
-/// the last is best represented by this and the first is easily provided by this
-/// function. Uint256 has a get_bytes function but you do need to check the length
-pub fn address_to_event(address: Address) -> [u8; 32] {
-    let token = AbiToken::Address(address);
+/// Converts anything that implements Into<AbiToken> to a [u8; 32] for use in event topics
+/// this then needs to be converted to a hex string with 0x prepended.
+pub fn convert_to_event(value: impl Into<AbiToken>) -> [u8; 32] {
+    let token = value.into();
     match token.serialize() {
-        SerializedToken::Dynamic(_) => panic!("Addresses are not dynamic!"),
+        SerializedToken::Dynamic(_) => panic!("dyanmic types not supported!"),
         SerializedToken::Static(v) => v,
+    }
+}
+
+/// Converts anything that implements Into<AbiToken> to a hex string with 0x prepended
+/// useful as a direct argument to the topics field of a events filter
+pub fn convert_to_event_string(value: impl Into<AbiToken>) -> String {
+    let token = value.into();
+    match token.serialize() {
+        SerializedToken::Dynamic(_) => panic!("dyanmic types not supported!"),
+        SerializedToken::Static(v) => format!("0x{}", bytes_to_data(&v)),
     }
 }
 

@@ -1,6 +1,5 @@
 //! This module contains utility functions for interacting with ERC20 tokens and contracts
-use crate::address_to_event;
-use crate::event_utils::bytes_to_data;
+use crate::convert_to_event_string;
 use crate::jsonrpc::error::Web3Error;
 use crate::types::{Log, TransactionRequest};
 use crate::{client::Web3, types::SendTxOption};
@@ -359,12 +358,12 @@ impl Web3 {
         start_block: Uint256,
         end_block: Option<Uint256>,
     ) -> Result<Vec<Log>, Web3Error> {
-        let sender = address_to_event(sender);
+        let sender = convert_to_event_string(sender);
         self.check_for_events(
             start_block,
             end_block,
             vec![erc20],
-            vec![TRANSFER_EVENT_SIG, &bytes_to_data(&sender)],
+            vec![TRANSFER_EVENT_SIG, &sender],
         )
         .await
     }
@@ -378,12 +377,12 @@ impl Web3 {
         start_block: Uint256,
         end_block: Option<Uint256>,
     ) -> Result<Vec<Log>, Web3Error> {
-        let destination = address_to_event(destination);
+        let destination = convert_to_event_string(destination);
         self.check_for_events(
             start_block,
             end_block,
             vec![erc20],
-            vec![TRANSFER_EVENT_SIG, "", &bytes_to_data(&destination)],
+            vec![TRANSFER_EVENT_SIG, "", &destination],
         )
         .await
     }
@@ -398,17 +397,13 @@ impl Web3 {
         start_block: Uint256,
         end_block: Option<Uint256>,
     ) -> Result<Vec<Log>, Web3Error> {
-        let sender = address_to_event(sender);
-        let destination = address_to_event(destination);
+        let sender = convert_to_event_string(sender);
+        let destination = convert_to_event_string(destination);
         self.check_for_events(
             start_block,
             end_block,
             vec![erc20],
-            vec![
-                TRANSFER_EVENT_SIG,
-                &bytes_to_data(&sender),
-                &bytes_to_data(&destination),
-            ],
+            vec![TRANSFER_EVENT_SIG, &sender, &destination],
         )
         .await
     }
@@ -422,12 +417,12 @@ impl Web3 {
         start_block: Uint256,
         end_block: Option<Uint256>,
     ) -> Result<Vec<Log>, Web3Error> {
-        let src = address_to_event(src);
+        let src = convert_to_event_string(src);
         self.check_for_events(
             start_block,
             end_block,
             vec![erc20],
-            vec![APPROVE_EVENT_SIG, &bytes_to_data(&src)],
+            vec![APPROVE_EVENT_SIG, &src],
         )
         .await
     }

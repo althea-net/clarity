@@ -20,5 +20,5 @@ pub mod jsonrpc;
 mod mem;
 pub mod types;
 
-pub use event_utils::address_to_event;
-pub use event_utils::bytes_to_data;
+pub use event_utils::convert_to_event;
+pub use event_utils::convert_to_event_string;
