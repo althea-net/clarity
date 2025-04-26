@@ -21,3 +21,4 @@ mod mem;
 pub mod types;
 
 pub use event_utils::address_to_event;
+pub use event_utils::bytes_to_data;
