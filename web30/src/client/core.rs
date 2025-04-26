@@ -21,8 +21,14 @@ impl Web3 {
         }
     }
 
+    /// Returns the timeout for requests made by this client
     pub fn get_timeout(&self) -> Duration {
         self.timeout
+    }
+
+    /// Allows the user to set a new timeout for the client.
+    pub fn set_timeout(&mut self, timeout: Duration) {
+        self.timeout = timeout;
     }
 
     pub fn get_url(&self) -> String {
