@@ -7,6 +7,7 @@ use clarity::{
 };
 use clarity::{Address, Uint256};
 use std::time::{Duration, Instant};
+use std::vec;
 use tokio::time::sleep as delay_for;
 
 /// Converts anything that implements Into<AbiToken> to a [u8; 32] for use in event topics
@@ -140,10 +141,86 @@ impl Web3 {
         }
     }
 
-    /// Checks an events with additional topics, the first argumement should always be an event signature, with the following being
+    /// Checks for multiple events each with additonal topics, the first argument of each vec of strings should be an event signature
+    /// followed by topics, topics are positional, so if you want to skip a topic provide an empty string. If no ending block is provided
+    /// the latest will be used. This function will not wait for events to occur.  
+    /// An empty vec on the topics filter will return all events from the target contract.
+    pub async fn check_for_multiple_events(
+        &self,
+        start_block: Uint256,
+        end_block: Option<Uint256>,
+        contract_address: Vec<Address>,
+        events: Vec<Vec<&str>>,
+    ) -> Result<Vec<Log>, Web3Error> {
+        // Build a filter with specified topics
+        let from_block = Some(format!("{start_block:#x}"));
+        let to_block;
+        if let Some(end_block) = end_block {
+            to_block = Some(format!("{end_block:#x}"));
+        } else {
+            let latest_block = self.eth_block_number().await?;
+            to_block = Some(format!("{latest_block:#x}"));
+        }
+
+        let mut final_topics: Vec<Option<Vec<Option<String>>>> = Vec::new();
+        for filter in events {
+            for (idx, event) in filter.iter().enumerate() {
+                let existing_topic = final_topics.get_mut(idx);
+                match existing_topic {
+                    Some(existing) => match existing {
+                        Some(existing) => {
+                            let mut parts = existing.clone();
+                            if let Ok(sig) = derive_signature(event) {
+                                parts.push(Some(bytes_to_data(&sig)));
+                            } else if event.is_empty() {
+                                parts.push(None);
+                            } else {
+                                parts.push(Some(event.to_string()));
+                            }
+                            *existing = parts;
+                        }
+                        None => {
+                            let mut parts = Vec::new();
+                            if let Ok(sig) = derive_signature(event) {
+                                parts.push(Some(bytes_to_data(&sig)));
+                            } else if event.is_empty() {
+                                parts.push(None);
+                            } else {
+                                parts.push(Some(event.to_string()));
+                            }
+                            *existing = Some(parts);
+                        }
+                    },
+                    None => {
+                        let mut parts = Vec::new();
+                        if let Ok(sig) = derive_signature(event) {
+                            parts.push(Some(bytes_to_data(&sig)));
+                        } else if event.is_empty() {
+                            parts.push(None);
+                        } else {
+                            parts.push(Some(event.to_string()));
+                        }
+                        final_topics.insert(idx, Some(parts));
+                    }
+                }
+            }
+        }
+
+        let new_filter = NewFilter {
+            address: contract_address,
+            from_block,
+            to_block,
+            topics: Some(final_topics),
+        };
+
+        self.eth_get_logs(new_filter).await
+    }
+
+    /// Checks an event with additional topics, the first argumement should always be an event signature, with the following being
     /// topics, topics are positional, so if you want to skip a topic provide an empty string. If no ending block is provided
     /// the latest will be used. This function will not wait for events to occur. Note this is a simplified endpoint that does not
-    /// fully represent the eth_getLogs endpoint, use eth_get_logs for the full power fo event requests.
+    /// fully represent the eth_getLogs endpoint, use eth_get_logs for the full power of event requests.
+    /// An emtpy vec on the topics filter will return all events from the target contract.
     pub async fn check_for_events(
         &self,
         start_block: Uint256,
