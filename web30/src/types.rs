@@ -887,6 +887,16 @@ pub enum SyncingStatus {
     },
 }
 
+#[allow(non_snake_case)]
+pub struct Eip712Domain {
+    pub name: Option<String>,
+    pub version: Option<String>,
+    pub chainId: Option<Uint256>,
+    pub verifyingContract: Option<Address>,
+    pub salt: Option<[u8; 32]>,
+    pub extensions: Option<Vec<Uint256>>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

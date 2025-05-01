@@ -11,14 +11,16 @@ extern crate lazy_static;
 
 pub mod amm;
 pub mod client;
-mod erc20_utils;
-mod erc721_utils;
 pub mod eth_wrapping;
-mod event_utils;
 pub mod gas_estimator;
 pub mod jsonrpc;
-mod mem;
 pub mod types;
+
+mod erc20_permit;
+mod erc20_utils;
+mod erc721_utils;
+mod event_utils;
+mod mem;
 
 pub use event_utils::convert_to_event;
 pub use event_utils::convert_to_event_string;
