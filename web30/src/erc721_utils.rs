@@ -23,12 +23,14 @@ impl Web3 {
         erc721: Address,
         own_address: Address,
         token_id: Uint256,
+        options: Vec<SendTxOption>,
     ) -> Result<Option<EthAddress>, Web3Error> {
         let payload = encode_call("getApproved(uint256)", &[AbiToken::Uint(token_id)])?;
 
         let val = self
             .simulate_transaction(
                 TransactionRequest::quick_tx(own_address, erc721, payload),
+                options,
                 None,
             )
             .await?;
@@ -180,11 +182,13 @@ impl Web3 {
         &self,
         erc721: Address,
         caller_address: Address,
+        options: Vec<SendTxOption>,
     ) -> Result<String, Web3Error> {
         let payload = encode_call("name()", &[])?;
         let name = self
             .simulate_transaction(
                 TransactionRequest::quick_tx(caller_address, erc721, payload),
+                options,
                 None,
             )
             .await?;
@@ -210,11 +214,13 @@ impl Web3 {
         &self,
         erc721: Address,
         caller_address: Address,
+        options: Vec<SendTxOption>,
     ) -> Result<String, Web3Error> {
         let payload = encode_call("symbol()", &[])?;
         let symbol = self
             .simulate_transaction(
                 TransactionRequest::quick_tx(caller_address, erc721, payload),
+                options,
                 None,
             )
             .await?;
@@ -240,11 +246,13 @@ impl Web3 {
         &self,
         erc721: Address,
         caller_address: Address,
+        options: Vec<SendTxOption>,
     ) -> Result<Uint256, Web3Error> {
         let payload = encode_call("totalSupply()", &[])?;
         let decimals = self
             .simulate_transaction(
                 TransactionRequest::quick_tx(caller_address, erc721, payload),
+                options,
                 None,
             )
             .await?;
@@ -267,11 +275,13 @@ impl Web3 {
         erc721: Address,
         caller_address: Address,
         token_id: Uint256,
+        options: Vec<SendTxOption>,
     ) -> Result<String, Web3Error> {
         let payload = encode_call("tokenURI(uint256)", &[AbiToken::Uint(token_id)])?;
         let symbol = self
             .simulate_transaction(
                 TransactionRequest::quick_tx(caller_address, erc721, payload),
+                options,
                 None,
             )
             .await?;
@@ -298,12 +308,14 @@ impl Web3 {
         erc721: Address,
         own_address: Address,
         token_id: Uint256,
+        options: Vec<SendTxOption>,
     ) -> Result<EthAddress, Web3Error> {
         let payload = encode_call("ownerOf(uint256)", &[AbiToken::Uint(token_id)])?;
 
         let val = self
             .simulate_transaction(
                 TransactionRequest::quick_tx(own_address, erc721, payload),
+                options,
                 None,
             )
             .await?;
@@ -337,25 +349,25 @@ fn test_erc721_metadata() {
     runner.block_on(async move {
         let num: Uint256 = 1000u32.into();
         assert!(
-            web3.get_erc721_supply(bayc_address, caller_address)
+            web3.get_erc721_supply(bayc_address, caller_address, vec![])
                 .await
                 .unwrap()
                 > num
         );
         assert_eq!(
-            web3.get_erc721_symbol(bayc_address, caller_address)
+            web3.get_erc721_symbol(bayc_address, caller_address, vec![])
                 .await
                 .unwrap(),
             "BAYC"
         );
         assert_eq!(
-            web3.get_erc721_name(bayc_address, caller_address)
+            web3.get_erc721_name(bayc_address, caller_address, vec![])
                 .await
                 .unwrap(),
             "BoredApeYachtClub"
         );
         assert_eq!(
-            web3.get_erc721_uri(bayc_address, caller_address, token_id_uint)
+            web3.get_erc721_uri(bayc_address, caller_address, token_id_uint, vec![])
                 .await
                 .unwrap(),
             token_id_uri

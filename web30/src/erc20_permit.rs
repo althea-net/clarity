@@ -1,3 +1,5 @@
+use std::vec;
+
 use clarity::{abi::encode_call, utils::bytes_to_hex_str, Address};
 use num256::Uint256;
 use num_traits::ToPrimitive;
@@ -20,6 +22,7 @@ impl Web3 {
         let nonces = self
             .simulate_transaction(
                 TransactionRequest::quick_tx(caller_address, erc20, payload),
+                vec![],
                 None,
             )
             .await?;
@@ -44,6 +47,7 @@ impl Web3 {
         let domain_res = self
             .simulate_transaction(
                 TransactionRequest::quick_tx(caller_address, erc20, payload),
+                vec![],
                 None,
             )
             .await?;

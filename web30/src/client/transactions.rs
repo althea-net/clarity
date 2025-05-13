@@ -369,6 +369,7 @@ impl Web3 {
     pub async fn simulate_transaction(
         &self,
         mut transaction: TransactionRequest,
+        options: Vec<SendTxOption>,
         height: Option<Uint256>,
     ) -> Result<Vec<u8>, Web3Error> {
         let own_address = transaction.get_from();
@@ -389,6 +390,49 @@ impl Web3 {
         transaction.set_nonce(nonce);
         transaction.set_gas_limit(gas.limit);
         transaction.set_gas_price(gas.price);
+
+        for option in options {
+            match option {
+                SendTxOption::GasMaxFee(gp) | SendTxOption::GasPrice(gp) => {
+                    transaction.set_gas_limit(gp)
+                }
+                SendTxOption::GasPriorityFee(gp) => transaction.set_priority_fee(gp),
+                SendTxOption::GasLimitMultiplier(glm) => {
+                    let f32_gas = gas.limit.to_u128();
+                    let val = if let Some(v) = f32_gas {
+                        // convert to f32, multiply, then convert back, this
+                        // will be lossy but you want an exact price you can set it
+                        ((v as f32 * glm) as u128).into()
+                    } else {
+                        // gas price is insanely high, best effort rounding
+                        // perhaps we should panic here
+                        gas.price * (glm.round() as u128).into()
+                    };
+                    transaction.set_gas_limit(val);
+                }
+                SendTxOption::GasLimit(gl) => transaction.set_gas_limit(gl),
+                SendTxOption::Nonce(n) => transaction.set_nonce(n),
+                SendTxOption::AccessList(list) => transaction.set_access_list(list),
+                SendTxOption::GasPriceMultiplier(gm) | SendTxOption::GasMaxFeeMultiplier(gm) => {
+                    let f32_gas = gas.price.to_u128();
+                    let val = if let Some(v) = f32_gas {
+                        // convert to f32, multiply, then convert back, this
+                        // will be lossy but you want an exact price you can set it
+                        ((v as f32 * gm) as u128).into()
+                    } else {
+                        // gas price is insanely high, best effort rounding
+                        // perhaps we should panic here
+                        gas.price * (gm.round() as u128).into()
+                    };
+                    transaction.set_gas_price(val);
+                }
+                SendTxOption::NetworkId(_) => {
+                    return Err(Web3Error::BadInput(
+                        "Invalid option for eip1559 tx".to_string(),
+                    ))
+                }
+            }
+        }
 
         match height {
             Some(height) => {

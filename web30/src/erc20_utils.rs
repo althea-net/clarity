@@ -20,13 +20,18 @@ impl Web3 {
         erc20: Address,
         owner: Address,
         spender: Address,
+        options: Vec<SendTxOption>,
     ) -> Result<Uint256, Web3Error> {
         let payload = encode_call(
             "allowance(address,address)",
             &[owner.into(), spender.into()],
         )?;
         let allowance = self
-            .simulate_transaction(TransactionRequest::quick_tx(owner, erc20, payload), None)
+            .simulate_transaction(
+                TransactionRequest::quick_tx(owner, erc20, payload),
+                options,
+                None,
+            )
             .await?;
 
         let allowance = Uint256::from_be_bytes(match allowance.get(0..32) {
@@ -55,8 +60,11 @@ impl Web3 {
         erc20: Address,
         owner: Address,
         spender: Address,
+        options: Vec<SendTxOption>,
     ) -> Result<bool, Web3Error> {
-        let allowance = self.get_erc20_allowance(erc20, owner, spender).await?;
+        let allowance = self
+            .get_erc20_allowance(erc20, owner, spender, options)
+            .await?;
         // Check if the allowance remaining is greater than half of a Uint256- it's as good
         // a test as any.
         Ok(allowance > (Uint256::max_value() / 2u32.into()))
@@ -182,8 +190,9 @@ impl Web3 {
         &self,
         erc20: Address,
         target_address: Address,
+        options: Vec<SendTxOption>,
     ) -> Result<Uint256, Web3Error> {
-        self.get_erc20_balance_at_height(erc20, target_address, None)
+        self.get_erc20_balance_at_height(erc20, target_address, None, options)
             .await
     }
 
@@ -195,8 +204,9 @@ impl Web3 {
         erc20: Address,
         target_address: Address,
         height: Option<Uint256>,
+        options: Vec<SendTxOption>,
     ) -> Result<Uint256, Web3Error> {
-        self.get_erc20_balance_at_height_as_address(None, erc20, target_address, height)
+        self.get_erc20_balance_at_height_as_address(None, erc20, target_address, height, options)
             .await
     }
 
@@ -211,9 +221,16 @@ impl Web3 {
         requester_address: Option<Address>,
         erc20: Address,
         target_address: Address,
+        options: Vec<SendTxOption>,
     ) -> Result<Uint256, Web3Error> {
-        self.get_erc20_balance_at_height_as_address(requester_address, erc20, target_address, None)
-            .await
+        self.get_erc20_balance_at_height_as_address(
+            requester_address,
+            erc20,
+            target_address,
+            None,
+            options,
+        )
+        .await
     }
 
     /// Queries the `target_address`'s balance of `erc20` at an optional ethereum `height`, using
@@ -229,12 +246,14 @@ impl Web3 {
         erc20: Address,
         target_address: Address,
         height: Option<Uint256>,
+        options: Vec<SendTxOption>,
     ) -> Result<Uint256, Web3Error> {
         let requester_address = requester_address.unwrap_or(target_address);
         let payload = encode_call("balanceOf(address)", &[target_address.into()])?;
         let balance = self
             .simulate_transaction(
                 TransactionRequest::quick_tx(requester_address, erc20, payload),
+                options,
                 height,
             )
             .await?;
@@ -253,11 +272,13 @@ impl Web3 {
         &self,
         erc20: Address,
         caller_address: Address,
+        options: Vec<SendTxOption>,
     ) -> Result<String, Web3Error> {
         let payload = encode_call("name()", &[])?;
         let name = self
             .simulate_transaction(
                 TransactionRequest::quick_tx(caller_address, erc20, payload),
+                options,
                 None,
             )
             .await?;
@@ -280,11 +301,13 @@ impl Web3 {
         &self,
         erc20: Address,
         caller_address: Address,
+        options: Vec<SendTxOption>,
     ) -> Result<String, Web3Error> {
         let payload = encode_call("symbol()", &[])?;
         let symbol = self
             .simulate_transaction(
                 TransactionRequest::quick_tx(caller_address, erc20, payload),
+                options,
                 None,
             )
             .await?;
@@ -307,11 +330,13 @@ impl Web3 {
         &self,
         erc20: Address,
         caller_address: Address,
+        options: Vec<SendTxOption>,
     ) -> Result<Uint256, Web3Error> {
         let payload = encode_call("decimals()", &[])?;
         let decimals = self
             .simulate_transaction(
                 TransactionRequest::quick_tx(caller_address, erc20, payload),
+                options,
                 None,
             )
             .await?;
@@ -330,11 +355,13 @@ impl Web3 {
         &self,
         erc20: Address,
         caller_address: Address,
+        options: Vec<SendTxOption>,
     ) -> Result<Uint256, Web3Error> {
         let payload = encode_call("totalSupply()", &[])?;
         let supply = self
             .simulate_transaction(
                 TransactionRequest::quick_tx(caller_address, erc20, payload),
+                options,
                 None,
             )
             .await?;
@@ -474,26 +501,26 @@ mod test {
             .parse()
             .unwrap();
         assert_eq!(
-            web3.get_erc20_decimals(dai_address, caller_address)
+            web3.get_erc20_decimals(dai_address, caller_address, vec![])
                 .await
                 .unwrap(),
             18u8.into()
         );
         let num: Uint256 = 1000u32.into();
         assert!(
-            web3.get_erc20_supply(dai_address, caller_address)
+            web3.get_erc20_supply(dai_address, caller_address, vec![])
                 .await
                 .unwrap()
                 > num
         );
         assert_eq!(
-            web3.get_erc20_symbol(dai_address, caller_address)
+            web3.get_erc20_symbol(dai_address, caller_address, vec![])
                 .await
                 .unwrap(),
             "DAI"
         );
         assert_eq!(
-            web3.get_erc20_name(dai_address, caller_address)
+            web3.get_erc20_name(dai_address, caller_address, vec![])
                 .await
                 .unwrap(),
             "Dai Stablecoin"

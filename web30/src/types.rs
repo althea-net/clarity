@@ -621,7 +621,7 @@ impl TransactionRequest {
         }
     }
     /// A specialized gas price setter for simulations, EIP1559 gas is treated very differently on actual execution but
-    /// for hte purpose of simulation it makes sense to set the value super high and see what results we get.
+    /// for the purpose of simulation it makes sense to set the value super high and see what results we get.
     pub fn set_gas_price(&mut self, new_gas_price: Uint256) {
         match self {
             TransactionRequest::Eip1559 {
@@ -631,6 +631,24 @@ impl TransactionRequest {
             | TransactionRequest::Legacy { gas_price, .. } => {
                 *gas_price = Some(new_gas_price.into())
             }
+        }
+    }
+    pub fn set_priority_fee(&mut self, new_priority_fee: Uint256) {
+        match self {
+            TransactionRequest::Eip1559 {
+                max_priority_fee_per_gas,
+                ..
+            } => *max_priority_fee_per_gas = Some(new_priority_fee.into()),
+            TransactionRequest::Eip2930 { .. } | TransactionRequest::Legacy { .. } => {}
+        }
+    }
+    pub fn set_access_list(&mut self, new_access_list: Vec<(Address, Vec<Uint256>)>) {
+        match self {
+            TransactionRequest::Eip1559 { access_list, .. }
+            | TransactionRequest::Eip2930 { access_list, .. } => {
+                *access_list = convert_access_list(new_access_list);
+            }
+            TransactionRequest::Legacy { .. } => {}
         }
     }
     pub fn is_eip1559(&self) -> bool {
