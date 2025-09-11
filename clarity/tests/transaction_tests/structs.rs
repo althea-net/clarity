@@ -438,7 +438,7 @@ impl Ord for EthereumNetworkVersion {
 
 impl PartialOrd for EthereumNetworkVersion {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.as_num().cmp(&other.as_num()))
+        Some(self.cmp(other))
     }
 }
 
