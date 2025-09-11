@@ -32,7 +32,6 @@ pub use self::TestFn::*;
 pub use self::TestName::*;
 pub use self::TestResult::*;
 use std::any::Any;
-use std::collections::BTreeMap;
 use std::env;
 use std::fmt;
 use std::fs::File;
@@ -139,22 +138,6 @@ unsafe impl Send for TestDesc {}
 pub struct TestDescAndFn {
     pub desc: TestDesc,
     pub testfn: TestFn,
-}
-
-#[derive(Clone, PartialEq, Debug, Copy)]
-pub struct Metric {
-    value: f64,
-    noise: f64,
-}
-
-#[derive(PartialEq)]
-pub struct MetricMap(BTreeMap<String, Metric>);
-
-impl Clone for MetricMap {
-    fn clone(&self) -> MetricMap {
-        let MetricMap(ref map) = *self;
-        MetricMap(map.clone())
-    }
 }
 
 // The default console test runner. It accepts the command line
@@ -285,12 +268,6 @@ pub fn parse_opts(args: &[String]) -> Option<OptRes> {
     };
 
     Some(Ok(test_opts))
-}
-
-#[derive(Clone, PartialEq)]
-pub struct BenchSamples {
-    ns_iter_summ: crate::stats::Summary,
-    mb_s: usize,
 }
 
 #[derive(Clone, PartialEq)]

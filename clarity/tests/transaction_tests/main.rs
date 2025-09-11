@@ -16,7 +16,6 @@ use std::path::{Path, PathBuf};
 use structs::*;
 use test::{DynTest, DynTestName, ShouldPanic, TestDesc, TestDescAndFn};
 
-mod stats;
 mod structs;
 mod test;
 
