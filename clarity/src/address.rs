@@ -29,6 +29,11 @@ impl Address {
         &self.0
     }
 
+    /// Gets the zero address
+    pub fn zero() -> Address {
+        Address::default()
+    }
+
     /// Creates an Address from a slice.
     ///
     /// This requires a slice to be exactly 20 bytes in length,

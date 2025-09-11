@@ -172,27 +172,27 @@ impl Web3 {
     ///   Some more complex queries may not work as expected.
     ///   Lets say we have three events
     ///   - FirstEvent(indxed address, indexed uint256, indexed string, string)
-    ///   - SecondEvent(indxed address, indexed uint256, string) 
+    ///   - SecondEvent(indxed address, indexed uint256, string)
     ///   - ThirdEvent(indxed address, indexed uint256, indexed string, string)
-    /// 
+    ///
     ///   For this filter:
     ///   - FirstEvent(0x123, 1, "A")
     ///   - ThirdEvent(0x123, 1, "A", "B")
-    /// 
+    ///
     ///   No results will be returned for the First event because the third topic does not have a placeholder. Events for the
     ///   Third event will be returned.
-    /// 
+    ///
     ///   For this filter:
     ///   - FirstEvent(0x123, 1, "A", "")
     ///   - ThirdEvent(0x123, 1, "A", "B")
-    /// 
+    ///
     ///   Results from both events will be returned as you might expect.
-    /// 
+    ///
     ///   For this filter:
     ///   - FirstEvent(0x123, 1, "A", "")
     ///   - SecondEvent(0x123, 1, "A", "")
     ///   - ThirdEvent(0x123, 1, "A", "B")
-    /// 
+    ///
     ///   Results from the second event will not be returned, because SecondEvent has only 2 indexed topics. Results from the First and Third
     ///   events will be returned. Leaving out the "" for Second event will not work either.
     ///

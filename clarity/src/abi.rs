@@ -563,6 +563,168 @@ fn get_args_count(sig: &str) -> Result<usize, Error> {
     Ok(num_args - 1)
 }
 
+/// Parses a bool from ABI-encoded `input`, with the relevant data beginning
+/// at byte index `start`. Bools are 1 byte long packed on the right side.
+pub fn parse_bool(input: &[u8], start: usize) -> Result<bool, Error> {
+    if input.len() < start + 32 {
+        return Err(Error::AbiInputTooShort {
+            expected: start + 32,
+            actual: input.len(),
+        });
+    }
+    Ok(input[start + 31] != 0u8)
+}
+
+/// Parses an Address from ABI-encoded `input`, with the relevant data beginning
+/// at byte index `start`. Addresses are 20 bytes long packed on the right side.
+pub fn parse_address(input: &[u8], start: usize) -> Result<Address, Error> {
+    let end = start + 32;
+    if input.len() < end {
+        return Err(Error::AbiInputTooShort {
+            expected: end,
+            actual: input.len(),
+        });
+    }
+    Address::from_slice(&input[start + 12..end]).map_err(|_| Error::AddressParseError)
+}
+
+/// Parses a u8 from ABI-encoded `input`, with the relevant data beginning
+/// at byte index `start`.
+pub fn parse_u8(input: &[u8], start: usize) -> Result<u8, Error> {
+    if input.len() < start + 32 {
+        return Err(Error::AbiInputTooShort {
+            expected: start + 32,
+            actual: input.len(),
+        });
+    }
+    Ok(input[start + 31])
+}
+
+/// Parses a u16 from ABI-encoded `input`, with the relevant data beginning
+/// at byte index `start`.
+pub fn parse_u16(input: &[u8], start: usize) -> Result<u16, Error> {
+    let end = start + 32;
+    if input.len() < end {
+        return Err(Error::AbiInputTooShort {
+            expected: end,
+            actual: input.len(),
+        });
+    }
+    let data = &input[start + 30..end];
+    Ok(u16::from_be_bytes(
+        data.try_into().map_err(|_| Error::IntegerParseError)?,
+    ))
+}
+
+/// Parses a Uint256 from ABI-encoded `input`, with the relevant data beginning
+/// at byte index `start`.
+pub fn parse_uint256(input: &[u8], start: usize) -> Result<Uint256, Error> {
+    let end = start + 32;
+    // Check bounds before accessing
+    if input.len() < end {
+        return Err(Error::AbiInputTooShort {
+            expected: end,
+            actual: input.len(),
+        });
+    }
+    let data = &input[start..end];
+    Ok(Uint256::from_be_bytes(data))
+}
+
+/// Parses a u32 from ABI-encoded `input`, with the relevant data beginning
+/// at byte index `start`. u32's are 4 bytes long and packed on the right side.
+pub fn parse_u32(input: &[u8], start: usize) -> Result<u32, Error> {
+    let end = start + 32;
+    if input.len() < end {
+        return Err(Error::AbiInputTooShort {
+            expected: end,
+            actual: input.len(),
+        });
+    }
+    let data = &input[start + 28..end];
+    Ok(u32::from_be_bytes(
+        data.try_into().map_err(|_| Error::IntegerParseError)?,
+    ))
+}
+
+/// Parses a u64 from ABI-encoded `input`, with the relevant data beginning
+/// at byte index `start`. u64's are 8 bytes long and packed on the right side.
+pub fn parse_u64(input: &[u8], start: usize) -> Result<u64, Error> {
+    let end = start + 32;
+    if input.len() < end {
+        return Err(Error::AbiInputTooShort {
+            expected: end,
+            actual: input.len(),
+        });
+    }
+    let data = &input[start + 24..end];
+    Ok(u64::from_be_bytes(
+        data.try_into().map_err(|_| Error::IntegerParseError)?,
+    ))
+}
+
+/// Parses a u128 from ABI-encoded `input`, with the relevant data beginning
+/// at byte index `start`. u128's are 16 bytes long and packed on the right side.
+pub fn parse_u128(input: &[u8], start: usize) -> Result<u128, Error> {
+    let end = start + 32;
+    if input.len() < end {
+        return Err(Error::AbiInputTooShort {
+            expected: end,
+            actual: input.len(),
+        });
+    }
+    let data = &input[start + 16..end];
+    Ok(u128::from_be_bytes(
+        data.try_into().map_err(|_| Error::IntegerParseError)?,
+    ))
+}
+
+/// Parses an i32 from ABI-encoded `input`, with the relevant data beginning
+/// at byte index `start`. i32's are 8 bytes long and packed on the right side.
+pub fn parse_i32(input: &[u8], start: usize) -> Result<i32, Error> {
+    let end = start + 32;
+    if input.len() < end {
+        return Err(Error::AbiInputTooShort {
+            expected: end,
+            actual: input.len(),
+        });
+    }
+    let data = &input[start + 28..end];
+    Ok(i32::from_be_bytes(
+        data.try_into().map_err(|_| Error::IntegerParseError)?,
+    ))
+}
+
+/// Parses an i128 from ABI-encoded `input`, with the relevant data beginning
+/// at byte index `start`. i128's are 16 bytes long and packed on the right side.
+pub fn parse_i128(input: &[u8], start: usize) -> Result<i128, Error> {
+    let end = start + 32;
+    if input.len() < end {
+        return Err(Error::AbiInputTooShort {
+            expected: end,
+            actual: input.len(),
+        });
+    }
+    let data = &input[start + 16..end];
+    Ok(i128::from_be_bytes(
+        data.try_into().map_err(|_| Error::IntegerParseError)?,
+    ))
+}
+
+pub fn parse_bytes32(input: &[u8], start: usize) -> Result<[u8; 32], Error> {
+    let end = start + 32;
+    // Check bounds before accessing
+    if input.len() < end {
+        return Err(Error::AbiInputTooShort {
+            expected: end,
+            actual: input.len(),
+        });
+    }
+    let mut data = [0u8; 32];
+    data.copy_from_slice(&input[start..end]);
+    Ok(data)
+}
+
 #[cfg(test)]
 mod tests {
     use num_traits::Bounded;

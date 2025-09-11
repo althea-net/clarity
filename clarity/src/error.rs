@@ -32,6 +32,9 @@ pub enum Error {
     DeserializeRlp,
     NoSignature,
     UnknownTxType(Uint256),
+    AbiInputTooShort { expected: usize, actual: usize },
+    AddressParseError,
+    IntegerParseError,
 }
 
 impl fmt::Display for Error {
@@ -66,6 +69,15 @@ impl fmt::Display for Error {
             Error::DeserializeRlp => write!(f, "failed to deserialize using RLP-encoding"),
             Error::NoSignature => write!(f, "This transaction does not have a signature attached"),
             Error::UnknownTxType(t) => write!(f, "Unsupported Ethereum transaction type {}", t),
+            Error::AbiInputTooShort {
+                expected,
+                actual: got,
+            } => write!(
+                f,
+                "ABI input too short, expected at least {expected} bytes, got {got} bytes"
+            ),
+            Error::AddressParseError => write!(f, "Failed to parse address"),
+            Error::IntegerParseError => write!(f, "Failed to parse integer"),
         }
     }
 }
