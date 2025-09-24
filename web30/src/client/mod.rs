@@ -23,6 +23,32 @@ mod test {
     use std::{str::FromStr, time::Duration};
 
     #[actix_rt::test]
+    async fn test_is_contract() {
+        let canonical_weth: Address = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
+            .parse()
+            .unwrap();
+        let random_address = "0x51fc6955EB95853152C016E9Ff744aDf0C16E8D9"
+            .parse()
+            .unwrap();
+        let web3 = Web3::new("https://eth.althea.net", Duration::from_secs(30));
+        let code = web3.eth_get_code(canonical_weth, None).await.unwrap();
+        assert!(!code.is_empty());
+        let code = web3
+            .eth_get_code(canonical_weth, Some(23433601u64.into()))
+            .await
+            .unwrap();
+        assert!(!code.is_empty());
+        assert!(web3
+            .check_if_address_is_contract(canonical_weth)
+            .await
+            .unwrap());
+        assert!(!web3
+            .check_if_address_is_contract(random_address)
+            .await
+            .unwrap());
+    }
+
+    #[actix_rt::test]
     async fn test_chain_id() {
         let web3 = Web3::new("https://eth.althea.net", Duration::from_secs(30));
         let web3_xdai = Web3::new("https://dai.althea.net", Duration::from_secs(30));

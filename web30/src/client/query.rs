@@ -141,6 +141,29 @@ impl Web3 {
         }
     }
 
+    /// Returns the code at a given address at the provided block height, or latest if None
+    /// If there is no code at the address, will return an empty Vec
+    pub async fn eth_get_code(
+        &self,
+        address: Address,
+        height: Option<Uint256>,
+    ) -> Result<Vec<u8>, Web3Error> {
+        let height = match height {
+            Some(h) => format!("{h:#x}"),
+            None => "latest".to_string(),
+        };
+        let res: String = self
+            .jsonrpc_client
+            .request_method(
+                "eth_getCode",
+                vec![address.to_string(), height],
+                self.timeout,
+            )
+            .await?;
+        let res = clarity::utils::hex_str_to_bytes(&res)?;
+        Ok(res)
+    }
+
     /// Retrieves the latest synced block number regardless of state of eth node
     pub async fn eth_synced_block_number(&self) -> Result<Uint256, Web3Error> {
         self.jsonrpc_client
@@ -322,5 +345,14 @@ impl Web3 {
             }
         }
         Err(Web3Error::NoBlockProduced { time: timeout })
+    }
+
+    /// Checks if the provided address is a contract by checking if there is code at the address
+    /// If there is code at the address it is a contract, if there is no code it is not a contract
+    pub async fn check_if_address_is_contract(&self, address: Address) -> Result<bool, Web3Error> {
+        match self.eth_get_code(address, None).await {
+            Ok(code) => Ok(!code.is_empty()),
+            Err(e) => Err(e),
+        }
     }
 }
