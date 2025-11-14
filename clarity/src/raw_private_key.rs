@@ -65,7 +65,7 @@ impl RawPrivateKey {
     /// ```
     pub fn to_address(self) -> Result<Address, Error> {
         // Create a secret key instance first
-        let sk = SecretKey::from_slice(&self.0).map_err(Error::DecodePrivKey)?;
+        let sk = SecretKey::from_byte_array(self.0).map_err(Error::DecodePrivKey)?;
         // Closure below has Result type with inferred T as we don't
         // need to really assume type of the returned array from
         // `serialize_uncompressed`.

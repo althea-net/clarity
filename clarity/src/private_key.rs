@@ -128,7 +128,7 @@ impl PrivateKey {
     pub fn sign_hash(&self, data: &[u8]) -> Signature {
         debug_assert_eq!(data.len(), 32);
         // Create a secret key for Secp256k1 operations
-        let sk = SecretKey::from_slice(&self.to_bytes()).unwrap();
+        let sk = SecretKey::from_byte_array(self.to_bytes()).unwrap();
         // Acquire SECP256K1 context from thread local storage and
         // do some operations on it.
         let (recovery_id, compact) = SECP256K1.with(move |object| {
@@ -137,9 +137,11 @@ impl PrivateKey {
             let context = object.borrow();
             // Create a Secp256k1 message inside the scope without polluting
             // outside scope.
-            let msg = Message::from_digest_slice(data).unwrap();
+            let mut msg_buf = [0u8; 32];
+            msg_buf.copy_from_slice(data);
+            let msg = Message::from_digest(msg_buf);
             // Sign the raw hash of RLP encoded transaction data with a private key.
-            let sig = context.sign_ecdsa_recoverable(&msg, &sk);
+            let sig = context.sign_ecdsa_recoverable(msg, &sk);
             // Serialize the signature into the "compact" form which means
             // it will be exactly 64 bytes, and the "excess" information of
             // recovery id will be given to us.

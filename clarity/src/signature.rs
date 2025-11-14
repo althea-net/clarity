@@ -232,7 +232,9 @@ impl Signature {
             _ => return Err(Error::InvalidV),
         };
         // A message to recover which is a hash of the transaction
-        let msg = Message::from_digest_slice(hash).map_err(Error::ParseMessage)?;
+        let mut msg_buf = [0u8; 32];
+        msg_buf.copy_from_slice(hash);
+        let msg = Message::from_digest(msg_buf);
 
         // Get the compact form using bytes, and "v" parameter
         let compact = RecoverableSignature::from_compact(&self.to_bytes()[..64], v)
@@ -243,7 +245,7 @@ impl Signature {
             let secp256k1 = object.borrow();
             // Recover public key
             let pkey = secp256k1
-                .recover_ecdsa(&msg, &compact)
+                .recover_ecdsa(msg, &compact)
                 .map_err(Error::RecoverSignature)?;
             // Serialize the recovered public key in uncompressed format
             Ok(pkey.serialize_uncompressed())
