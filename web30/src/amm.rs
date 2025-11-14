@@ -31,6 +31,12 @@ lazy_static! {
     /// The DAI V2 Token's address, on prod Ethereum
     pub static ref DAI_CONTRACT_ADDRESS: Address =
         Address::parse_and_validate("0x6B175474E89094C44Da98b954EedeAC495271d0F").unwrap();
+    /// The USDS Token's address, on prod Ethereum
+    pub static ref USDS_CONTRACT_ADDRESS: Address =
+        Address::parse_and_validate("0xdC035D45d973E3EC169d2276DDab16f1e407384F").unwrap();
+    /// The SUSDS Token's address, on prod Ethereum
+    pub static ref SUSDS_CONTRACT_ADDRESS: Address =
+        Address::parse_and_validate("0xa3931d71877C0E7a3148CB7Eb4463524FEc27fbD").unwrap();
     /// The Wrapped Ether's address, on prod Ethereum
     pub static ref WETH_CONTRACT_ADDRESS: Address =
         Address::parse_and_validate("0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2").unwrap();

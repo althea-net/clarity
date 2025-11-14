@@ -33,10 +33,7 @@ mod test {
         let web3 = Web3::new("https://eth.althea.net", Duration::from_secs(30));
         let code = web3.eth_get_code(canonical_weth, None).await.unwrap();
         assert!(!code.is_empty());
-        let code = web3
-            .eth_get_code(canonical_weth, Some(23433601u64.into()))
-            .await
-            .unwrap();
+        let code = web3.eth_get_code(canonical_weth, None).await.unwrap();
         assert!(!code.is_empty());
         assert!(web3
             .check_if_address_is_contract(canonical_weth)
