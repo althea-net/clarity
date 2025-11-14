@@ -397,18 +397,8 @@ impl Web3 {
                     transaction.set_gas_limit(gp)
                 }
                 SendTxOption::GasPriorityFee(gp) => transaction.set_priority_fee(gp),
-                SendTxOption::GasLimitMultiplier(glm) => {
-                    let f32_gas = gas.limit.to_u128();
-                    let val = if let Some(v) = f32_gas {
-                        // convert to f32, multiply, then convert back, this
-                        // will be lossy but you want an exact price you can set it
-                        ((v as f32 * glm) as u128).into()
-                    } else {
-                        // gas price is insanely high, best effort rounding
-                        // perhaps we should panic here
-                        gas.price * (glm.round() as u128).into()
-                    };
-                    transaction.set_gas_limit(val);
+                SendTxOption::GasLimitMultiplier(_) => {
+                    // noop becuase we already set max gas
                 }
                 SendTxOption::GasLimit(gl) => transaction.set_gas_limit(gl),
                 SendTxOption::Nonce(n) => transaction.set_nonce(n),

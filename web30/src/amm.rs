@@ -518,12 +518,14 @@ impl Web3 {
         options: Option<Vec<SendTxOption>>, // Options for send_transaction
         wait_timeout: Option<Duration>,
     ) -> Result<Uint256, Web3Error> {
+        info!("In swap uniswap v3");
         let fee_uint24 = fee_uint24.unwrap_or_else(|| 3000u16.into());
         if bad_fee(&fee_uint24) {
             return Err(Web3Error::BadInput(
                 "Bad fee input to swap_uniswap - value too large for uint24".to_string(),
             ));
         }
+        info!("Bad fee check");
 
         let sqrt_price_limit_x96 = sqrt_price_limit_x96_uint160.unwrap_or_default();
         if bad_sqrt_price_limit(&sqrt_price_limit_x96) {
@@ -532,6 +534,7 @@ impl Web3 {
                     .to_string(),
             ));
         }
+        info!("Sqrt price limit check");
 
         let eth_address = eth_private_key.to_address();
         let router = uniswap_router.unwrap_or(*UNISWAP_V3_ROUTER_ADDRESS);
@@ -540,6 +543,7 @@ impl Web3 {
             None => self.eth_get_latest_block().await?.timestamp + (10u64 * 60u64).into(),
             Some(val) => val,
         };
+        info!("deadline");
 
         let amount_out_min: Result<Uint256, Web3Error> = if let Some(amt) = amount_out_min {
             Ok(amt)
@@ -555,6 +559,7 @@ impl Web3 {
             .await
         };
         let amount_out_min = amount_out_min?;
+        info!("amount_out_min calculated");
 
         //struct ExactInputSingleParams { // The uniswap exactInputSingle argument
         //    address tokenIn;
@@ -582,6 +587,7 @@ impl Web3 {
             &tokens,
         )
         .unwrap();
+        info!("payload encoded");
 
         // default gas limit multiplier
         let mut options = options.unwrap_or_default();
@@ -591,12 +597,14 @@ impl Web3 {
         if !set_glm {
             options.push(SendTxOption::GasLimitMultiplier(glm));
         }
+        info!("Gas Limit Multiplier set");
 
         let allowance = self
             .get_erc20_allowance(token_in, eth_address, router, options.clone())
             .await?;
+        info!("allowance is  {:?}", allowance);
         if allowance < amount {
-            debug!("token_in being approved");
+            info!("token_in being approved");
             // the nonce we will be using, if there's no timeout we must hack the nonce
             // of the following swap to queue properly
             let nonce = self.eth_get_transaction_count(eth_address).await?;
@@ -610,17 +618,19 @@ impl Web3 {
                     options.clone(),
                 )
                 .await?;
+            info!("token_in approved");
             if wait_timeout.is_none() {
                 options.push(SendTxOption::Nonce(nonce + 1u8.into()));
             }
         }
 
-        trace!("payload is  {:?}", payload);
+        info!("payload is  {:?}", payload);
         let tx = self
             .prepare_transaction(router, payload, 0u32.into(), eth_private_key, options)
             .await?;
+        info!("Prepared uniswap swap tx: {:?}", tx);
         let txid = self.eth_send_raw_transaction(tx.to_bytes()).await?;
-        debug!(
+        info!(
             "txid for uniswap swap is {}",
             display_uint256_as_address(txid)
         );
