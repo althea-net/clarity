@@ -839,7 +839,7 @@ mod tests {
     fn encode_sam() {
         use crate::utils::bytes_to_hex_str;
         let result = encode_tokens(&["dave".into(), true.into(), vec![1u32, 2u32, 3u32].into()]);
-        assert!(result.len() % 8 == 0);
+        assert!(result.len().is_multiple_of(8));
         assert_eq!(
             bytes_to_hex_str(&result),
             concat![
@@ -881,7 +881,7 @@ mod tests {
             AbiToken::Bytes(b"1234567890".to_vec()),
             "Hello, world!".into(),
         ]);
-        assert!(result.len() % 8 == 0);
+        assert!(result.len().is_multiple_of(8));
         assert_eq!(
             result[..]
                 .chunks(32)
@@ -910,7 +910,7 @@ mod tests {
             AbiToken::Bytes(b"1234567890".to_vec()),
             b"Hello, world!".to_vec().into(),
         ]);
-        assert!(result.len() % 8 == 0);
+        assert!(result.len().is_multiple_of(8));
         assert_eq!(
             result[..]
                 .chunks(32)
@@ -937,7 +937,7 @@ mod tests {
             .parse::<Address>()
             .expect("Unable to parse address")
             .into()]);
-        assert!(result.len() % 8 == 0);
+        assert!(result.len().is_multiple_of(8));
         assert_eq!(
             result[..]
                 .chunks(32)
@@ -951,7 +951,7 @@ mod tests {
     fn encode_dynamic_only() {
         use crate::utils::bytes_to_hex_str;
         let result = encode_tokens(&["foo".into(), "bar".into()]);
-        assert!(result.len() % 8 == 0);
+        assert!(result.len().is_multiple_of(8));
         assert_eq!(
             result[..]
                 .chunks(32)
