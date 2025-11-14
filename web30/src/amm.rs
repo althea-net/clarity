@@ -595,8 +595,9 @@ impl Web3 {
         let allowance = self
             .get_erc20_allowance(token_in, eth_address, router, options.clone())
             .await?;
+        info!("allowance is  {:?}", allowance);
         if allowance < amount {
-            debug!("token_in being approved");
+            info!("token_in being approved");
             // the nonce we will be using, if there's no timeout we must hack the nonce
             // of the following swap to queue properly
             let nonce = self.eth_get_transaction_count(eth_address).await?;
@@ -610,17 +611,19 @@ impl Web3 {
                     options.clone(),
                 )
                 .await?;
+            info!("token_in approved");
             if wait_timeout.is_none() {
                 options.push(SendTxOption::Nonce(nonce + 1u8.into()));
             }
         }
 
-        trace!("payload is  {:?}", payload);
+        info!("payload is  {:?}", payload);
         let tx = self
             .prepare_transaction(router, payload, 0u32.into(), eth_private_key, options)
             .await?;
+        info!("Prepared uniswap swap tx: {:?}", tx);
         let txid = self.eth_send_raw_transaction(tx.to_bytes()).await?;
-        debug!(
+        info!(
             "txid for uniswap swap is {}",
             display_uint256_as_address(txid)
         );
