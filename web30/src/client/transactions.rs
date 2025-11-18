@@ -391,40 +391,54 @@ impl Web3 {
         transaction.set_gas_limit(gas.limit);
         transaction.set_gas_price(gas.price);
 
+        let gas_limit_option_set = options
+            .iter()
+            .any(|opt| matches!(opt, SendTxOption::GasLimit(_)));
+
         for option in options {
             match option {
                 SendTxOption::GasMaxFee(gp) | SendTxOption::GasPrice(gp) => {
-                    transaction.set_gas_limit(gp)
+                    transaction.set_gas_price(gp)
                 }
                 SendTxOption::GasPriorityFee(gp) => transaction.set_priority_fee(gp),
                 SendTxOption::GasLimitMultiplier(glm) => {
-                    let f32_gas = gas.limit.to_u128();
-                    let val = if let Some(v) = f32_gas {
-                        // convert to f32, multiply, then convert back, this
-                        // will be lossy but you want an exact price you can set it
-                        ((v as f32 * glm) as u128).into()
-                    } else {
-                        // gas price is insanely high, best effort rounding
-                        // perhaps we should panic here
-                        gas.price * (glm.round() as u128).into()
-                    };
-                    transaction.set_gas_limit(val);
+                    // only apply this if gas limit is set. Otherwise we are using max gas already
+                    // and applying a multiplier would likely push us over the balance limit, a multiplier
+                    // lower than 1 is fine in this case as it reduces gas
+                    if gas_limit_option_set || glm < 1.0 {
+                        let f32_gas = gas.limit.to_u128();
+                        let val = if let Some(v) = f32_gas {
+                            // convert to f32, multiply, then convert back, this
+                            // will be lossy but you want an exact price you can set it
+                            ((v as f32 * glm) as u128).into()
+                        } else {
+                            // gas price is insanely high, best effort rounding
+                            // perhaps we should panic here
+                            gas.price * (glm.round() as u128).into()
+                        };
+                        transaction.set_gas_limit(val);
+                    }
                 }
                 SendTxOption::GasLimit(gl) => transaction.set_gas_limit(gl),
                 SendTxOption::Nonce(n) => transaction.set_nonce(n),
                 SendTxOption::AccessList(list) => transaction.set_access_list(list),
                 SendTxOption::GasPriceMultiplier(gm) | SendTxOption::GasMaxFeeMultiplier(gm) => {
-                    let f32_gas = gas.price.to_u128();
-                    let val = if let Some(v) = f32_gas {
-                        // convert to f32, multiply, then convert back, this
-                        // will be lossy but you want an exact price you can set it
-                        ((v as f32 * gm) as u128).into()
-                    } else {
-                        // gas price is insanely high, best effort rounding
-                        // perhaps we should panic here
-                        gas.price * (gm.round() as u128).into()
-                    };
-                    transaction.set_gas_price(val);
+                    // same reasoning as gas limit multiplier, we are already using max gas for the default gas
+                    // price and our balance. So we can't do a higher price unless the gas limit has been set lower
+                    // than max
+                    if gas_limit_option_set || gm < 1.0 {
+                        let f32_gas = gas.price.to_u128();
+                        let val = if let Some(v) = f32_gas {
+                            // convert to f32, multiply, then convert back, this
+                            // will be lossy but you want an exact price you can set it
+                            ((v as f32 * gm) as u128).into()
+                        } else {
+                            // gas price is insanely high, best effort rounding
+                            // perhaps we should panic here
+                            gas.price * (gm.round() as u128).into()
+                        };
+                        transaction.set_gas_price(val);
+                    }
                 }
                 SendTxOption::NetworkId(_) => {
                     return Err(Web3Error::BadInput(
