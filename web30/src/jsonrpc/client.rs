@@ -65,11 +65,39 @@ impl HttpClient {
 
         let request_size_limit = get_buffer_size();
         trace!("using buffer size of {}", request_size_limit);
-        let decoded: Response<R> = match res.json().limit(request_size_limit).await {
+        let body_bytes = match res.body().limit(request_size_limit).await {
             Ok(val) => val,
             Err(e) => {
                 return Err(Web3Error::BadResponse(format!(
                     "Size Limit {request_size_limit} Web3 Error {e}"
+                )))
+            }
+        };
+
+        // First parse as generic JSON to enable better error messages
+        let json_value: serde_json::Value = match serde_json::from_slice(&body_bytes) {
+            Ok(val) => val,
+            Err(e) => {
+                let body_str = String::from_utf8_lossy(&body_bytes);
+                return Err(Web3Error::BadResponse(format!(
+                    "Failed to parse response as JSON: {e}\nRaw response: {body_str}"
+                )))
+            }
+        };
+
+        // Pretty print for debugging
+        trace!("Raw JSON response:\n{}", serde_json::to_string_pretty(&json_value).unwrap_or_else(|_| json_value.to_string()));
+
+        #[cfg(feature = "verbose_logging")]
+        info!("Raw JSON response:\n{}", serde_json::to_string_pretty(&json_value).unwrap_or_else(|_| json_value.to_string()));
+
+        // Now attempt to deserialize into the expected type
+        let decoded: Response<R> = match serde_json::from_value(json_value.clone()) {
+            Ok(val) => val,
+            Err(e) => {
+                return Err(Web3Error::BadResponse(format!(
+                    "Failed to deserialize response into expected type: {e}\nJSON response:\n{}",
+                    serde_json::to_string_pretty(&json_value).unwrap_or_else(|_| json_value.to_string())
                 )))
             }
         };

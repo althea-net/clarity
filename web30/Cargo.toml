@@ -20,6 +20,10 @@ lazy_static = "1.4"
 log = "0.4"
 num-traits = "0.2"
 
+[features]
+default = []
+verbose_logging = []
+
 [dev-dependencies]
 actix = "0.13"
 env_logger = "0.11"
