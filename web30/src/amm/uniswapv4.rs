@@ -208,7 +208,7 @@ impl PoolKey {
         }
 
         // Validate tick spacing
-        if tick_spacing < MIN_TICK_SPACING || tick_spacing > MAX_TICK_SPACING {
+        if !(MIN_TICK_SPACING..=MAX_TICK_SPACING).contains(&tick_spacing) {
             return Err(UniswapV4Error::InvalidTickSpacing(tick_spacing));
         }
 
@@ -773,7 +773,7 @@ impl Web3 {
     /// * `token_in` - The input token address
     /// * `amount_in` - The amount of input tokens to swap
     /// * `slippage_bps` - Maximum slippage tolerance in basis points (e.g., 50 for 0.5%)
-    ///                    If None, defaults to 50 bps (0.5%)
+    ///   If None, defaults to 50 bps (0.5%)
     /// * `deadline` - Optional deadline timestamp
     /// * `universal_router` - Optional router address
     /// * `options` - Optional transaction options
@@ -884,7 +884,7 @@ impl Web3 {
     /// * `tick_spacing` - The pool tick spacing
     /// * `amount_in` - The amount of ETH to swap
     /// * `slippage_bps` - Maximum slippage tolerance in basis points (e.g., 50 for 0.5%)
-    ///                    If None, defaults to 50 bps (0.5%)
+    ///   If None, defaults to 50 bps (0.5%)
     /// * `deadline` - Optional deadline timestamp
     /// * `options` - Optional transaction options
     /// * `wait_timeout` - Optional timeout to wait for confirmation
@@ -1106,7 +1106,7 @@ pub mod tick_spacings {
         match for_fee(fee_pips) {
             Some(expected) => tick_spacing == expected,
             None => {
-                tick_spacing >= super::MIN_TICK_SPACING && tick_spacing <= super::MAX_TICK_SPACING
+                (super::MIN_TICK_SPACING..=super::MAX_TICK_SPACING).contains(&tick_spacing)
             }
         }
     }

@@ -81,15 +81,21 @@ impl HttpClient {
                 let body_str = String::from_utf8_lossy(&body_bytes);
                 return Err(Web3Error::BadResponse(format!(
                     "Failed to parse response as JSON: {e}\nRaw response: {body_str}"
-                )))
+                )));
             }
         };
 
         // Pretty print for debugging
-        trace!("Raw JSON response:\n{}", serde_json::to_string_pretty(&json_value).unwrap_or_else(|_| json_value.to_string()));
+        trace!(
+            "Raw JSON response:\n{}",
+            serde_json::to_string_pretty(&json_value).unwrap_or_else(|_| json_value.to_string())
+        );
 
         #[cfg(feature = "verbose_logging")]
-        info!("Raw JSON response:\n{}", serde_json::to_string_pretty(&json_value).unwrap_or_else(|_| json_value.to_string()));
+        info!(
+            "Raw JSON response:\n{}",
+            serde_json::to_string_pretty(&json_value).unwrap_or_else(|_| json_value.to_string())
+        );
 
         // Now attempt to deserialize into the expected type
         let decoded: Response<R> = match serde_json::from_value(json_value.clone()) {
@@ -97,7 +103,8 @@ impl HttpClient {
             Err(e) => {
                 return Err(Web3Error::BadResponse(format!(
                     "Failed to deserialize response into expected type: {e}\nJSON response:\n{}",
-                    serde_json::to_string_pretty(&json_value).unwrap_or_else(|_| json_value.to_string())
+                    serde_json::to_string_pretty(&json_value)
+                        .unwrap_or_else(|_| json_value.to_string())
                 )))
             }
         };
