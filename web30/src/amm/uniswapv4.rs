@@ -1105,9 +1105,7 @@ pub mod tick_spacings {
     pub fn is_valid_for_fee(fee_pips: u32, tick_spacing: i32) -> bool {
         match for_fee(fee_pips) {
             Some(expected) => tick_spacing == expected,
-            None => {
-                (super::MIN_TICK_SPACING..=super::MAX_TICK_SPACING).contains(&tick_spacing)
-            }
+            None => (super::MIN_TICK_SPACING..=super::MAX_TICK_SPACING).contains(&tick_spacing),
         }
     }
 }

@@ -2,10 +2,311 @@
 //!
 //! Tests for Uniswap V3 price checking and swapping functionality.
 
+use super::router::SwapHop;
 use super::uniswapv3::*;
 use crate::client::Web3;
 use clarity::{Address, PrivateKey, Uint256};
 use num_traits::Inv;
+
+/// Test encode_v3_path using the example from the Uniswap V3 documentation:
+/// Swap DAI -> USDC -> WETH9 with 0.3% pool fees
+/// The path encoding is: (DAI, 0.3%, USDC, 0.3%, WETH9)
+/// https://docs.uniswap.org/contracts/v3/guides/swaps/multihop-swaps
+#[test]
+fn test_encode_v3_path_multihop_exact_input_from_docs() {
+    let dai = *DAI_CONTRACT_ADDRESS;
+    let usdc = *USDC_CONTRACT_ADDRESS;
+    let weth = *WETH_CONTRACT_ADDRESS;
+    let pool_fee: u32 = 3000; // 0.3%
+
+    // Path: DAI -> USDC (0.3% fee) -> WETH (0.3% fee)
+    let path = vec![SwapHop::new(usdc, pool_fee), SwapHop::new(weth, pool_fee)];
+
+    let encoded = encode_v3_path(dai, &path).unwrap();
+
+    // Expected format: DAI (20 bytes) + fee (3 bytes) + USDC (20 bytes) + fee (3 bytes) + WETH (20 bytes)
+    // Total: 20 + 3 + 20 + 3 + 20 = 66 bytes
+    assert_eq!(encoded.len(), 66);
+
+    // Verify the structure:
+    // First 20 bytes: DAI address
+    assert_eq!(&encoded[0..20], dai.as_bytes());
+
+    // Next 3 bytes: fee (3000 = 0x000BB8, we take last 3 bytes: 0x00 0x0B 0xB8)
+    assert_eq!(&encoded[20..23], &[0x00, 0x0B, 0xB8]);
+
+    // Next 20 bytes: USDC address
+    assert_eq!(&encoded[23..43], usdc.as_bytes());
+
+    // Next 3 bytes: fee (3000)
+    assert_eq!(&encoded[43..46], &[0x00, 0x0B, 0xB8]);
+
+    // Last 20 bytes: WETH address
+    assert_eq!(&encoded[46..66], weth.as_bytes());
+}
+
+/// Test encode_v3_path_exact_output using the example from the Uniswap V3 documentation:
+/// For exactOutput, the path must be reversed: (tokenOut, fee, tokenIn/tokenOut, fee, tokenIn)
+/// For DAI -> USDC -> WETH swap, exactOutput path is: (WETH, 0.3%, USDC, 0.3%, DAI)
+/// https://docs.uniswap.org/contracts/v3/guides/swaps/multihop-swaps
+#[test]
+fn test_encode_v3_path_exact_output_from_docs() {
+    let dai = *DAI_CONTRACT_ADDRESS;
+    let usdc = *USDC_CONTRACT_ADDRESS;
+    let weth = *WETH_CONTRACT_ADDRESS;
+    let pool_fee: u32 = 3000; // 0.3%
+
+    // Path (logical order): DAI -> USDC (0.3% fee) -> WETH (0.3% fee)
+    let path = vec![SwapHop::new(usdc, pool_fee), SwapHop::new(weth, pool_fee)];
+
+    let encoded = encode_v3_path_exact_output(dai, &path).unwrap();
+
+    // Expected format (reversed): WETH (20 bytes) + fee (3 bytes) + USDC (20 bytes) + fee (3 bytes) + DAI (20 bytes)
+    // Total: 20 + 3 + 20 + 3 + 20 = 66 bytes
+    assert_eq!(encoded.len(), 66);
+
+    // Verify the structure (reversed order):
+    // First 20 bytes: WETH address (output token)
+    assert_eq!(&encoded[0..20], weth.as_bytes());
+
+    // Next 3 bytes: fee for USDC->WETH hop (3000)
+    assert_eq!(&encoded[20..23], &[0x00, 0x0B, 0xB8]);
+
+    // Next 20 bytes: USDC address
+    assert_eq!(&encoded[23..43], usdc.as_bytes());
+
+    // Next 3 bytes: fee for DAI->USDC hop (3000)
+    assert_eq!(&encoded[43..46], &[0x00, 0x0B, 0xB8]);
+
+    // Last 20 bytes: DAI address (input token)
+    assert_eq!(&encoded[46..66], dai.as_bytes());
+}
+
+/// Test a single hop swap path (direct swap with no intermediaries)
+#[test]
+fn test_encode_v3_path_single_hop() {
+    let weth = *WETH_CONTRACT_ADDRESS;
+    let usdc = *USDC_CONTRACT_ADDRESS;
+    let pool_fee: u32 = 500; // 0.05% fee tier (common for stablecoin pairs)
+
+    // Direct swap: WETH -> USDC
+    let path = vec![SwapHop::new(usdc, pool_fee)];
+
+    let encoded = encode_v3_path(weth, &path).unwrap();
+
+    // Expected format: WETH (20 bytes) + fee (3 bytes) + USDC (20 bytes)
+    // Total: 20 + 3 + 20 = 43 bytes
+    assert_eq!(encoded.len(), 43);
+
+    // Verify structure
+    assert_eq!(&encoded[0..20], weth.as_bytes());
+    assert_eq!(&encoded[20..23], &[0x00, 0x01, 0xF4]); // 500 = 0x0001F4
+    assert_eq!(&encoded[23..43], usdc.as_bytes());
+}
+
+/// Test single hop exact output path (should be reversed)
+#[test]
+fn test_encode_v3_path_exact_output_single_hop() {
+    let weth = *WETH_CONTRACT_ADDRESS;
+    let usdc = *USDC_CONTRACT_ADDRESS;
+    let pool_fee: u32 = 500; // 0.05%
+
+    // Logical path: WETH -> USDC
+    let path = vec![SwapHop::new(usdc, pool_fee)];
+
+    let encoded = encode_v3_path_exact_output(weth, &path).unwrap();
+
+    // Expected format (reversed): USDC (20 bytes) + fee (3 bytes) + WETH (20 bytes)
+    assert_eq!(encoded.len(), 43);
+
+    // Verify structure (reversed)
+    assert_eq!(&encoded[0..20], usdc.as_bytes()); // output token first
+    assert_eq!(&encoded[20..23], &[0x00, 0x01, 0xF4]); // 500
+    assert_eq!(&encoded[23..43], weth.as_bytes()); // input token last
+}
+
+/// Test three-hop path (four tokens)
+#[test]
+fn test_encode_v3_path_three_hops() {
+    let dai = *DAI_CONTRACT_ADDRESS;
+    let usdc = *USDC_CONTRACT_ADDRESS;
+    let usdt = *USDT_CONTRACT_ADDRESS;
+    let weth = *WETH_CONTRACT_ADDRESS;
+
+    // Path: DAI -> USDC (0.01%) -> USDT (0.01%) -> WETH (0.3%)
+    let path = vec![
+        SwapHop::new(usdc, 100),  // 0.01% fee
+        SwapHop::new(usdt, 100),  // 0.01% fee
+        SwapHop::new(weth, 3000), // 0.3% fee
+    ];
+
+    let encoded = encode_v3_path(dai, &path).unwrap();
+
+    // Format: DAI + fee + USDC + fee + USDT + fee + WETH
+    // Size: 20 + 3 + 20 + 3 + 20 + 3 + 20 = 89 bytes
+    assert_eq!(encoded.len(), 89);
+
+    // Verify first token
+    assert_eq!(&encoded[0..20], dai.as_bytes());
+
+    // Verify first fee (100 = 0x000064)
+    assert_eq!(&encoded[20..23], &[0x00, 0x00, 0x64]);
+
+    // Verify second token (USDC)
+    assert_eq!(&encoded[23..43], usdc.as_bytes());
+
+    // Verify second fee (100)
+    assert_eq!(&encoded[43..46], &[0x00, 0x00, 0x64]);
+
+    // Verify third token (USDT)
+    assert_eq!(&encoded[46..66], usdt.as_bytes());
+
+    // Verify third fee (3000)
+    assert_eq!(&encoded[66..69], &[0x00, 0x0B, 0xB8]);
+
+    // Verify output token (WETH)
+    assert_eq!(&encoded[69..89], weth.as_bytes());
+}
+
+/// Test three-hop exact output path (reversed)
+#[test]
+fn test_encode_v3_path_exact_output_three_hops() {
+    let dai = *DAI_CONTRACT_ADDRESS;
+    let usdc = *USDC_CONTRACT_ADDRESS;
+    let usdt = *USDT_CONTRACT_ADDRESS;
+    let weth = *WETH_CONTRACT_ADDRESS;
+
+    // Logical path: DAI -> USDC (0.01%) -> USDT (0.01%) -> WETH (0.3%)
+    let path = vec![
+        SwapHop::new(usdc, 100),  // 0.01% fee
+        SwapHop::new(usdt, 100),  // 0.01% fee
+        SwapHop::new(weth, 3000), // 0.3% fee
+    ];
+
+    let encoded = encode_v3_path_exact_output(dai, &path).unwrap();
+
+    // Reversed format: WETH + fee + USDT + fee + USDC + fee + DAI
+    // Size: 20 + 3 + 20 + 3 + 20 + 3 + 20 = 89 bytes
+    assert_eq!(encoded.len(), 89);
+
+    // Verify output token first (WETH)
+    assert_eq!(&encoded[0..20], weth.as_bytes());
+
+    // Verify last hop's fee (3000 for USDT->WETH)
+    assert_eq!(&encoded[20..23], &[0x00, 0x0B, 0xB8]);
+
+    // Verify USDT
+    assert_eq!(&encoded[23..43], usdt.as_bytes());
+
+    // Verify middle hop's fee (100 for USDC->USDT)
+    assert_eq!(&encoded[43..46], &[0x00, 0x00, 0x64]);
+
+    // Verify USDC
+    assert_eq!(&encoded[46..66], usdc.as_bytes());
+
+    // Verify first hop's fee (100 for DAI->USDC)
+    assert_eq!(&encoded[66..69], &[0x00, 0x00, 0x64]);
+
+    // Verify input token last (DAI)
+    assert_eq!(&encoded[69..89], dai.as_bytes());
+}
+
+/// Test that empty path returns error
+#[test]
+fn test_encode_v3_path_empty_path_error() {
+    let weth = *WETH_CONTRACT_ADDRESS;
+    let path: Vec<SwapHop> = vec![];
+
+    let result = encode_v3_path(weth, &path);
+    assert!(result.is_err());
+    assert!(result
+        .unwrap_err()
+        .to_string()
+        .contains("at least one swap"));
+}
+
+/// Test that empty path returns error for exact output
+#[test]
+fn test_encode_v3_path_exact_output_empty_path_error() {
+    let weth = *WETH_CONTRACT_ADDRESS;
+    let path: Vec<SwapHop> = vec![];
+
+    let result = encode_v3_path_exact_output(weth, &path);
+    assert!(result.is_err());
+    assert!(result
+        .unwrap_err()
+        .to_string()
+        .contains("at least one swap"));
+}
+
+/// Test fee validation (fee must fit in uint24)
+#[test]
+fn test_encode_v3_path_invalid_fee_error() {
+    let weth = *WETH_CONTRACT_ADDRESS;
+    let usdc = *USDC_CONTRACT_ADDRESS;
+
+    // Fee exceeds uint24 max (0xFFFFFF = 16777215)
+    let path = vec![SwapHop::new(usdc, 0x1000000)];
+
+    let result = encode_v3_path(weth, &path);
+    assert!(result.is_err());
+    assert!(result.unwrap_err().to_string().contains("exceeds uint24"));
+}
+
+/// Test all standard Uniswap V3 fee tiers
+#[test]
+fn test_encode_v3_path_all_fee_tiers() {
+    let weth = *WETH_CONTRACT_ADDRESS;
+    let usdc = *USDC_CONTRACT_ADDRESS;
+    let usdt = *USDT_CONTRACT_ADDRESS;
+    let dai = *DAI_CONTRACT_ADDRESS;
+
+    // Test all four standard fee tiers: 0.01%, 0.05%, 0.3%, 1%
+    let path = vec![
+        SwapHop::new(usdc, 100),   // 0.01%
+        SwapHop::new(usdt, 500),   // 0.05%
+        SwapHop::new(dai, 3000),   // 0.3%
+        SwapHop::new(weth, 10000), // 1%
+    ];
+
+    let encoded = encode_v3_path(dai, &path).unwrap();
+
+    // Verify each fee encoding:
+    // 100 = 0x000064
+    assert_eq!(&encoded[20..23], &[0x00, 0x00, 0x64]);
+    // 500 = 0x0001F4
+    assert_eq!(&encoded[43..46], &[0x00, 0x01, 0xF4]);
+    // 3000 = 0x000BB8
+    assert_eq!(&encoded[66..69], &[0x00, 0x0B, 0xB8]);
+    // 10000 = 0x002710
+    assert_eq!(&encoded[89..92], &[0x00, 0x27, 0x10]);
+}
+
+/// Test that exact input and exact output paths are correctly related
+/// (exact output should be the reverse of exact input)
+#[test]
+fn test_exact_input_and_output_paths_are_reversed() {
+    let dai = *DAI_CONTRACT_ADDRESS;
+    let usdc = *USDC_CONTRACT_ADDRESS;
+    let weth = *WETH_CONTRACT_ADDRESS;
+
+    let path = vec![SwapHop::new(usdc, 3000), SwapHop::new(weth, 3000)];
+
+    let exact_input = encode_v3_path(dai, &path).unwrap();
+    let exact_output = encode_v3_path_exact_output(dai, &path).unwrap();
+
+    // Both should be 66 bytes
+    assert_eq!(exact_input.len(), exact_output.len());
+    assert_eq!(exact_input.len(), 66);
+
+    // Exact input starts with DAI, ends with WETH
+    assert_eq!(&exact_input[0..20], dai.as_bytes());
+    assert_eq!(&exact_input[46..66], weth.as_bytes());
+
+    // Exact output starts with WETH, ends with DAI
+    assert_eq!(&exact_output[0..20], weth.as_bytes());
+    assert_eq!(&exact_output[46..66], dai.as_bytes());
+}
 
 /// This test acquires the sqrt price from the Uniswap v3 DAI / WETH 0.05% pool, then simulates 4 swaps with varying
 /// sqrt price limits, amounts being swapped, and asserts that our sqrt price limit methods work as expected
@@ -212,9 +513,9 @@ async fn attempt_swap_with_limit(
         "{}: get_uniswap_price with limit {:.8}: result {:?}",
         i, slippage_spot_price, swap_out
     );
-    if swap_out.is_err() {
+    if let Err(e) = swap_out {
         if !expect_failure {
-            panic!("Swap failed! {}", swap_out.unwrap_err());
+            panic!("Swap failed! {}", e);
         }
         return;
     }

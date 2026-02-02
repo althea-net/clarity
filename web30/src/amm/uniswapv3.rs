@@ -3,6 +3,7 @@
 //! This module provides functionality for price checking and token swapping
 //! using Uniswap V3's concentrated liquidity pools.
 
+use crate::amm::generate_potential_routes;
 use crate::types::TransactionRequest;
 use crate::{client::Web3, jsonrpc::error::Web3Error, types::SendTxOption};
 use clarity::utils::display_uint256_as_address;
@@ -175,33 +176,30 @@ impl Web3 {
         max_slippage: Option<f64>, // optional maximum slippage to tolerate, defaults to 0.5%
         uniswap_quoter: Option<Address>, // optional uniswap v3 quoter to contact, default is 0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6
     ) -> Result<Uint256, Web3Error> {
-        let max_slippage = max_slippage.unwrap_or(0.005f64);
-        for fee in &*UNISWAP_STANDARD_POOL_FEES {
-            let swap_res = self
-                .get_uniswap_v3_price_with_slippage(
-                    caller_address,
-                    token_in,
-                    token_out,
-                    Some(*fee),
-                    amount,
-                    Some(max_slippage),
-                    uniswap_quoter,
-                )
-                .await;
-            trace!(
-                "Price with slippage {} and fee {}: {:?}",
-                max_slippage,
-                fee,
-                swap_res
-            );
-            if let Ok(swap_res) = swap_res {
-                return Ok(swap_res);
-            }
-        }
+        // Use find_uniswap_v3_routes to find the best route and return its output
+        let routes = self
+            .find_uniswap_v3_routes(
+                caller_address,
+                token_in,
+                token_out,
+                amount,
+                max_slippage, // pass through slippage tolerance
+                None,         // try all routes
+                Some(1),      // return only the best
+                uniswap_quoter,
+            )
+            .await?;
 
-        Err(Web3Error::BadResponse(
-            "Unable to fetch price from standard pools, are you sure a pool with enough liquidity exists?".to_string(),
-        ))
+        // Routes are sorted by output amount (highest first), so take the first one
+        routes
+            .into_iter()
+            .next()
+            .map(|(_, amount_out)| amount_out)
+            .ok_or_else(|| {
+                Web3Error::BadResponse(
+                    "Unable to fetch price from standard pools, are you sure a pool with enough liquidity exists?".to_string(),
+                )
+            })
     }
 
     /// An easy to use price checker simulating a Uniswap v3 swap for `amount` of `token_in` to get `token_out`, accounting for slippage
@@ -395,6 +393,368 @@ impl Web3 {
         }
 
         Ok(amount_out)
+    }
+
+    /// Get a multi-hop price quote using the Uniswap V3 Quoter.
+    ///
+    /// This method simulates a multi-hop swap through multiple pools to get the expected output amount.
+    /// It does not execute any actual swap.
+    ///
+    /// # Arguments
+    /// * `caller_address` - The ethereum address simulating the swap
+    /// * `token_in` - The input token address
+    /// * `path` - The swap path as a sequence of (token, fee) hops
+    /// * `amount_in` - The amount of the first token to swap
+    /// * `uniswap_quoter` - Optional address of the Uniswap V3 Quoter contract
+    ///
+    /// # Returns
+    /// The expected amount of the final token that would be received
+    ///
+    /// # Example
+    /// ```rust,ignore
+    /// use clarity::Address;
+    /// use web30::client::Web3;
+    /// use web30::amm::*;
+    ///
+    /// let web3 = Web3::new("https://eth.althea.net", Duration::from_secs(5));
+    /// // Quote: WETH -> USDC (0.05%) -> DAI (0.01%)
+    /// let path = [
+    ///     SwapHop::new(*USDC_CONTRACT_ADDRESS, 500),
+    ///     SwapHop::new(*DAI_CONTRACT_ADDRESS, 100),
+    /// ];
+    /// let amount_out = web3.get_uniswap_v3_multihop_price(
+    ///     caller,
+    ///     *WETH_CONTRACT_ADDRESS,
+    ///     &path,
+    ///     1000000000000000000u128.into(), // 1 WETH
+    ///     None,
+    /// ).await?;
+    /// ```
+    pub async fn get_uniswap_v3_multihop_price(
+        &self,
+        caller_address: Address,
+        token_in: Address,
+        path: &[super::router::SwapHop],
+        amount_in: Uint256,
+        uniswap_quoter: Option<Address>,
+    ) -> Result<Uint256, Web3Error> {
+        let quoter = uniswap_quoter.unwrap_or(*UNISWAP_V3_QUOTER_ADDRESS);
+
+        // Encode the swap path
+        let encoded_path = encode_v3_path(token_in, path)?;
+
+        let abi_tokens: [AbiToken; 2] = [
+            AbiToken::UnboundedBytes(encoded_path),
+            AbiToken::Uint(amount_in),
+        ];
+
+        debug!("Multihop quote path: {:?}", path);
+        let payload = encode_call("quoteExactInput(bytes,uint256)", &abi_tokens)?;
+
+        let result = self
+            .simulate_transaction(
+                TransactionRequest::quick_tx(caller_address, quoter, payload),
+                vec![],
+                None,
+            )
+            .await?;
+
+        trace!("quoteExactInput result: {:?}", result);
+
+        let amount_out = Uint256::from_be_bytes(match result.get(0..32) {
+            Some(val) => val,
+            None => {
+                return Err(Web3Error::ContractCallError(
+                    "Bad response from quoteExactInput".to_string(),
+                ))
+            }
+        });
+
+        Ok(amount_out)
+    }
+
+    /// Get a multi-hop exact output price quote using the Uniswap V3 Quoter.
+    ///
+    /// This method calculates how much input is required to receive an exact amount of output
+    /// through a multi-hop swap path. It does not execute any actual swap.
+    ///
+    /// # Arguments
+    /// * `caller_address` - The ethereum address simulating the swap
+    /// * `token_in` - The input token address
+    /// * `path` - The swap path as a sequence of (token, fee) hops
+    /// * `amount_out` - The desired amount of the final token to receive
+    /// * `uniswap_quoter` - Optional address of the Uniswap V3 Quoter contract
+    ///
+    /// # Returns
+    /// The amount of the first token required to receive the specified output amount
+    pub async fn get_uniswap_v3_multihop_price_exact_output(
+        &self,
+        caller_address: Address,
+        token_in: Address,
+        path: &[super::router::SwapHop],
+        amount_out: Uint256,
+        uniswap_quoter: Option<Address>,
+    ) -> Result<Uint256, Web3Error> {
+        let quoter = uniswap_quoter.unwrap_or(*UNISWAP_V3_QUOTER_ADDRESS);
+
+        // Encode the swap path in reverse order for exactOutput
+        let encoded_path = encode_v3_path_exact_output(token_in, path)?;
+
+        let abi_tokens: [AbiToken; 2] = [
+            AbiToken::UnboundedBytes(encoded_path),
+            AbiToken::Uint(amount_out),
+        ];
+
+        debug!("Multihop exact output quote path: {:?}", path);
+        let payload = encode_call("quoteExactOutput(bytes,uint256)", &abi_tokens)?;
+
+        let result = self
+            .simulate_transaction(
+                TransactionRequest::quick_tx(caller_address, quoter, payload),
+                vec![],
+                None,
+            )
+            .await?;
+
+        trace!("quoteExactOutput result: {:?}", result);
+
+        let amount_in = Uint256::from_be_bytes(match result.get(0..32) {
+            Some(val) => val,
+            None => {
+                return Err(Web3Error::ContractCallError(
+                    "Bad response from quoteExactOutput".to_string(),
+                ))
+            }
+        });
+
+        Ok(amount_in)
+    }
+
+    /// Finds the best swap route between two tokens by trying routes in order of complexity.
+    ///
+    /// Finds swap routes between two tokens, returning successful routes sorted by output amount.
+    /// Routes with excessive slippage (indicating low liquidity) are rejected.
+    ///
+    /// This method discovers viable swap paths by trying:
+    /// 1. Direct swaps (0 hops) with all standard fee tiers
+    /// 2. Single-hop routes through common intermediaries (WETH, USDC, USDT, DAI)
+    /// 3. Two-hop routes through pairs of the same common intermediaries
+    ///
+    /// The popular intermediary tokens should be sufficient to find good routes for most token pairs.
+    ///
+    /// Routes are tried in order of complexity (direct first, then 1-hop, then 2-hop).
+    ///
+    /// # Arguments
+    /// * `caller_address` - The ethereum address simulating the swap
+    /// * `token_in` - The input token address
+    /// * `token_out` - The output token address
+    /// * `amount_in` - The amount of input token to quote
+    /// * `max_slippage` - Maximum acceptable slippage (e.g., 0.005 = 0.5%), defaults to 0.5%
+    /// * `max_routes_to_try` - Maximum routes to attempt (None = try all)
+    /// * `max_routes_to_return` - Maximum successful routes to return (None = return all)
+    /// * `uniswap_quoter` - Optional address of the Uniswap V3 Quoter contract
+    ///
+    /// # Returns
+    /// A vector of (SwapRoute, amount_out) tuples sorted by output amount (highest first),
+    /// or an error if no viable routes exist.
+    ///
+    /// # Example
+    /// ```rust,ignore
+    /// use clarity::Address;
+    /// use web30::client::Web3;
+    /// use web30::amm::*;
+    ///
+    /// let web3 = Web3::new("https://eth.althea.net", Duration::from_secs(5));
+    /// // Find the single best route with 0.5% max slippage
+    /// let routes = web3.find_uniswap_v3_routes(
+    ///     caller, token_a, token_b,
+    ///     1000000000000000000u128.into(),
+    ///     Some(0.005),  // 0.5% max slippage
+    ///     None,        // try all routes
+    ///     Some(1),     // return only the best
+    ///     None,
+    /// ).await?;
+    ///
+    /// // Find first working route (fastest)
+    /// let routes = web3.find_uniswap_v3_routes(
+    ///     caller, token_a, token_b,
+    ///     amount_in, Some(0.01), Some(1), Some(1), None,
+    /// ).await?;
+    /// ```
+    #[allow(clippy::too_many_arguments)]
+    pub async fn find_uniswap_v3_routes(
+        &self,
+        caller_address: Address,
+        token_in: Address,
+        token_out: Address,
+        amount_in: Uint256,
+        max_slippage: Option<f64>,
+        max_routes_to_try: Option<usize>,
+        max_routes_to_return: Option<usize>,
+        uniswap_quoter: Option<Address>,
+    ) -> Result<Vec<(super::router::SwapRoute, Uint256)>, Web3Error> {
+        use futures::future::join_all;
+
+        let max_slippage = max_slippage.unwrap_or(0.005f64);
+
+        let mut all_routes = generate_potential_routes(token_in, token_out);
+        debug!(
+            "Generated {} potential routes from {:?} to {:?}",
+            all_routes.len(),
+            token_in,
+            token_out
+        );
+
+        // Limit routes to try if specified
+        if let Some(limit) = max_routes_to_try {
+            all_routes.truncate(limit);
+        }
+
+        // Use 10% of the amount for baseline price discovery to minimize price impact
+        let baseline_amount = amount_in / 10u8.into();
+        // Ensure baseline amount is at least 1
+        let baseline_amount = if baseline_amount == 0u8.into() {
+            1u8.into()
+        } else {
+            baseline_amount
+        };
+
+        // Create futures for all route queries in parallel
+        let route_futures = all_routes.into_iter().map(|route| {
+            let path = route.to_path();
+            async move {
+                // First, get a baseline quote with a smaller amount to establish the "fair" price
+                let baseline_quote = self
+                    .get_uniswap_v3_multihop_price(
+                        caller_address,
+                        token_in,
+                        &path,
+                        baseline_amount,
+                        uniswap_quoter,
+                    )
+                    .await;
+
+                let baseline_quote = match baseline_quote {
+                    Ok(q) if q > 0u8.into() => q,
+                    _ => return None, // Route doesn't work at all
+                };
+
+                // Get the actual quote for the full amount
+                let amount_out = match self
+                    .get_uniswap_v3_multihop_price(
+                        caller_address,
+                        token_in,
+                        &path,
+                        amount_in,
+                        uniswap_quoter,
+                    )
+                    .await
+                {
+                    Ok(q) if q > 0u8.into() => q,
+                    _ => return None,
+                };
+
+                Some((route, baseline_quote, amount_out))
+            }
+        });
+
+        // Execute all route queries in parallel
+        let results = join_all(route_futures).await;
+
+        // Process results and filter by slippage
+        let mut successful_routes: Vec<(super::router::SwapRoute, Uint256)> = results
+            .into_iter()
+            .filter_map(|result| {
+                let (route, baseline_quote, amount_out) = result?;
+
+                // Calculate expected output based on baseline price (linear scaling)
+                // expected_out = (amount_in / baseline_amount) * baseline_quote
+                let expected_out_f64 = {
+                    let amount_in_f64: f64 = amount_in.to_string().parse().unwrap_or(0.0);
+                    let baseline_amount_f64: f64 =
+                        baseline_amount.to_string().parse().unwrap_or(1.0);
+                    let baseline_quote_f64: f64 =
+                        baseline_quote.to_string().parse().unwrap_or(0.0);
+                    (amount_in_f64 / baseline_amount_f64) * baseline_quote_f64
+                };
+
+                // Calculate actual output
+                let actual_out_f64: f64 = amount_out.to_string().parse().unwrap_or(0.0);
+
+                // Calculate the minimum acceptable output based on slippage tolerance
+                let min_acceptable_out = expected_out_f64 * (1.0 - max_slippage);
+
+                // Check if the actual output meets our slippage requirements
+                if actual_out_f64 >= min_acceptable_out {
+                    debug!(
+                        "Found route with {:?}, output: {} (expected: {:.2}, slippage: {:.4}%)",
+                        route,
+                        amount_out,
+                        expected_out_f64,
+                        ((expected_out_f64 - actual_out_f64) / expected_out_f64) * 100.0
+                    );
+                    Some((route, amount_out))
+                } else {
+                    trace!(
+                        "Rejecting route {:?} due to high slippage: got {} but expected at least {:.2} (slippage: {:.4}%)",
+                        route,
+                        amount_out,
+                        min_acceptable_out,
+                        ((expected_out_f64 - actual_out_f64) / expected_out_f64) * 100.0
+                    );
+                    None
+                }
+            })
+            .collect();
+
+        if successful_routes.is_empty() {
+            return Err(Web3Error::ContractCallError(format!(
+                "No viable swap route found from {:?} to {:?} within {:.2}% slippage tolerance",
+                token_in,
+                token_out,
+                max_slippage * 100.0
+            )));
+        }
+
+        successful_routes.sort_by(|a, b| b.1.cmp(&a.1));
+
+        // Limit results if specified
+        if let Some(limit) = max_routes_to_return {
+            successful_routes.truncate(limit);
+        }
+
+        Ok(successful_routes)
+    }
+
+    /// Gets a price quote using a pre-computed SwapRoute.
+    ///
+    /// This is a convenience method for quoting when you already have a SwapRoute
+    /// from `find_uniswap_v3_routes` or `generate_potential_routes`.
+    ///
+    /// # Arguments
+    /// * `caller_address` - The ethereum address simulating the swap
+    /// * `route` - The swap route to quote
+    /// * `amount_in` - The amount of input token to quote
+    /// * `uniswap_quoter` - Optional address of the Uniswap V3 Quoter contract
+    ///
+    /// # Returns
+    /// The amount of output token that would be received
+    pub async fn get_uniswap_v3_price_for_route(
+        &self,
+        caller_address: Address,
+        route: &super::router::SwapRoute,
+        amount_in: Uint256,
+        uniswap_quoter: Option<Address>,
+    ) -> Result<Uint256, Web3Error> {
+        let path = route.to_path();
+        self.get_uniswap_v3_multihop_price(
+            caller_address,
+            route.token_in,
+            &path,
+            amount_in,
+            uniswap_quoter,
+        )
+        .await
     }
 
     /// An easy to use swap method for Uniswap v3, exchanging `amount` of `token_in` for `token_out`, accounting for slippage
@@ -628,6 +988,253 @@ impl Web3 {
             "txid for uniswap swap is {}",
             display_uint256_as_address(txid)
         );
+        if let Some(timeout) = wait_timeout {
+            future_timeout(timeout, self.wait_for_transaction(txid, timeout, None)).await??;
+        }
+
+        Ok(txid)
+    }
+
+    /// Execute a multi-hop exact input swap on Uniswap V3.
+    ///
+    /// Swaps a fixed amount of the input token for as much as possible of the output token
+    /// through one or more intermediate pools.
+    ///
+    /// # Arguments
+    /// * `eth_private_key` - The private key of the token holder
+    /// * `token_in` - The input token address
+    /// * `path` - The swap path as a sequence of (token, fee) hops
+    /// * `amount_in` - The amount of the first token to swap
+    /// * `amount_out_minimum` - The minimum acceptable amount of the final token to receive
+    /// * `deadline` - Optional deadline for the swap (defaults to 10 minutes)
+    /// * `uniswap_router` - Optional address of the Uniswap V3 SwapRouter
+    /// * `options` - Optional transaction options
+    /// * `wait_timeout` - Set to Some(TIMEOUT) to wait for tx confirmation
+    ///
+    /// # Example
+    /// ```rust,ignore
+    /// use clarity::Address;
+    /// use web30::client::Web3;
+    /// use web30::amm::*;
+    ///
+    /// // Swap: WETH -> USDC (0.05%) -> DAI (0.01%)
+    /// let path = [
+    ///     SwapHop::new(*USDC_CONTRACT_ADDRESS, 500),
+    ///     SwapHop::new(*DAI_CONTRACT_ADDRESS, 100),
+    /// ];
+    /// let txid = web3.swap_uniswap_v3_multihop(
+    ///     private_key,
+    ///     *WETH_CONTRACT_ADDRESS,
+    ///     &path,
+    ///     1000000000000000000u128.into(), // 1 WETH
+    ///     min_dai_out,
+    ///     None,
+    ///     None,
+    ///     None,
+    ///     Some(Duration::from_secs(60)),
+    /// ).await?;
+    /// ```
+    #[allow(clippy::too_many_arguments)]
+    pub async fn swap_uniswap_v3_multihop(
+        &self,
+        eth_private_key: PrivateKey,
+        token_in: Address,
+        path: &[super::router::SwapHop],
+        amount_in: Uint256,
+        amount_out_minimum: Uint256,
+        deadline: Option<Uint256>,
+        uniswap_router: Option<Address>,
+        options: Option<Vec<SendTxOption>>,
+        wait_timeout: Option<Duration>,
+    ) -> Result<Uint256, Web3Error> {
+        if path.is_empty() {
+            return Err(Web3Error::BadInput(
+                "Multi-hop swap requires at least 1 hop".to_string(),
+            ));
+        }
+
+        let eth_address = eth_private_key.to_address();
+        let router = uniswap_router.unwrap_or(*UNISWAP_V3_ROUTER_ADDRESS);
+
+        let deadline = match deadline {
+            None => self.eth_get_latest_block().await?.timestamp + (10u64 * 60u64).into(),
+            Some(val) => val,
+        };
+
+        // Encode the swap path
+        let encoded_path = encode_v3_path(token_in, path)?;
+
+        // struct ExactInputParams {
+        //     bytes path;
+        //     address recipient;
+        //     uint256 deadline;
+        //     uint256 amountIn;
+        //     uint256 amountOutMinimum;
+        // }
+        let params: Vec<AbiToken> = vec![
+            AbiToken::UnboundedBytes(encoded_path),
+            eth_address.into(),
+            deadline.into(),
+            amount_in.into(),
+            amount_out_minimum.into(),
+        ];
+        let params = [AbiToken::Struct(params)];
+        let payload = encode_call(
+            "exactInput((bytes,address,uint256,uint256,uint256))",
+            &params,
+        )?;
+
+        // Set up transaction options
+        let mut options = options.unwrap_or_default();
+        if !options_contains_glm(&options) {
+            options.push(SendTxOption::GasLimitMultiplier(DEFAULT_GAS_LIMIT_MULT));
+        }
+
+        // Check and set allowance for the input token
+        let allowance = self
+            .get_erc20_allowance(token_in, eth_address, router, options.clone())
+            .await?;
+        if allowance < amount_in {
+            debug!("token_in being approved for multihop swap");
+            let nonce = self.eth_get_transaction_count(eth_address).await?;
+            let _approval = self
+                .erc20_approve(
+                    token_in,
+                    amount_in,
+                    eth_private_key,
+                    router,
+                    wait_timeout,
+                    options.clone(),
+                )
+                .await?;
+            if wait_timeout.is_none() {
+                options.push(SendTxOption::Nonce(nonce + 1u8.into()));
+            }
+        }
+
+        trace!("multihop swap payload: {:?}", payload);
+        let tx = self
+            .prepare_transaction(router, payload, 0u32.into(), eth_private_key, options)
+            .await?;
+        let txid = self.eth_send_raw_transaction(tx.to_bytes()).await?;
+        debug!(
+            "txid for uniswap multihop swap is {}",
+            display_uint256_as_address(txid)
+        );
+
+        if let Some(timeout) = wait_timeout {
+            future_timeout(timeout, self.wait_for_transaction(txid, timeout, None)).await??;
+        }
+
+        Ok(txid)
+    }
+
+    /// Execute a multi-hop exact output swap on Uniswap V3.
+    ///
+    /// Swaps as little as possible of the input token to receive exactly the specified
+    /// amount of the output token through one or more intermediate pools.
+    ///
+    /// # Arguments
+    /// * `eth_private_key` - The private key of the token holder
+    /// * `token_in` - The input token address
+    /// * `path` - The swap path as a sequence of (token, fee) hops
+    /// * `amount_out` - The exact amount of the final token to receive
+    /// * `amount_in_maximum` - The maximum amount of the first token willing to spend
+    /// * `deadline` - Optional deadline for the swap (defaults to 10 minutes)
+    /// * `uniswap_router` - Optional address of the Uniswap V3 SwapRouter
+    /// * `options` - Optional transaction options
+    /// * `wait_timeout` - Set to Some(TIMEOUT) to wait for tx confirmation
+    ///
+    /// # Returns
+    /// The transaction ID of the swap
+    #[allow(clippy::too_many_arguments)]
+    pub async fn swap_uniswap_v3_multihop_exact_output(
+        &self,
+        eth_private_key: PrivateKey,
+        token_in: Address,
+        path: &[super::router::SwapHop],
+        amount_out: Uint256,
+        amount_in_maximum: Uint256,
+        deadline: Option<Uint256>,
+        uniswap_router: Option<Address>,
+        options: Option<Vec<SendTxOption>>,
+        wait_timeout: Option<Duration>,
+    ) -> Result<Uint256, Web3Error> {
+        if path.is_empty() {
+            return Err(Web3Error::BadInput(
+                "Multi-hop swap must contain at least one swap".to_string(),
+            ));
+        }
+
+        let eth_address = eth_private_key.to_address();
+        let router = uniswap_router.unwrap_or(*UNISWAP_V3_ROUTER_ADDRESS);
+
+        let deadline = match deadline {
+            None => self.eth_get_latest_block().await?.timestamp + (10u64 * 60u64).into(),
+            Some(val) => val,
+        };
+
+        // Encode the swap path in reverse order for exactOutput
+        let encoded_path = encode_v3_path_exact_output(token_in, path)?;
+
+        // struct ExactOutputParams {
+        //     bytes path;
+        //     address recipient;
+        //     uint256 deadline;
+        //     uint256 amountOut;
+        //     uint256 amountInMaximum;
+        // }
+        let params: Vec<AbiToken> = vec![
+            AbiToken::UnboundedBytes(encoded_path),
+            eth_address.into(),
+            deadline.into(),
+            amount_out.into(),
+            amount_in_maximum.into(),
+        ];
+        let params = [AbiToken::Struct(params)];
+        let payload = encode_call(
+            "exactOutput((bytes,address,uint256,uint256,uint256))",
+            &params,
+        )?;
+
+        // Set up transaction options
+        let mut options = options.unwrap_or_default();
+        if !options_contains_glm(&options) {
+            options.push(SendTxOption::GasLimitMultiplier(DEFAULT_GAS_LIMIT_MULT));
+        }
+
+        // Check and set allowance for the input token (approve maximum amount)
+        let allowance = self
+            .get_erc20_allowance(token_in, eth_address, router, options.clone())
+            .await?;
+        if allowance < amount_in_maximum {
+            debug!("token_in being approved for multihop exact output swap");
+            let nonce = self.eth_get_transaction_count(eth_address).await?;
+            let _approval = self
+                .erc20_approve(
+                    token_in,
+                    amount_in_maximum,
+                    eth_private_key,
+                    router,
+                    wait_timeout,
+                    options.clone(),
+                )
+                .await?;
+            if wait_timeout.is_none() {
+                options.push(SendTxOption::Nonce(nonce + 1u8.into()));
+            }
+        }
+
+        trace!("multihop exact output swap payload: {:?}", payload);
+        let tx = self
+            .prepare_transaction(router, payload, 0u32.into(), eth_private_key, options)
+            .await?;
+        let txid = self.eth_send_raw_transaction(tx.to_bytes()).await?;
+        debug!(
+            "txid for uniswap multihop exact output swap is {}",
+            display_uint256_as_address(txid)
+        );
+
         if let Some(timeout) = wait_timeout {
             future_timeout(timeout, self.wait_for_transaction(txid, timeout, None)).await??;
         }
@@ -1154,4 +1761,130 @@ pub fn scale_v3_uniswap_sqrt_price(
     let scaled_price = spot_price * scale_factor;
 
     uniswap_v3_sqrt_price_from_price(scaled_price) // convert back to sqrt_price
+}
+
+/// Encodes a multi-hop swap path for Uniswap V3's exactInput function.
+///
+/// The path format is: `tokenIn (20 bytes) + fee (3 bytes) + tokenOut (20 bytes) + ...`
+/// Each token address is 20 bytes and each fee is 3 bytes (uint24).
+///
+/// # Arguments
+/// * `token_in` - The input token address (first token in the path)
+/// * `path` - The swap path as a sequence of (token, fee) hops
+///
+/// # Returns
+/// The encoded path as bytes
+///
+/// # Example
+/// ```rust,ignore
+/// use clarity::Address;
+/// use web30::amm::*;
+///
+/// let weth = Address::parse_and_validate("0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2").unwrap();
+/// let usdc = Address::parse_and_validate("0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48").unwrap();
+/// let dai = Address::parse_and_validate("0x6B175474E89094C44Da98b954EedeAC495271d0F").unwrap();
+///
+/// // WETH -> USDC (0.05% fee) -> DAI (0.01% fee)
+/// let path = encode_v3_path(weth, &[
+///     SwapHop::new(usdc, 500),
+///     SwapHop::new(dai, 100),
+/// ]).unwrap();
+/// ```
+pub fn encode_v3_path(
+    token_in: Address,
+    path: &[super::router::SwapHop],
+) -> Result<Vec<u8>, Web3Error> {
+    if path.is_empty() {
+        return Err(Web3Error::BadInput(
+            "Path must contain at least one swap".to_string(),
+        ));
+    }
+
+    // Validate fees are within uint24 range
+    for (i, hop) in path.iter().enumerate() {
+        if hop.fee > 0xFFFFFF {
+            return Err(Web3Error::BadInput(format!(
+                "Fee at index {} ({}) exceeds uint24 max value",
+                i, hop.fee
+            )));
+        }
+    }
+
+    // Each token is 20 bytes, each fee is 3 bytes
+    // Path: token_in (20 bytes) + [fee (3 bytes) + token (20 bytes)] * path.len()
+    let mut encoded_path = Vec::with_capacity(20 + path.len() * 23);
+
+    // Add input token
+    encoded_path.extend_from_slice(token_in.as_bytes());
+
+    // Add each hop (fee + token)
+    for hop in path {
+        // Append 3-byte fee (big-endian uint24)
+        let fee_bytes = hop.fee.to_be_bytes();
+        // Take the last 3 bytes of the u32 (skip the first byte which is always 0 for uint24)
+        encoded_path.extend_from_slice(&fee_bytes[1..4]);
+
+        // Append 20-byte token address
+        encoded_path.extend_from_slice(hop.token.as_bytes());
+    }
+
+    Ok(encoded_path)
+}
+
+/// Encodes a multi-hop swap path for Uniswap V3's exactOutput function.
+///
+/// For exactOutput swaps, the path must be encoded in reverse order (tokenOut first, tokenIn last).
+/// This function takes a path in the logical order (tokenIn to tokenOut) and reverses it automatically.
+///
+/// # Arguments
+/// * `token_in` - The input token address (first token in the logical path)
+/// * `path` - The swap path as a sequence of (token, fee) hops
+///
+/// # Returns
+/// The encoded path as bytes in reversed order, suitable for exactOutput calls
+pub fn encode_v3_path_exact_output(
+    token_in: Address,
+    path: &[super::router::SwapHop],
+) -> Result<Vec<u8>, Web3Error> {
+    if path.is_empty() {
+        return Err(Web3Error::BadInput(
+            "Path must contain at least one swap".to_string(),
+        ));
+    }
+
+    // Validate fees are within uint24 range
+    for (i, hop) in path.iter().enumerate() {
+        if hop.fee > 0xFFFFFF {
+            return Err(Web3Error::BadInput(format!(
+                "Fee at index {} ({}) exceeds uint24 max value",
+                i, hop.fee
+            )));
+        }
+    }
+
+    // For exactOutput, we reverse the path
+    // Original: token_in -> [hop1] -> [hop2] -> token_out
+    // Reversed: token_out -> [hop2.fee] -> hop1.token -> [hop1.fee] -> token_in
+    let mut encoded_path = Vec::with_capacity(20 + path.len() * 23);
+
+    // Start with the last token (token_out)
+    encoded_path.extend_from_slice(path.last().unwrap().token.as_bytes());
+
+    // Add hops in reverse order using index-based iteration
+    for i in (0..path.len()).rev() {
+        // Append 3-byte fee (big-endian uint24) for this hop
+        let fee_bytes = path[i].fee.to_be_bytes();
+        encoded_path.extend_from_slice(&fee_bytes[1..4]);
+
+        // Append the "from" token for this hop
+        // If this is the first hop (i == 0), the "from" token is token_in
+        // Otherwise, it's the previous hop's token
+        if i == 0 {
+            encoded_path.extend_from_slice(token_in.as_bytes());
+        } else {
+            encoded_path.extend_from_slice(path[i - 1].token.as_bytes());
+        }
+    }
+
+    Ok(encoded_path)
 }

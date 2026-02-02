@@ -3,6 +3,7 @@
 //! This module provides functionality for interacting with various versions of Uniswap
 //! decentralized exchanges on Ethereum and compatible networks.
 
+mod router;
 mod uniswapv3;
 mod uniswapv4;
 
@@ -14,9 +15,16 @@ mod uniswapv4_test;
 // Re-export V2 constants
 pub use uniswapv3::UNISWAP_V2_ROUTER_ADDRESS;
 
+// Re-export router items
+pub use router::{
+    generate_potential_routes, generate_routes_by_hop_count, get_common_intermediary_tokens,
+    get_standard_fees, SwapHop, SwapRoute,
+};
+
 // Re-export V3 items
 pub use uniswapv3::{
-    decode_uniswap_v3_sqrt_price, scale_v3_uniswap_sqrt_price, uniswap_v3_sqrt_price_from_amounts,
+    decode_uniswap_v3_sqrt_price, encode_v3_path, encode_v3_path_exact_output,
+    scale_v3_uniswap_sqrt_price, uniswap_v3_sqrt_price_from_amounts,
     uniswap_v3_sqrt_price_from_price, DAI_CONTRACT_ADDRESS, DEFAULT_GAS_LIMIT_MULT,
     SUSDS_CONTRACT_ADDRESS, UNISWAP_STANDARD_POOL_FEES, UNISWAP_V3_FACTORY_ADDRESS,
     UNISWAP_V3_QUOTER_ADDRESS, UNISWAP_V3_ROUTER_ADDRESS, USDC_CONTRACT_ADDRESS,
