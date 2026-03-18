@@ -11,6 +11,7 @@ extern crate lazy_static;
 
 pub mod amm;
 pub mod client;
+pub mod contract_deployment;
 pub mod eth_wrapping;
 pub mod gas_estimator;
 pub mod jsonrpc;

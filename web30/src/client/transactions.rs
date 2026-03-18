@@ -153,7 +153,7 @@ impl Web3 {
             let gas = self.simulated_gas_price_and_limit(our_balance).await?;
             self.eth_estimate_gas(TransactionRequest::Legacy {
                 from: own_address,
-                to: to_address,
+                to: Some(to_address),
                 nonce: Some(nonce.into()),
                 gas_price: Some(gas.price.into()),
                 gas: Some(gas.limit.into()),
@@ -508,5 +508,168 @@ impl Web3 {
                 return Err(Web3Error::TransactionTimeout);
             }
         }
+    }
+
+    /// Deploy a contract to the blockchain.
+    ///
+    /// This is a high-level convenience function that handles all the details of
+    /// contract deployment including nonce management, gas estimation, transaction
+    /// signing, and waiting for confirmation.
+    ///
+    /// # Arguments
+    /// * `deployer` - Private key of the deploying account
+    /// * `init_code` - Contract initialization code (bytecode)
+    /// * `constructor_args` - ABI-encoded constructor arguments (use clarity::abi to encode)
+    /// * `value` - Amount of ETH to send with deployment (in wei)
+    /// * `options` - Vector of SendTxOption for configuration (gas, nonce, etc.)
+    ///
+    /// # Returns
+    /// The address where the contract was deployed
+    ///
+    /// # Examples
+    /// ```no_run
+    /// # use web30::client::Web3;
+    /// # use clarity::{PrivateKey, Uint256};
+    /// # use std::time::Duration;
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let web3 = Web3::new("https://eth.llamarpc.com", Duration::from_secs(30));
+    /// let private_key: PrivateKey = "0x...".parse()?;
+    /// let init_code = vec![0x60, 0x80, 0x60, 0x40]; // Your contract bytecode
+    /// let constructor_args = vec![]; // ABI-encoded constructor args
+    ///
+    /// let contract_address = web3.deploy_contract(
+    ///     &private_key,
+    ///     init_code,
+    ///     constructor_args,
+    ///     Uint256::from(0u8),
+    ///     vec![],
+    /// ).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn deploy_contract(
+        &self,
+        deployer: &PrivateKey,
+        init_code: Vec<u8>,
+        constructor_args: Vec<u8>,
+        value: Uint256,
+        options: Vec<SendTxOption>,
+    ) -> Result<Address, Web3Error> {
+        let deployer_address = deployer.to_address();
+
+        // Combine init code with constructor args
+        let mut full_init_code = init_code;
+        full_init_code.extend(constructor_args);
+
+        // Get nonce for address prediction
+        let nonce = self.eth_get_transaction_count(deployer_address).await?;
+
+        // Predict the contract address
+        let predicted_address = clarity::calculate_contract_address(deployer_address, nonce);
+
+        // Prepare and send the deployment transaction
+        let tx = self
+            .prepare_transaction(
+                Address::default(), // Zero address for deployment
+                full_init_code,
+                value,
+                *deployer,
+                options,
+            )
+            .await?;
+
+        let tx_hash = self.send_prepared_transaction(tx).await?;
+
+        // Wait for the transaction to be mined
+        self.wait_for_transaction(tx_hash, Duration::from_secs(60), Some(5u8.into()))
+            .await?;
+
+        // Verify contract was deployed
+        let code = self.eth_get_code(predicted_address, None).await?;
+        if code.is_empty() {
+            return Err(Web3Error::ContractCallError(
+                "Contract deployment failed: no code at predicted address".to_string(),
+            ));
+        }
+
+        Ok(predicted_address)
+    }
+
+    /// Estimate gas for a contract deployment.
+    ///
+    /// This function simulates the contract deployment to estimate how much gas
+    /// it will require.
+    ///
+    /// # Arguments
+    /// * `deployer` - Address that will deploy the contract
+    /// * `init_code` - Contract initialization code
+    /// * `constructor_args` - ABI-encoded constructor arguments
+    /// * `value` - Amount of ETH to send with deployment
+    ///
+    /// # Returns
+    /// Estimated gas required for deployment
+    pub async fn estimate_deploy_gas(
+        &self,
+        deployer: Address,
+        init_code: Vec<u8>,
+        constructor_args: Vec<u8>,
+        value: Uint256,
+    ) -> Result<Uint256, Web3Error> {
+        let mut full_init_code = init_code;
+        full_init_code.extend(constructor_args);
+
+        self.eth_estimate_gas(TransactionRequest::Legacy {
+            from: deployer,
+            to: None, // Omitted for contract creation
+            nonce: None,
+            gas_price: None,
+            gas: None,
+            value: Some(value.into()),
+            data: Some(full_init_code.into()),
+        })
+        .await
+    }
+
+    /// Wait for a deployment transaction to complete and return the contract address.
+    ///
+    /// This function waits for a deployment transaction to be mined and then
+    /// extracts the contract address from the transaction receipt.
+    ///
+    /// # Arguments
+    /// * `tx_hash` - Transaction hash of the deployment
+    /// * `timeout` - Maximum time to wait
+    ///
+    /// # Returns
+    /// The address where the contract was deployed
+    pub async fn wait_for_deployment(
+        &self,
+        tx_hash: Uint256,
+        timeout: Duration,
+    ) -> Result<Address, Web3Error> {
+        // Wait for transaction to be mined
+        self.wait_for_transaction(tx_hash, timeout, None).await?;
+
+        // Get the transaction receipt
+        let receipt = self
+            .eth_get_transaction_receipt(tx_hash)
+            .await?
+            .ok_or_else(|| {
+                Web3Error::BadResponse("No receipt found for deployment transaction".to_string())
+            })?;
+
+        // Extract contract address from receipt
+        let contract_address = receipt.get_contract_address().ok_or_else(|| {
+            Web3Error::BadResponse("No contract address in deployment receipt".to_string())
+        })?;
+
+        // Verify contract code exists
+        let code = self.eth_get_code(contract_address, None).await?;
+        if code.is_empty() {
+            return Err(Web3Error::ContractCallError(
+                "Contract deployment reverted: no code at address".to_string(),
+            ));
+        }
+
+        Ok(contract_address)
     }
 }

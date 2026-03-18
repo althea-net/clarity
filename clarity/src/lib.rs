@@ -66,6 +66,7 @@ pub mod abi;
 pub mod address;
 pub mod constants;
 mod context;
+pub mod contract;
 pub mod error;
 pub mod opcodes;
 pub mod private_key;
@@ -77,6 +78,10 @@ pub mod types;
 pub mod utils;
 
 pub use address::Address;
+pub use contract::{
+    calculate_contract_address, calculate_contract_address_create2, hash_init_code,
+    validate_init_code_size,
+};
 pub use error::Error;
 pub use num256::Int256;
 pub use num256::Uint256;

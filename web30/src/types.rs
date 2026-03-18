@@ -502,8 +502,9 @@ pub enum TransactionRequest {
         chain_id: Option<UnpaddedHex>,
         //The address the transaction is send from.
         from: Address,
-        // The address the transaction is directed to.
-        to: Address,
+        // The address the transaction is directed to. None for contract creation.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        to: Option<Address>,
         // Integer of the gas provided for the transaction execution. It will return unused gas.
         #[serde(skip_serializing_if = "Option::is_none")]
         gas: Option<UnpaddedHex>,
@@ -534,8 +535,9 @@ pub enum TransactionRequest {
         chain_id: Option<UnpaddedHex>,
         //The address the transaction is send from.
         from: Address,
-        // The address the transaction is directed to.
-        to: Address,
+        // The address the transaction is directed to. None for contract creation.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        to: Option<Address>,
         // Integer of the gas provided for the transaction execution. It will return unused gas.
         #[serde(skip_serializing_if = "Option::is_none")]
         gas: Option<UnpaddedHex>,
@@ -559,8 +561,9 @@ pub enum TransactionRequest {
     Legacy {
         //The address the transaction is send from.
         from: Address,
-        // The address the transaction is directed to.
-        to: Address,
+        // The address the transaction is directed to. None for contract creation.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        to: Option<Address>,
         // Integer of the gas provided for the transaction execution. It will return unused gas.
         #[serde(skip_serializing_if = "Option::is_none")]
         gas: Option<UnpaddedHex>,
@@ -659,7 +662,7 @@ impl TransactionRequest {
         TransactionRequest::Eip1559 {
             chain_id: None,
             from,
-            to,
+            to: Some(to),
             gas: None,
             max_priority_fee_per_gas: None,
             max_fee_per_gas: None,
@@ -673,7 +676,7 @@ impl TransactionRequest {
     pub fn quick_legacy_tx(from: Address, to: Address, payload: Vec<u8>) -> TransactionRequest {
         TransactionRequest::Legacy {
             from,
-            to,
+            to: Some(to),
             gas: None,
             gas_price: None,
             value: None,
@@ -693,7 +696,7 @@ impl TransactionRequest {
                 signature: _,
             } => TransactionRequest::Legacy {
                 from,
-                to: *to,
+                to: Some(*to),
                 gas: Some((*gas_limit).into()),
                 gas_price: Some((*gas_price).into()),
                 value: Some((*value).into()),
@@ -713,7 +716,7 @@ impl TransactionRequest {
             } => TransactionRequest::Eip2930 {
                 from,
                 chain_id: Some((*chain_id).into()),
-                to: *to,
+                to: Some(*to),
                 gas: Some((*gas_limit).into()),
                 gas_price: Some((*gas_price).into()),
                 value: Some((*value).into()),
@@ -739,7 +742,7 @@ impl TransactionRequest {
             } => TransactionRequest::Eip1559 {
                 from,
                 chain_id: Some((*chain_id).into()),
-                to: *to,
+                to: Some(*to),
                 gas: Some((*gas_limit).into()),
                 max_fee_per_gas: Some((*max_fee_per_gas).into()),
                 max_priority_fee_per_gas: Some((*max_priority_fee_per_gas).into()),

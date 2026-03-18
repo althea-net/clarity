@@ -321,6 +321,13 @@ impl Transaction {
             return false;
         }
 
+        // EIP-3860: Validate init code size for contract creations
+        if self.is_contract_creation()
+            && !crate::contract::validate_init_code_size(&self.get_data())
+        {
+            return false;
+        }
+
         true
     }
 
@@ -413,6 +420,54 @@ impl Transaction {
         }
     }
 
+    /// Check if this transaction is a contract deployment.
+    ///
+    /// A transaction is considered a contract deployment if the `to` address
+    /// is the zero address (0x0000000000000000000000000000000000000000).
+    pub fn is_contract_creation(&self) -> bool {
+        self.get_to() == zero_address()
+    }
+
+    /// Calculate the address of the contract that will be created by this transaction.
+    ///
+    /// This only works for signed transactions that are contract deployments.
+    /// Returns an error if the transaction is not signed, not a deployment,
+    /// or if the sender cannot be determined.
+    ///
+    /// # Examples
+    /// ```no_run
+    /// use clarity::{Transaction, PrivateKey};
+    ///
+    /// let private_key: PrivateKey = "0x1234...".parse().unwrap();
+    /// let deploy_tx = Transaction::Legacy {
+    ///     nonce: 5u32.into(),
+    ///     gas_price: 1_000_000_000u32.into(),
+    ///     gas_limit: 3_000_000u32.into(),
+    ///     to: Default::default(), // Zero address for deployment
+    ///     value: 0u32.into(),
+    ///     data: vec![0x60, 0x80], // Init code
+    ///     signature: None,
+    /// };
+    /// let signed_tx = deploy_tx.sign(&private_key, Some(1));
+    /// let contract_address = signed_tx.created_contract_address().unwrap();
+    /// ```
+    pub fn created_contract_address(&self) -> Result<Address, Error> {
+        if !self.is_contract_creation() {
+            return Err(Error::InvalidCallError(
+                "Transaction is not a contract deployment".to_string(),
+            ));
+        }
+
+        if self.get_signature().is_none() {
+            return Err(Error::NoSignature);
+        }
+
+        let sender = self.sender()?;
+        let nonce = self.get_nonce();
+
+        Ok(crate::contract::calculate_contract_address(sender, nonce))
+    }
+
     // approximate intrinsic gas function, does not detect things like create calls
     pub fn intrinsic_gas_used(&self) -> Uint256 {
         let num_zero_bytes = count_nonzero_bytes(&self.get_data());
@@ -420,6 +475,13 @@ impl Transaction {
 
         let contract_creation_gas: Uint256 = if self.get_to() == zero_address() {
             Uint256::from(GTXCONTRACTCREATION)
+        } else {
+            0u8.into()
+        };
+
+        // EIP-3860: Init code gas (2 gas per 32-byte word)
+        let init_code_gas: Uint256 = if self.is_contract_creation() {
+            crate::contract::calculate_init_code_gas(self.get_data().len())
         } else {
             0u8.into()
         };
@@ -441,6 +503,7 @@ impl Transaction {
             + Uint256::from(GTXDATANONZERO) * Uint256::from(num_non_zero_bytes)
             + access_list_gas
             + contract_creation_gas
+            + init_code_gas
     }
 
     /// Used to encode transaction components for signature, provides rlp encoded transaction bytes
