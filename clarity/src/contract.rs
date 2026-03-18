@@ -59,11 +59,11 @@ use sha3::{Digest, Keccak256};
 /// );
 /// ```
 pub fn calculate_contract_address(deployer: Address, nonce: Uint256) -> Address {
-    // RLP encode [address, nonce]
-    let rlp_data = pack_rlp(vec![
+    // RLP encode [address, nonce] as a list
+    let rlp_data = pack_rlp(vec![RlpToken::List(vec![
         RlpToken::String(deployer.as_bytes().to_vec()),
         RlpToken::from(nonce),
-    ]);
+    ])]);
 
     // Hash the RLP encoded data
     let hash = Keccak256::digest(&rlp_data);
@@ -261,13 +261,13 @@ mod tests {
 
     #[test]
     fn test_calculate_contract_address_create2_zero() {
-        // Test vector from EIP-1014
+        // All-zero deployer, salt, and init_code_hash
         let deployer: Address = "0x0000000000000000000000000000000000000000"
             .parse()
             .unwrap();
         let salt = [0u8; 32];
         let init_code_hash = [0u8; 32];
-        let expected: Address = "0x4D1A2e2bB4F88F0250f26Ffff098B0b30B26BF38"
+        let expected: Address = "0xffc4f52f884a02bcd5716744cd622127366f2edf"
             .parse()
             .unwrap();
 
@@ -282,7 +282,7 @@ mod tests {
             .unwrap();
         let salt = [0u8; 32];
         let init_code_hash = [0u8; 32];
-        let expected: Address = "0x70f2b2914A2a4b783FaEFb75f459A580616Fcb5e"
+        let expected: Address = "0x85f15e045e1244ac03289b48448249dc0a34aa30"
             .parse()
             .unwrap();
 

@@ -522,6 +522,8 @@ impl Web3 {
     /// * `constructor_args` - ABI-encoded constructor arguments (use clarity::abi to encode)
     /// * `value` - Amount of ETH to send with deployment (in wei)
     /// * `options` - Vector of SendTxOption for configuration (gas, nonce, etc.)
+    /// * `wait_timeout` - Optional timeout for waiting for the deployment transaction to be mined, if none
+    ///                    we will not wait for deployment and return immediately with the predicted address.
     ///
     /// # Returns
     /// The address where the contract was deployed
@@ -543,6 +545,7 @@ impl Web3 {
     ///     constructor_args,
     ///     Uint256::from(0u8),
     ///     vec![],
+    ///     None,
     /// ).await?;
     /// # Ok(())
     /// # }
@@ -554,6 +557,7 @@ impl Web3 {
         constructor_args: Vec<u8>,
         value: Uint256,
         options: Vec<SendTxOption>,
+        wait_timeout: Option<Duration>,
     ) -> Result<Address, Web3Error> {
         let deployer_address = deployer.to_address();
 
@@ -561,8 +565,25 @@ impl Web3 {
         let mut full_init_code = init_code;
         full_init_code.extend(constructor_args);
 
-        // Get nonce for address prediction
-        let nonce = self.eth_get_transaction_count(deployer_address).await?;
+        // Determine the nonce: use the caller-supplied Nonce option if present,
+        // otherwise fetch it from the chain and inject it so prepare_transaction
+        // uses the exact same value we use for address prediction.
+        let caller_nonce = options.iter().find_map(|o| {
+            if let SendTxOption::Nonce(n) = o {
+                Some(*n)
+            } else {
+                None
+            }
+        });
+        let (nonce, options) = if let Some(n) = caller_nonce {
+            (n, options)
+        } else {
+            // if we have no nonce we must set it as an optoin so that prepare_transaction doesn't fetch a different one and cause our prediction to be wrong
+            let n = self.eth_get_transaction_count(deployer_address).await?;
+            let mut opts = options;
+            opts.push(SendTxOption::Nonce(n));
+            (n, opts)
+        };
 
         // Predict the contract address
         let predicted_address = clarity::calculate_contract_address(deployer_address, nonce);
@@ -580,19 +601,23 @@ impl Web3 {
 
         let tx_hash = self.send_prepared_transaction(tx).await?;
 
-        // Wait for the transaction to be mined
-        self.wait_for_transaction(tx_hash, Duration::from_secs(60), Some(5u8.into()))
-            .await?;
+        match wait_timeout {
+            Some(timeout) => {
+                // Wait for the transaction to be mined
+                self.wait_for_transaction(tx_hash, timeout, None).await?;
 
-        // Verify contract was deployed
-        let code = self.eth_get_code(predicted_address, None).await?;
-        if code.is_empty() {
-            return Err(Web3Error::ContractCallError(
-                "Contract deployment failed: no code at predicted address".to_string(),
-            ));
+                // Verify contract was deployed
+                let code = self.eth_get_code(predicted_address, None).await?;
+                if code.is_empty() {
+                    return Err(Web3Error::ContractCallError(
+                        "Contract deployment failed: no code at predicted address".to_string(),
+                    ));
+                }
+
+                Ok(predicted_address)
+            }
+            None => Ok(predicted_address),
         }
-
-        Ok(predicted_address)
     }
 
     /// Estimate gas for a contract deployment.

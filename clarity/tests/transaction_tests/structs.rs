@@ -257,6 +257,10 @@ impl TestFiller {
                     None
                 } else {
                     for (ineqality, error) in expect_exception {
+                        // Empty exception string means no exception expected for this network
+                        if error.is_empty() {
+                            continue;
+                        }
                         if ineqality.starts_with(">=") {
                             let compare_to: EthereumNetworkVersion =
                                 ineqality.strip_prefix(">=").unwrap().parse().unwrap();
@@ -311,9 +315,16 @@ impl TestFiller {
                 EthereumNetworkVersion::Instanbul => result.istanbul.get_exception(),
                 EthereumNetworkVersion::London => result.london.get_exception(),
                 // This test format has not been updated
-                EthereumNetworkVersion::Shanghi => unimplemented!(),
-                // This test format has not been updated
-                EthereumNetworkVersion::Merge => unimplemented!(),
+                EthereumNetworkVersion::Shanghi => result
+                    .shanghai
+                    .as_ref()
+                    .map(|s| s.get_exception())
+                    .unwrap_or(None),
+                EthereumNetworkVersion::Merge => result
+                    .merge
+                    .as_ref()
+                    .map(|m| m.get_exception())
+                    .unwrap_or(None),
             },
         }
     }
@@ -387,6 +398,10 @@ pub struct TestFixtureResult {
     pub constantinople_fix: TestFixtureNetwork,
     #[serde(rename = "Istanbul")]
     pub istanbul: TestFixtureNetwork,
+    #[serde(rename = "Merge", default)]
+    pub merge: Option<TestFixtureNetwork>,
+    #[serde(rename = "Shanghai", default)]
+    pub shanghai: Option<TestFixtureNetwork>,
 }
 
 impl TestFixtureResult {
@@ -406,10 +421,12 @@ impl TestFixtureResult {
             EthereumNetworkVersion::Homestead => self.homestead,
             EthereumNetworkVersion::Instanbul => self.istanbul,
             EthereumNetworkVersion::London => self.london,
-            // This test format has not been updated
-            EthereumNetworkVersion::Shanghi => unimplemented!(),
-            // This test format has not been updated
-            EthereumNetworkVersion::Merge => unimplemented!(),
+            EthereumNetworkVersion::Merge => {
+                self.merge.expect("Merge result not present in fixture")
+            }
+            EthereumNetworkVersion::Shanghi => self
+                .shanghai
+                .expect("Shanghai result not present in fixture"),
         }
     }
 }
@@ -502,7 +519,7 @@ impl EthereumNetworkVersion {
             EthereumNetworkVersion::Shanghi => 12,
         }
     }
-    pub fn get_all() -> [EthereumNetworkVersion; 10] {
+    pub fn get_all() -> [EthereumNetworkVersion; 12] {
         [
             EthereumNetworkVersion::Berlin,
             EthereumNetworkVersion::Byzantium,
@@ -514,6 +531,8 @@ impl EthereumNetworkVersion {
             EthereumNetworkVersion::Homestead,
             EthereumNetworkVersion::Instanbul,
             EthereumNetworkVersion::London,
+            EthereumNetworkVersion::Merge,
+            EthereumNetworkVersion::Shanghi,
         ]
     }
 }

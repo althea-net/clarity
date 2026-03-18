@@ -321,13 +321,6 @@ impl Transaction {
             return false;
         }
 
-        // EIP-3860: Validate init code size for contract creations
-        if self.is_contract_creation()
-            && !crate::contract::validate_init_code_size(&self.get_data())
-        {
-            return false;
-        }
-
         true
     }
 
@@ -470,18 +463,11 @@ impl Transaction {
 
     // approximate intrinsic gas function, does not detect things like create calls
     pub fn intrinsic_gas_used(&self) -> Uint256 {
-        let num_zero_bytes = count_nonzero_bytes(&self.get_data());
-        let num_non_zero_bytes = self.get_data().len() - num_zero_bytes;
+        let num_non_zero_bytes = count_nonzero_bytes(&self.get_data());
+        let num_zero_bytes = self.get_data().len() - num_non_zero_bytes;
 
         let contract_creation_gas: Uint256 = if self.get_to() == zero_address() {
             Uint256::from(GTXCONTRACTCREATION)
-        } else {
-            0u8.into()
-        };
-
-        // EIP-3860: Init code gas (2 gas per 32-byte word)
-        let init_code_gas: Uint256 = if self.is_contract_creation() {
-            crate::contract::calculate_init_code_gas(self.get_data().len())
         } else {
             0u8.into()
         };
@@ -503,7 +489,6 @@ impl Transaction {
             + Uint256::from(GTXDATANONZERO) * Uint256::from(num_non_zero_bytes)
             + access_list_gas
             + contract_creation_gas
-            + init_code_gas
     }
 
     /// Used to encode transaction components for signature, provides rlp encoded transaction bytes

@@ -3,6 +3,7 @@ extern crate num_traits;
 extern crate serde_json;
 #[macro_use]
 extern crate serde_derive;
+use clarity::opcodes::{GTXCONTRACTCREATION, GTXCOST, GTXDATANONZERO_PRE_EIP2028, GTXDATAZERO};
 use clarity::utils::{bytes_to_hex_str, hex_str_to_bytes};
 use clarity::Transaction;
 
@@ -24,21 +25,7 @@ mod test;
 /// Reasoning:
 /// tr201506052141PYTHON
 /// Geth accepts this tx as valid, I can't determine what critera by which 137 is an invalid chain id
-///
-/// DataTestNotEnoughGasInitCode
-/// DataTestEnoughGasInitCode
-/// this spec EIP3860 is not yet final
-///
-/// DataTestSufficientGas2028
-/// DataTestInsufficientGas2028
-/// this spec EIP2028 is not yet
-const BLACKLISTED_TESTS: [&str; 5] = [
-    "tr201506052141PYTHON",
-    "DataTestNotEnoughGasInitCode",
-    "DataTestEnoughGasInitCode",
-    "DataTestInsufficientGas2028",
-    "DataTestSufficientGas2028",
-];
+const BLACKLISTED_TESTS: [&str; 1] = ["tr201506052141PYTHON"];
 
 fn test_on_blacklist(test_name: &str) -> bool {
     for t in BLACKLISTED_TESTS {
@@ -150,6 +137,35 @@ fn test_fn(fixtures: &TestFixture, filler: &TestFiller, network: EthereumNetwork
             assert!(fixtures.txbytes.starts_with("0x"));
 
             assert!(tx.is_valid());
+
+            // EIP-2028: Pre-Istanbul networks use 68 gas per non-zero byte instead of 16
+            if network < EthereumNetworkVersion::Instanbul {
+                let num_non_zero_bytes = tx.get_data().iter().filter(|&&b| b != 0).count();
+                let num_zero_bytes = tx.get_data().len() - num_non_zero_bytes;
+                let mut pre_eip2028_gas: u64 = GTXCOST as u64
+                    + GTXDATAZERO as u64 * num_zero_bytes as u64
+                    + GTXDATANONZERO_PRE_EIP2028 as u64 * num_non_zero_bytes as u64;
+                if tx.is_contract_creation() {
+                    pre_eip2028_gas += GTXCONTRACTCREATION as u64;
+                }
+                assert!(
+                    tx.get_gas_limit() >= pre_eip2028_gas.into(),
+                    "EIP-2028: Insufficient gas for pre-Istanbul non-zero byte cost"
+                );
+            }
+
+            // EIP-3860: Init code size and gas checks only apply from Shanghai
+            if network >= EthereumNetworkVersion::Shanghi && tx.is_contract_creation() {
+                assert!(
+                    clarity::contract::validate_init_code_size(&tx.get_data()),
+                    "EIP-3860: Init code exceeds maximum size"
+                );
+                let init_code_gas = clarity::contract::calculate_init_code_gas(tx.get_data().len());
+                assert!(
+                    tx.get_gas_limit() >= tx.intrinsic_gas_used() + init_code_gas,
+                    "EIP-3860: Insufficient gas for init code"
+                );
+            }
             assert!(
                 tx.get_signature().unwrap().is_valid(),
                 "{:?} {:?} {:?}",
@@ -245,6 +261,14 @@ fn make_test(path: &Path) -> Vec<TestDescAndFn> {
     let mut tests = Vec::new();
 
     for network in EthereumNetworkVersion::get_all() {
+        // Skip Merge/Shanghai tests for fixtures that don't include those network results
+        if network == EthereumNetworkVersion::Merge && fixture._result.merge.is_none() {
+            continue;
+        }
+        if network == EthereumNetworkVersion::Shanghi && fixture._result.shanghai.is_none() {
+            continue;
+        }
+
         let test = create_test_with_network(path, network, &filler, &fixture);
         tests.push(test);
     }

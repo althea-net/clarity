@@ -10,7 +10,8 @@ pub const GLOGBYTE: u32 = 8; // cost of a byte of logdata
 
 pub const GTXCOST: u32 = 21_000; // TX BASE GAS COST
 pub const GTXDATAZERO: u32 = 4; // TX DATA ZERO BYTE GAS COST
-pub const GTXDATANONZERO: u32 = 16; // TX DATA NON ZERO BYTE GAS COST
+pub const GTXDATANONZERO: u32 = 16; // TX DATA NON ZERO BYTE GAS COST (EIP-2028, Istanbul+)
+pub const GTXDATANONZERO_PRE_EIP2028: u32 = 68; // TX DATA NON ZERO BYTE GAS COST (pre-Istanbul)
 pub const GTXCONTRACTCREATION: u32 = 32_000; // Cost of creating a contract
 pub const GTXACCESSLISTADDRESS: u32 = 2_400; // Cost of warming up an account for the access list
 pub const GTXACCESSLISTSTORAGE: u32 = 1_900; // Cost of warming up a storage slot for an access list
