@@ -16,13 +16,19 @@ pub enum Error {
     InvalidS,
     InvalidSignatureValues,
     ZeroPrivKey,
-    InvalidPrivKeyLength { got: usize, expected: usize },
+    InvalidPrivKeyLength {
+        got: usize,
+        expected: usize,
+    },
     DecodePrivKey(secp256k1::Error),
     DecodeRecoveryId(secp256k1::Error),
     ParseMessage(secp256k1::Error),
     ParseRecoverableSignature(secp256k1::Error),
     RecoverSignature(secp256k1::Error),
-    InvalidAddressLength { got: usize, expected: usize },
+    InvalidAddressLength {
+        got: usize,
+        expected: usize,
+    },
     InvalidUtf8(Utf8Error),
     InvalidHex(ParseIntError),
     InvalidEip55,
@@ -32,9 +38,21 @@ pub enum Error {
     DeserializeRlp,
     NoSignature,
     UnknownTxType(Uint256),
-    AbiInputTooShort { expected: usize, actual: usize },
+    AbiInputTooShort {
+        expected: usize,
+        actual: usize,
+    },
     AddressParseError,
     IntegerParseError,
+    NonceTooLarge,
+    GasCostOverflow,
+    MaxPriorityFeeExceedsMaxFee,
+    ZeroMaxPriorityFee,
+    GasLimitTooLow {
+        gas_limit: Uint256,
+        intrinsic_gas: Uint256,
+    },
+    GasLimitTooHigh,
 }
 
 impl fmt::Display for Error {
@@ -78,6 +96,23 @@ impl fmt::Display for Error {
             ),
             Error::AddressParseError => write!(f, "Failed to parse address"),
             Error::IntegerParseError => write!(f, "Failed to parse integer"),
+            Error::NonceTooLarge => write!(f, "Nonce must be less than 2^64 - 1"),
+            Error::GasCostOverflow => write!(
+                f,
+                "Gas cost overflow: gas_limit * gas_price exceeds maximum"
+            ),
+            Error::MaxPriorityFeeExceedsMaxFee => {
+                write!(f, "max_priority_fee_per_gas exceeds max_fee_per_gas")
+            }
+            Error::ZeroMaxPriorityFee => write!(f, "max_priority_fee_per_gas must be non-zero"),
+            Error::GasLimitTooLow {
+                gas_limit,
+                intrinsic_gas,
+            } => write!(
+                f,
+                "Gas limit {gas_limit} is below intrinsic gas {intrinsic_gas}"
+            ),
+            Error::GasLimitTooHigh => write!(f, "Gas limit exceeds 2^64 - 1"),
         }
     }
 }

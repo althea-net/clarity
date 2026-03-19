@@ -263,22 +263,17 @@ impl Transaction {
         }
     }
 
-    pub fn is_valid(&self) -> bool {
+    pub fn is_valid(&self) -> Result<(), Error> {
         // invalid signature check
         if let Some(sig) = self.get_signature() {
-            if !sig.is_valid() {
-                return false;
-            }
-
-            if self.sender().is_err() {
-                return false;
-            }
+            sig.error_check()?;
+            self.sender()?;
         }
 
         // EIP-2681 proposes to limit nonces to 2^64-1 this is already the case in Geth
         // but since this is not yet an actually accepted standard we put the check informally here
         if self.get_nonce() >= u64::MAX.into() {
-            return false;
+            return Err(Error::NonceTooLarge);
         }
 
         // the gas price times the gas limit can not overflow or the tx is invalid
@@ -294,7 +289,7 @@ impl Transaction {
                 ..
             } => {
                 if gas_limit.checked_mul(**gas_price).is_none() {
-                    return false;
+                    return Err(Error::GasCostOverflow);
                 }
             }
             Transaction::Eip1559 {
@@ -303,25 +298,33 @@ impl Transaction {
                 gas_limit,
                 ..
             } => {
+                if gas_limit.checked_mul(**max_fee_per_gas).is_none() {
+                    return Err(Error::GasCostOverflow);
+                }
+                if max_priority_fee_per_gas > max_fee_per_gas {
+                    return Err(Error::MaxPriorityFeeExceedsMaxFee);
+                }
                 // While in theory transactions with zero max priority fee are valid they are rejected
                 // on every chain I can test.
-                if gas_limit.checked_mul(**max_fee_per_gas).is_none()
-                    || max_priority_fee_per_gas > max_fee_per_gas
-                    || *max_priority_fee_per_gas == 0u8.into()
-                {
-                    return false;
+                if *max_priority_fee_per_gas == 0u8.into() {
+                    return Err(Error::ZeroMaxPriorityFee);
                 }
             }
         }
 
         // rudimentary gas limit check, needs opcode awareness
-        if self.get_gas_limit() < self.intrinsic_gas_used()
-            || self.get_gas_limit() > u64::MAX.into()
-        {
-            return false;
+        let gas_limit = self.get_gas_limit();
+        if gas_limit > u64::MAX.into() {
+            return Err(Error::GasLimitTooHigh);
         }
 
-        true
+        // TODO check intrinsic gas here, this would require that we improve our
+        // test vector coverage to compare actual and intrinsic gas for a variety of transactions.
+        // this would break the current Clarity assumption that all functions are Chain version independent
+        // as we would have to support older chain versions and let the user specify. Dramatically increasing
+        // the complexity of the intrinsic gas used function. Not really very useful, hence TODO
+
+        Ok(())
     }
 
     pub fn get_signature(&self) -> Option<Signature> {

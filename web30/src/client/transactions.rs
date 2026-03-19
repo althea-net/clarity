@@ -342,15 +342,11 @@ impl Web3 {
 
         transaction.set_max_fee_per_gas(max_fee_per_gas);
 
-        if !transaction.is_valid() {
-            return Err(Web3Error::BadInput("About to send invalid tx".to_string()));
-        }
+        transaction.is_valid()?;
 
         let transaction = transaction.sign(&secret, None);
 
-        if !transaction.is_valid() {
-            return Err(Web3Error::BadInput("About to send invalid tx".to_string()));
-        }
+        transaction.is_valid()?;
 
         // signed transaction is now ready to publish
         Ok(transaction.sign(&secret, None))

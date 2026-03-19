@@ -136,7 +136,7 @@ fn test_fn(fixtures: &TestFixture, filler: &TestFiller, network: EthereumNetwork
             // All rlp's Fixtures
             assert!(fixtures.txbytes.starts_with("0x"));
 
-            assert!(tx.is_valid());
+            tx.is_valid().unwrap();
 
             // EIP-2028: Pre-Istanbul networks use 68 gas per non-zero byte instead of 16
             if network < EthereumNetworkVersion::Instanbul {
@@ -218,7 +218,7 @@ fn test_fn(fixtures: &TestFixture, filler: &TestFiller, network: EthereumNetwork
                     _intrinsic_gas: _,
                     exception: _,
                 } => {
-                    if decoded_tx.is_valid() {
+                    if decoded_tx.is_valid().is_ok() {
                         println!("Tx should not be valid!")
                     } else {
                         panic!("Tx successfully detected as invalid")
