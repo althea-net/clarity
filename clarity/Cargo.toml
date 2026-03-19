@@ -1,6 +1,6 @@
 [package]
 name = "clarity"
-version = "1.5.5"
+version = "1.6.0"
 authors = ["Michał Papierski <michal@papierski.net>, Justin Kilpatrick <justin@althea.net>"]
 autotests = true
 include = [
