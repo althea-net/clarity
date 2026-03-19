@@ -37,7 +37,7 @@
 //! };
 //!
 //! let tx_signed: Transaction = tx.sign(&alices_key, None);
-//! assert!(tx_signed.is_valid());
+//! tx_signed.is_valid().unwrap();
 //!
 //! // You can always derive the sender from a signed transaction
 //! let sender: Address = tx_signed.sender().unwrap();
