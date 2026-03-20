@@ -519,7 +519,7 @@ impl Web3 {
     /// * `value` - Amount of ETH to send with deployment (in wei)
     /// * `options` - Vector of SendTxOption for configuration (gas, nonce, etc.)
     /// * `wait_timeout` - Optional timeout for waiting for the deployment transaction to be mined, if none
-    ///                    we will not wait for deployment and return immediately with the predicted address.
+    ///   we will not wait for deployment and return immediately with the predicted address.
     ///
     /// # Returns
     /// The address where the contract was deployed
@@ -530,7 +530,7 @@ impl Web3 {
     /// # use clarity::{PrivateKey, Uint256};
     /// # use std::time::Duration;
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let web3 = Web3::new("https://eth.llamarpc.com", Duration::from_secs(30));
+    /// let web3 = Web3::new("https://eth.althea.net", Duration::from_secs(30));
     /// let private_key: PrivateKey = "0x...".parse()?;
     /// let init_code = vec![0x60, 0x80, 0x60, 0x40]; // Your contract bytecode
     /// let constructor_args = vec![]; // ABI-encoded constructor args
@@ -599,18 +599,8 @@ impl Web3 {
 
         match wait_timeout {
             Some(timeout) => {
-                // Wait for the transaction to be mined
-                self.wait_for_transaction(tx_hash, timeout, None).await?;
-
-                // Verify contract was deployed
-                let code = self.eth_get_code(predicted_address, None).await?;
-                if code.is_empty() {
-                    return Err(Web3Error::ContractCallError(
-                        "Contract deployment failed: no code at predicted address".to_string(),
-                    ));
-                }
-
-                Ok(predicted_address)
+                self.wait_for_deployment(tx_hash, timeout, predicted_address)
+                    .await
             }
             None => Ok(predicted_address),
         }
@@ -666,9 +656,11 @@ impl Web3 {
         &self,
         tx_hash: Uint256,
         timeout: Duration,
+        expected_address: Address,
     ) -> Result<Address, Web3Error> {
-        // Wait for transaction to be mined
-        self.wait_for_transaction(tx_hash, timeout, None).await?;
+        // Wait for transaction to be mined, wait at least one block after as well
+        self.wait_for_transaction(tx_hash, timeout, Some(1u8.into()))
+            .await?;
 
         // Get the transaction receipt
         let receipt = self
@@ -678,16 +670,30 @@ impl Web3 {
                 Web3Error::BadResponse("No receipt found for deployment transaction".to_string())
             })?;
 
+        if !receipt.get_success() {
+            return Err(Web3Error::ContractCallError(format!(
+                "Contract deployment failed, transaction reverted. Receipt: {:#?}",
+                receipt
+            )));
+        }
+
         // Extract contract address from receipt
         let contract_address = receipt.get_contract_address().ok_or_else(|| {
             Web3Error::BadResponse("No contract address in deployment receipt".to_string())
         })?;
 
+        if contract_address != expected_address {
+            return Err(Web3Error::BadResponse(format!(
+                "Deployed contract address does not match expected address. Got: {:?}, Expected: {:?}",
+                contract_address, expected_address
+            )));
+        }
+
         // Verify contract code exists
         let code = self.eth_get_code(contract_address, None).await?;
         if code.is_empty() {
             return Err(Web3Error::ContractCallError(
-                "Contract deployment reverted: no code at address".to_string(),
+                "Contract deployment: no code at address".to_string(),
             ));
         }
 
