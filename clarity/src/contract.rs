@@ -204,106 +204,153 @@ mod tests {
     use super::*;
     use crate::utils::bytes_to_hex_str;
 
-    #[test]
-    fn test_calculate_contract_address_nonce_0() {
-        let deployer: Address = "0x6ac7ea33f8831ea9dcc53393aaa88b25a785dbf0"
-            .parse()
-            .unwrap();
-        let nonce = Uint256::from(0u8);
-        let expected: Address = "0xcd234a471b72ba2f1ccf0a70fcaba648a5eecd8d"
-            .parse()
-            .unwrap();
-
-        let result = calculate_contract_address(deployer, nonce);
-        assert_eq!(result, expected);
+    /// Variant of contract address derivation.
+    enum AddressVariant {
+        /// CREATE: address = keccak256(rlp([deployer, nonce]))[12:]
+        Create { nonce: u64 },
+        /// CREATE2: address = keccak256(0xff ++ deployer ++ salt ++ keccak256(init_code))[12:]
+        Create2 { salt: [u8; 32], init_code_hash: [u8; 32] },
     }
 
-    #[test]
-    fn test_calculate_contract_address_nonce_1() {
-        let deployer: Address = "0x6ac7ea33f8831ea9dcc53393aaa88b25a785dbf0"
-            .parse()
-            .unwrap();
-        let nonce = Uint256::from(1u8);
-        let expected: Address = "0x343c43a37d37dff08ae8c4a11544c718abb4fcf8"
-            .parse()
-            .unwrap();
-
-        let result = calculate_contract_address(deployer, nonce);
-        assert_eq!(result, expected);
+    /// Minimum data needed to verify contract address prediction.
+    ///
+    /// Supports both CREATE and CREATE2 opcode variants.
+    /// 
+    /// For CREATE:
+    ///   address = keccak256(rlp([deployer, nonce]))[12:]
+    ///
+    /// For CREATE2:
+    ///   address = keccak256(0xff ++ deployer ++ salt ++ keccak256(init_code))[12:]
+    ///
+    /// To add test vectors, find a real Ethereum contract deployment and record:
+    /// - The deployer (transaction `from` field)
+    /// - For CREATE: the deployer's nonce at that block
+    /// - For CREATE2: the salt and init code hash used
+    /// - The resulting contract address (transaction receipt `contractAddress` field)
+    struct ContractAddressTest {
+        deployer: &'static str,
+        variant: AddressVariant,
+        expected: &'static str,
     }
 
-    #[test]
-    fn test_calculate_contract_address_nonce_2() {
-        let deployer: Address = "0x6ac7ea33f8831ea9dcc53393aaa88b25a785dbf0"
-            .parse()
-            .unwrap();
-        let nonce = Uint256::from(2u8);
-        let expected: Address = "0xf778b86fa74e846c4f0a1fbd1335fe81c00a0c91"
-            .parse()
-            .unwrap();
-
-        let result = calculate_contract_address(deployer, nonce);
-        assert_eq!(result, expected);
-    }
-
-    #[test]
-    fn test_calculate_contract_address_high_nonce() {
-        // Test with a larger nonce value
-        let deployer: Address = "0x6ac7ea33f8831ea9dcc53393aaa88b25a785dbf0"
-            .parse()
-            .unwrap();
-        let nonce = Uint256::from(1000u32);
-
-        // Should not panic and should return a valid address
-        let result = calculate_contract_address(deployer, nonce);
-        assert_eq!(result.as_bytes().len(), 20);
-    }
-
-    #[test]
-    fn test_calculate_contract_address_create2_zero() {
+    /// Known contract address derivation vectors.
+    ///
+    /// Includes both CREATE and CREATE2 test cases.
+    ///
+    /// Sources / how to verify:
+    ///   - Etherscan: look up a contract deployment tx, the receipt `contractAddress`
+    ///     is the expected address, and the tx `nonce` is the deployer nonce.
+    ///   - Python:  import rlp; from eth_utils import keccak; keccak(rlp.encode([bytes.fromhex(addr[2:]), nonce]))[12:].hex()
+    ///   - Cast:    cast compute-address --nonce <nonce> <deployer>  (for CREATE)
+    ///   - Cast:    cast compute-address --code-hash <hash> --salt <salt> <deployer>  (for CREATE2)
+    const VECTORS: &[ContractAddressTest] = &[
+        // CREATE tests
+        // From EIP-55 reference implementation and clarity doctest.
+        ContractAddressTest {
+            deployer: "0x6ac7ea33f8831ea9dcc53393aaa88b25a785dbf0",
+            variant: AddressVariant::Create { nonce: 0 },
+            expected: "0xcd234a471b72ba2f1ccf0a70fcaba648a5eecd8d",
+        },
+        // Same deployer with nonce 1
+        ContractAddressTest {
+            deployer: "0x6ac7ea33f8831ea9dcc53393aaa88b25a785dbf0",
+            variant: AddressVariant::Create { nonce: 1 },
+            expected: "0x343c43a37d37dff08ae8c4a11544c718abb4fcf8",
+        },
+        // Same deployer with nonce 2
+        ContractAddressTest {
+            deployer: "0x6ac7ea33f8831ea9dcc53393aaa88b25a785dbf0",
+            variant: AddressVariant::Create { nonce: 2 },
+            expected: "0xf778b86fa74e846c4f0a1fbd1335fe81c00a0c91",
+        },
+        // Test with a larger nonce value (> 128 for multi-byte RLP encoding)
+        ContractAddressTest {
+            deployer: "0x6ac7ea33f8831ea9dcc53393aaa88b25a785dbf0",
+            variant: AddressVariant::Create { nonce: 1000 },
+            expected: "0xB9cDb7F5e62043c1e4EB7a6d76eF8Ee246D364Ec",
+        },
+        ContractAddressTest {
+            deployer: "0xaf69eBeF35607d6834Dac02294792F7d21B95AF9",
+            variant: AddressVariant::Create { nonce: 344 },
+            expected: "0x67DB0a68230BA4104DD121Bd451Bd066e5c5fB74",
+        },
+        // CREATE2 tests
         // All-zero deployer, salt, and init_code_hash
-        let deployer: Address = "0x0000000000000000000000000000000000000000"
-            .parse()
-            .unwrap();
-        let salt = [0u8; 32];
-        let init_code_hash = [0u8; 32];
-        let expected: Address = "0xffc4f52f884a02bcd5716744cd622127366f2edf"
-            .parse()
-            .unwrap();
-
-        let result = calculate_contract_address_create2(deployer, salt, init_code_hash);
-        assert_eq!(result, expected);
-    }
+        ContractAddressTest {
+            deployer: "0x0000000000000000000000000000000000000000",
+            variant: AddressVariant::Create2 {
+                salt: [0u8; 32],
+                init_code_hash: [0u8; 32],
+            },
+            expected: "0xffc4f52f884a02bcd5716744cd622127366f2edf",
+        },
+        // Custom deployer with CREATE2
+        ContractAddressTest {
+            deployer: "0xdeadbeef00000000000000000000000000000000",
+            variant: AddressVariant::Create2 {
+                salt: [0u8; 32],
+                init_code_hash: [0u8; 32],
+            },
+            expected: "0x85f15e045e1244ac03289b48448249dc0a34aa30",
+        },
+        // CREATE2 with different salt
+        ContractAddressTest {
+            deployer: "0x0000000000000000000000000000000000000000",
+            variant: AddressVariant::Create2 {
+                salt: {
+                    let mut s = [0u8; 32];
+                    s[31] = 1;
+                    s
+                },
+                init_code_hash: [0u8; 32],
+            },
+            expected: "0x12741fEC8148E76ad3a51Cdd5fD73061C6a39148",
+        },
+        // TODO: add deployer + nonce + expected from real mainnet deployments
+        // Example: record the `from`, `nonce`, and receipt `contractAddress` from
+        // any contract-creation transaction on Etherscan.
+        //
+        // ContractAddressTest {
+        //     deployer: "0x...",
+        //     variant: AddressVariant::Create { nonce: 0 },
+        //     expected: "0x...",
+        // },
+    ];
 
     #[test]
-    fn test_calculate_contract_address_create2_custom() {
-        let deployer: Address = "0xdeadbeef00000000000000000000000000000000"
-            .parse()
-            .unwrap();
-        let salt = [0u8; 32];
-        let init_code_hash = [0u8; 32];
-        let expected: Address = "0x85f15e045e1244ac03289b48448249dc0a34aa30"
-            .parse()
-            .unwrap();
+    fn contract_address_prediction() {
+        for (i, v) in VECTORS.iter().enumerate() {
+            let deployer: Address = v
+                .deployer
+                .parse()
+                .unwrap_or_else(|e| panic!("vector {i}: bad deployer address: {e}"));
+            let expected: Address = v
+                .expected
+                .parse()
+                .unwrap_or_else(|e| panic!("vector {i}: bad expected address: {e}"));
 
-        let result = calculate_contract_address_create2(deployer, salt, init_code_hash);
-        assert_eq!(result, expected);
-    }
-
-    #[test]
-    fn test_calculate_contract_address_create2_different_salt() {
-        let deployer: Address = "0x0000000000000000000000000000000000000000"
-            .parse()
-            .unwrap();
-        let mut salt = [0u8; 32];
-        salt[31] = 1; // Different salt
-        let init_code_hash = [0u8; 32];
-
-        let result1 = calculate_contract_address_create2(deployer, [0u8; 32], init_code_hash);
-        let result2 = calculate_contract_address_create2(deployer, salt, init_code_hash);
-
-        // Different salts should produce different addresses
-        assert_ne!(result1, result2);
+            match v.variant {
+                AddressVariant::Create { nonce } => {
+                    let got = calculate_contract_address(deployer, Uint256::from(nonce));
+                    assert_eq!(
+                        got, expected,
+                        "vector {i} (CREATE): deployer={} nonce={} expected={} got={}",
+                        v.deployer, nonce, expected, got
+                    );
+                }
+                AddressVariant::Create2 {
+                    salt,
+                    init_code_hash,
+                } => {
+                    let got = calculate_contract_address_create2(deployer, salt, init_code_hash);
+                    assert_eq!(
+                        got, expected,
+                        "vector {i} (CREATE2): deployer={} expected={} got={}",
+                        v.deployer, expected, got
+                    );
+                }
+            }
+        }
     }
 
     #[test]

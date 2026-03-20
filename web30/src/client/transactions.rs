@@ -598,20 +598,7 @@ impl Web3 {
         let tx_hash = self.send_prepared_transaction(tx).await?;
 
         match wait_timeout {
-            Some(timeout) => {
-                // Wait for the transaction to be mined
-                self.wait_for_transaction(tx_hash, timeout, None).await?;
-
-                // Verify contract was deployed
-                let code = self.eth_get_code(predicted_address, None).await?;
-                if code.is_empty() {
-                    return Err(Web3Error::ContractCallError(
-                        "Contract deployment failed: no code at predicted address".to_string(),
-                    ));
-                }
-
-                Ok(predicted_address)
-            }
+            Some(timeout) => self.wait_for_deployment(tx_hash, timeout, predicted_address).await,
             None => Ok(predicted_address),
         }
     }
@@ -666,9 +653,10 @@ impl Web3 {
         &self,
         tx_hash: Uint256,
         timeout: Duration,
+        expected_address: Address,
     ) -> Result<Address, Web3Error> {
-        // Wait for transaction to be mined
-        self.wait_for_transaction(tx_hash, timeout, None).await?;
+        // Wait for transaction to be mined, wait at least one block after as well
+        self.wait_for_transaction(tx_hash, timeout, Some(1u8.into())).await?;
 
         // Get the transaction receipt
         let receipt = self
@@ -678,16 +666,24 @@ impl Web3 {
                 Web3Error::BadResponse("No receipt found for deployment transaction".to_string())
             })?;
 
+        if receipt.get_success() == false {
+            return Err(Web3Error::ContractCallError(
+                format!("Contract deployment failed, transaction reverted. Receipt: {:#?}", receipt)
+            ));
+        }
+
         // Extract contract address from receipt
         let contract_address = receipt.get_contract_address().ok_or_else(|| {
             Web3Error::BadResponse("No contract address in deployment receipt".to_string())
         })?;
 
+        assert_eq!(contract_address, expected_address); 
+
         // Verify contract code exists
         let code = self.eth_get_code(contract_address, None).await?;
         if code.is_empty() {
             return Err(Web3Error::ContractCallError(
-                "Contract deployment reverted: no code at address".to_string(),
+                "Contract deployment: no code at address".to_string(),
             ));
         }
 
